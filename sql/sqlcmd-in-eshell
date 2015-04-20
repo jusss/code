@@ -1,0 +1,22 @@
+Coding system for keyboard input     C-x RET k 
+Coding system for saving this buffer  C-x RET f 
+Coding system for terminal output  C-x RET t 
+Defaults for subprocess I/O   C-x RET p 
+
+ 
+
+Default coding system (for new files):  M-x prefer-coding-system RET cp936 指定新建buffer用cp936，
+
+然后M-x eshell  在里面使用sqlcmd.exe 输出正常了,
+
+eshell在win7下输出正常，只需要default coding system为cp936即可
+
+ 
+
+重置当前缓冲区 C-x RET r   但是*scratch*   *eshell*  *shell*这种缓冲区是没有关联文件，是没法重置这类缓冲区的，这种交 Buffer-name  , 关联文件的叫Buffer-file-name，关联文件的可以重置缓冲区，非关联文件的缓冲区是不能重置缓冲区的
+
+ 
+
+显示当前缓冲区的编码 M-x describe-coding-system RET
+
+sqlcmd.exe 在M-x shell比M-x eshell好使，因为可以在以前的行修改后在行尾敲回车，就自动执行那行，而eshell就不可以

@@ -1,0 +1,17 @@
+~/.forward
+
+| /home/jusss/mail-forward.sh
+
+or /etc/aliases
+
+jusss: | /home/jusss/mail-forward.sh
+
+then if postfix get mail ,it will send the mail to mail-forward.sh
+
+/home/jusss/mail-forward.sh
+
+#!/bin/bash
+cat - >> /var/mail/jusss
+/home/jusss/mail-notify.bin
+
+mail-notify.bin is a program by c, it will send message to jusss by irc.
