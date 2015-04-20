@@ -1,0 +1,4 @@
+dir /?
+dir /s c:\you-need-search-file /p
+在c:\里所有目录和子目录里搜索you-need-search-file可以用通配符*
+也可用d:\或e:\

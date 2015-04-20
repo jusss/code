@@ -1,0 +1,9 @@
+powercfg -a 查看计算机支持的电源模式，一般为待机sleep(suspend to ram) 休眠hibernate(suspend to disk) 混合睡眠
+
+当开启hibernate功能时，C:\Users\jusss>rundll32 powrprof.dll,SetSuspendState将进入suspend to disk
+
+当关闭hibernate时，C:\Users\jusss>rundll32 powrprof.dll,SetSuspendState进入suspend to ram
+
+关闭hibernate可用powercfg -H off
+
+具体参数可用powercfg /?查看
