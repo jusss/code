@@ -1,0 +1,128 @@
+在sql中 shift-home选中当前行，f5执行当前行，把光标放到要执行的语句的后面S-home就可以选中，然后f5就可执行，这样在已经执行过的
+再执行时不需要再次输入 sql不区分大小写，也就是大小写不敏感
+
+emacs的粘帖是C-y, vim的粘帖是shift-insert
+
+win7 sql2k只能装个人版
+xp sql2k 个人版 开发板 administrator localsystem
+
+select @@version 查询sql版本
+
+sql 2005版本后启用tcp协议开放端口 sql配置管理器中 mssqlserver的协议-tcp/ip
+
+gl_accvouch (凭证及明细帐表)    字段 ccode科目编码，md 借方金额,mc 贷方金额, csup_id 供应商编码,iperiod 月份,iyear 年度
+gl_accass   （辅助总账表）   字段 ccode科目编码，md 借方金额,mc 贷方金额, csup_id 供应商编码,iperiod 月份,iyear 年度
+
+select 获取数据
+update 更新数据
+delete 删除数据
+insert into 插入行数据
+
+create database创建新数据库
+alter database 修改数据库
+create table 创建新表
+alter table 改变表
+drop table 删除表
+create index 创建索引
+drop index 删除索引
+
+select distinct 列名 from 表名 返回唯一不同的值
+
+select 列名 from 表名 where 列 运算符 值
+
+运算符 = <>不等于 > <  >= <= between like and or ()
+
+select * from persons where city='Beijing' 使用单引号环绕文本值，如果是数值，不要使用引号
+
+select * from persons where FirstName='Thomas' and LastName='Carter'
+
+select * from persons where (FirstName='Thomas' or FirstName='William') and LastName='Carter'
+
+order by 排序 使用DESC可降序排序
+select company,ordernumber from orders order by company desc
+
+insert into 表名 values (值1，值2，...)
+insert into 表名 (列1，列2，...) values (值1，值2，...)
+
+insert into persons values ('Gates','Bill','WallStreet 10','London') 插入行
+
+insert into persons (LastName,Address) values ('Wilson','Champs-Elysees')  指定列插入行
+
+update 更改某列下的行数据
+
+update 表名 set 列名 = 新值 where 列名=某值
+update persons set FirstName ='Filed' where LastName = 'Wilson' 为lastname为wilson的人添加firstname
+
+update persons set Address='Zhongshan 23',City='Nanjing' where LastName='Wilson' 
+
+delete删除行
+delete from 表名 where 列名=值
+
+delete from persons where lastname='wilson'
+
+删除所有行 delete * from persons
+
+top 返回指定的数目
+select top number|percent column_name from 表名
+select top 2 * from persons
+select top 50 percent * from persons
+
+创建数据库 create database jusss
+使用数据库 use jusss
+创建表 create table persons (id int,lastname varchar(255),firstname varchar(255),lastname varchar(255))
+查看表 select * from persons
+添加行数据 insert into persons (id,lastname,firstname,address,city) values (1,'Doe','John','Wall Street 10','NewYork')
+更改一个列下所有行数据 update test set address='Unknown'
+删除所有行 delete from persons 在microsoft sql 2k8中不用加*即可删除所有行
+删除表 drop table persons
+删除数据库 use master       drop database jusss, 如果在jusss数据库里是不能drop掉jusss的，会提示当前数据库正在使用，切换到别的数据库
+就可以drop掉jusss这个数据库了
+备份数据库 backup database jusss to disk='e://jusss.db'
+恢复数据库 use master      restore database jusss1 from disk='e://jusss.db' with replace
+
+查询当前数据库所有表 select name from sysobjects where xtype='u'
+查询一个表的所有列名 select name from syscolumns where id=(select MAX(id)from sysobjects where xtype='u' and name='表名')
+
+把一个表备份到另一个数据库中 select * into jusss2.dbo.yify from jusss1.dbo.yify
+查询另一个数据库中的某个表 select * from jusss2.dbo.yify
+
+数据库名字.dbo.表名
+
+表名.列名
+
+select * into jusss2.dbo.bla from bla
+select bla.id from jusss2.dbo.bla
+
+
+like用于在where中搜索指定的名字，和通配符%搭配
+select * from test where last_name like '%ay%'
+
+sql的通配符必须与运算符like一起使用
+% 替代一个或多个字符 _仅替代一个字符 [charlist]里面任何单一字符 [^charlist]不在列表里的任何单一字符或[!charlist]
+
+select * from test where first_name like '[REK]%' 查询first_name里以R E K开头的行
+
+在where子句里使用多个值，用in
+select * from test where first_name in ('Eric','Bill') 查询first-name是Eric和Bill的行
+
+between and选取之间的行 select * from test where first_name between 'Bill' and 'Eric'
+
+select column-name as alias-name from table-name as alias-name
+
+select test.first_name,bla.first_name from test,bla where test.id=bla.id
+
+select t.first_name,b.first_name from test as t,bla as b where t.id=b.id
+
+inner join从2个表中返回相同列名下值相同的行
+select test.*,bla.* from test inner join bla on test.id = bla.id
+
+left join返回第一个表中的行即使在第二个表中没有匹配的行
+right join和left join相反
+full join返回两个表的所有行，即使没有匹配
+select test.*,bla.* from test full join bla on test.first_name = bla.first_name
+
+union用于合并2个select语句
+select * from test union select * from bla
+
+select into从一个表中选取数据然后插入另一个表
+select * into new_bla from bla
