@@ -1,0 +1,38 @@
+(defmacro myplus (n)
+  `(defun runit (m)
+    (+ ,n m)))
+myplus
+(myplus 1)
+runit
+(runit 3)
+4
+(runit 2)
+3
+(myplus 2)
+runit
+(runit 2)
+4
+(runit 7)
+9
+
+(defmacro mystuff (n) `(defun runit (m) (if (eq ,n 1) (progn (princ m) '客服好)
+	(progn (princ m) '客服不好))))
+
+(mystuff 1)
+runit
+(runit '移动)
+移动客服好
+
+(mystuff 2)
+runit
+(runit '联通)
+联通客服不好
+
+(defmacro mystuff (n l)
+  `(progn (defun runit (m)
+     (if (eq ,n 1)
+	 (progn (princ m)
+		'服务好)
+       (progn (princ m)
+	      '服务不好)))
+  (runit ,l)))

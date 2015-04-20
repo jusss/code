@@ -1,0 +1,56 @@
+(define get-atom-from-list
+    (lambda (nth-atom a-list atom-var)
+	(if (eq? nth-atom 0) 
+	    atom-var
+	    (get-atom-from-list (- nth-atom 1) (cdr a-list) (car a-list)))))
+
+(define nth-atom-a 1)
+(define nth-atom-b 1)
+
+(define procedure-bla
+  (lambda (nth-atom-a nth-atom-b string-list-a string-list-b )
+    (if (> nth-atom-b (length string-list-b))
+	#t
+	(if (eq? (get-atom-from-list nth-atom-a string-list-a 1)
+		 (get-atom-from-list nth-atom-b string-list-b 1))
+	    (procedure-bla (+ 1 nth-atom-a) (+ 1 nth-atom-b) string-list-a string-list-b)
+	    (begin (set! nth-atom-b 1) (string-match (+ 1 nth-atom-a) string-list-a string-list-b))))))
+
+(define string-match
+  (lambda (nth-atom-a string-list-a string-list-b)
+    (if (<= nth-atom-a (length string-list-a))
+	(if (eq? (get-atom-from-list nth-atom-a string-list-a 1)
+		 (get-atom-from-list nth-atom-b string-list-b 1))
+	    (procedure-bla nth-atom-a nth-atom-b string-list-a string-list-b)
+	    (string-match (+ 1 nth-atom-a) string-list-a string-list-b))
+	#f)))
+
+(define my-read 
+  (lambda (socket)
+    (define recv-msg 1)
+    (define read-irc-msg
+      (lambda ()
+	(set! recv-msg (read-line socket))
+	(write-string recv-msg)
+	(newline)
+	(if (string-prefix-ci? "ping :morgan.freenode.net"
+			       recv-msg)
+	    (begin 
+	      (write-string "pong :morgan.freenode.net \r\n" socket)
+	      (flush-output socket)))
+	(if (string-match nth-atom-a (string->list recv-msg) (string->list "PRIVMSG #ubuntu-cn :say hi"))
+	    (begin
+	      (write-string "privmsg #ubuntu-cn :hi all \r\n" socket)
+	      (flush-output socket)))
+
+	(read-irc-msg)))
+    (read-irc-msg)))
+
+(define (irc-connect)
+  (let ((socket (open-tcp-stream-socket "morgan.freenode.net" 6665)))
+    (write-string "nick jusss-scheme \r\n" socket)
+    (write-string "user jusss-scheme 8 * :jusss-scheme \r\n" socket)
+    (write-string "join #ubuntu-cn \r\n" socket)
+    (flush-output socket)
+    (my-read socket)))
+

@@ -1,0 +1,4 @@
+(defun last-atom (alist)
+  (if (eq (cdr alist) nil)
+      (car alist)
+      (last-atom (cdr alist))))

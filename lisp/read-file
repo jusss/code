@@ -1,0 +1,11 @@
+(define read-file 
+    (lambda (file-name)
+      (with-input-from-file file-name
+	(lambda () 
+	  (define character (read-char))
+	  (define f1
+	    (lambda (n)
+	      (if (eof-object? n) "end"
+		  (begin (display n)
+			 (f1 (read-char))))))
+	  (f1 character)))))

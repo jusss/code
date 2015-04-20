@@ -1,0 +1,2 @@
+(defmacro make-c (name &rest body)
+	   `(list ',name (para-add-comma ',body '()) #\;))

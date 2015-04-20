@@ -1,0 +1,12 @@
+(define write-file
+    (lambda (file-name)
+      (with-output-to-file file-name 
+	(lambda ()
+	  (define f1
+	    (lambda (n)
+	      (if (char=? n #\z) "end"
+		  (begin (write-char n)
+			 (f1 (read-char))))))
+;read-char will read a line-feed,so read the send character for current-input-port
+	   (read-char)
+	   (f1 (read-char))))))

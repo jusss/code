@@ -1,0 +1,26 @@
+ (defmacro add-head-tag (asymbol)
+   `(intern (coerce `(#\< ,@(coerce (string ,asymbol) 'list) #\>) 'string)))
+
+ (defmacro add-tail-tag (asymbol)
+   `(intern (coerce `(#\<  #\/ ,@(coerce (string ,asymbol) 'list) #\>) 'string)))
+
+(defvar mys nil)
+
+(set-macro-character #\[
+		     #'(lambda (stream char)
+			 (declare (ignore char))
+			 (let ((atom (read stream))) 
+			   (setq mys (cons atom mys))
+			   (add-head-tag atom))))
+
+(set-macro-character #\]
+		     #'(lambda (stream char)
+			 (declare (ignore stream char))
+			 (let ((atom (car mys)))
+			   (setq mys (cdr mys))
+			   (add-tail-tag atom))))
+
+(setq mys nil)
+
+'([html [body [h1 good] [p bla]]])
+(<HTML> <BODY> <H1> GOOD </H1> <P> BLA </P> </BODY> </HTML>)

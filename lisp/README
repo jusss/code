@@ -1,0 +1,16 @@
+(lambda () )
+
+(define bla (lambda () (lambda () 9)))  (procedure? (bla)) := #t
+
+(define bla (lambda () ((lambda () 9)))) (procedure? (bla)) := #f
+
+(let ((x 0)(y 0)) ...)
+((lambda (x y) ...) 0 0)
+
+(define count ((lambda (n) (lambda () (set! n (+ n 1)) n)) 0))
+(define count (let ((n 0)) (lambda () (set! n (+ n 1)) n)))
+
+(define bla ((lambda () 9)))  bla := 9
+
+(define count ((lambda () (define n 0) (lambda () (set! n (+ n 1)) n))))
+

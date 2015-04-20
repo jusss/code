@@ -1,0 +1,10 @@
+(defmacro printf (string) `(progn (prin1 'printf) (prin1 (list
+	,string)) (write-char #\;) (values)))
+	
+	(printf "hello,world")
+
+ (defmacro my-dsl (name parameter)
+	   `(list ',name (list ,parameter) '\;))
+	   
+	   (my-dsl printf "hello, world")
+(PRINTF ("hello, world") |;|)

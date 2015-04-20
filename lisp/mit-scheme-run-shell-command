@@ -1,0 +1,3 @@
+(run-shell-command "e:/mplayer/mplayer.exe e:/mesg.wav")
+
+http://web.mit.edu/scheme_v9.0.1/doc/mit-scheme-ref/Subprocess-Procedures.html#Subprocess-Procedures

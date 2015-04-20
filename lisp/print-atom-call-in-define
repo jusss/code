@@ -1,0 +1,41 @@
+(defun print-atom (alist)
+	   (if (not (listp
+		     (car alist)))
+	       (progn
+		 (princ (car alist))
+		 (print-atom (cdr alist)))
+	       (if (eq nil
+		       alist)
+		   (progn
+		     (princ 'end)
+		     (princ 's))
+		   (if (listp
+			(car alist))
+		       (progn
+			 (print-atom2 (car alist))
+			 (print-atom (cdr alist)))))))
+
+(defun print-atom2 (alist)
+	   (if (not (listp
+		     (car alist)))
+	       (progn
+		 (princ (car alist))
+		 (print-atom2 (cdr alist)))
+	       (if (eq nil
+		       alist)
+		   (progn
+		     (princ 'end)
+		     (princ 's))
+		   (if (listp
+			(car alist))
+		       (progn
+			 (print-atom (car alist))
+			 (print-atom2 (cdr alist)))))))
+
+
+C-x C-f stuff.lisp 
+input print-atom and print-atom2 define into stuff.lisp
+and then press C-c C-k to compile stuff.lisp to stuff.fasl by slime
+and then you can run print-atom in slime
+两个在定义中互相调用的函数，需要把这两个函数放到一个文件里，然后编译之后
+加载才能使用

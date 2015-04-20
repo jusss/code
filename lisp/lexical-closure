@@ -1,0 +1,4 @@
+(define count
+  (let ((n 0))
+    (lambda () (set! n (+ n 1)) n)))
+    

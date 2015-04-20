@@ -1,0 +1,95 @@
+(defvar my-stack '())
+(defun my-push (atom)
+  (setq my-stack
+	(cons atom my-stack)))
+(defun my-pop ()
+  (let ((var (car my-stack)))
+    (setq my-stack
+	  (cdr my-stack))
+    var))
+
+(defun compare-special-char (alist first-atom-tag)
+  (cond
+
+    ((eq (car alist) 'href)
+     (progn 
+       (my-push 'a)
+       (princ #\newline)
+       (prin1 '<a)
+       (princ #\space)
+       (prin1 'href=)
+       (prin1 (car (cdr alist)))
+       (princ #\space)
+       (prin1 'target=)
+       (princ #\")
+       (princ '_blank)
+       (princ #\")
+       (prin1 '>)
+       (prin1 (car (cdr (cdr alist))))
+       (print-atom nil 0)))   ;skip current list and handle next 
+
+    ((eq (car alist) 'br)
+     (progn
+       (princ #\newline)
+       (princ '<br>)))   ;break the current function and return to the call function, same to pass a nil as parameter for recursion
+
+    ((eq first-atom-tag 1)
+     (progn
+       (my-push (car alist))
+       (princ #\newline)
+       (princ '<)
+       (princ (car alist))
+       (princ '>)
+       (print-atom (cdr alist) 0)))
+
+    (t 
+     (progn
+       (princ (car alist))
+       (princ #\space)
+       (print-atom (cdr alist) 0)))))
+      
+	
+(defun print-atom (alist first-atom-tag)
+  (if (not (listp (car alist)))
+      (compare-special-char alist first-atom-tag)
+
+      (if (eq nil alist)
+	  (progn
+	    (princ #\newline)
+	    (princ '<)
+	    (princ '/)
+	    (princ (my-pop))
+	    (princ '>))
+	    ;break condition for return to the call function and run (print-atom (cdr alist) 0)
+	  (if (listp (car alist))
+	      (progn
+		(print-atom2 (car alist) 1)
+		(print-atom (cdr alist) 0))))))
+
+(defun print-atom2 (alist first-atom-tag)
+  (if (not (listp (car alist)))
+      (compare-special-char alist first-atom-tag)
+      (if (eq nil alist)
+	  (progn
+	    (princ #\newline)
+	    (princ '<)
+	    (princ '/)
+	    (princ (my-pop))
+	    (princ '>))
+	  (if (listp (car alist))
+	      (progn
+		(print-atom (car alist) 1)
+		(print-atom2 (cdr alist) 0))))))
+
+
+;(print-atom '(html (body (h1 bla))) 1)
+;(print-atom '(html (body (h1 bla) (href "http://www.baidu.com" 百度))) 1)
+;M-x slime 
+;C-x C-f print-atom
+;M-x lisp-mode
+;C-c C-k compile print-atom to print-atom.fasl with slime
+
+;两个互相调用的尾递归 可以在当前线程保存当前现场数据，然后把当前数据传递给另一个函数操作，这两个
+;可以互相调用，可以保存n个现场数据，最后根据中断条件，一一回朔返源，回到最初的线程接着操作
+
+;在这里，中断条件是遇到空列表nil就会中断当前并返回上一个调用

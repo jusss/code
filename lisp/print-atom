@@ -1,0 +1,65 @@
+(defvar my-stack '())
+(defun my-push (atom)
+  (setq my-stack
+	(cons atom my-stack)))
+(defun my-pop ()
+  (let ((var (car my-stack)))
+    (setq my-stack
+	  (cdr my-stack))
+    var))
+
+(defun print-atom (alist first-atom-tag)
+  (if (not (listp (car alist)))
+      (if (eq first-atom-tag 1)
+	  (progn
+	    (my-push (car alist))
+	    (princ '<)
+	    (princ (car alist))
+	    (princ '>)
+	    (print-atom (cdr alist) 0))
+	  (progn
+	    (princ (car alist))
+	    (print-atom (cdr alist) 0)))
+
+      (if (eq nil alist)
+	  (progn
+	    (princ '<)
+	    (princ '/)
+	    (princ (my-pop))
+	    (princ '>))
+	  (if (listp (car alist))
+	      (progn
+		(print-atom2 (car alist) 1)
+		(print-atom (cdr alist) 0))))))
+
+(defun print-atom2 (alist first-atom-tag)
+  (if (not (listp (car alist)))
+      (if (eq first-atom-tag 1)
+	  (progn
+	    (my-push (car alist))
+	    (princ '<)
+	    (princ (car alist))
+	    (princ '>)
+	    (print-atom2 (cdr alist) 0))
+	  (progn
+	    (princ (car alist))
+	    (print-atom2 (cdr alist) 0)))
+
+      (if (eq nil alist)
+	  (progn
+	    (princ '<)
+	    (princ '/)
+	    (princ (my-pop))
+	    (princ '>))
+	  (if (listp (car alist))
+	      (progn
+		(print-atom (car alist) 1)
+		(print-atom2 (cdr alist) 0))))))
+
+
+;(print-atom '(html (body (h1 bla))) 1)
+;M-x slime 
+;C-x C-f print-atom
+;M-x lisp-mode
+;C-c C-k compile print-atom to print-atom.fasl with slime
+

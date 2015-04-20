@@ -1,0 +1,14 @@
+(define (ns service)
+ (let* ((sock (open-tcp-server-socket service))
+ (port (tcp-server-connection-accept sock #t #f)))
+ (write (read port))
+ (close-port port)
+ (close-tcp-server-socket sock)))
+
+
+(define (nc service)
+ (let ((sock (open-tcp-stream-socket "localhost" service)))
+ (write 'input:)
+ (write (read) sock)
+ (newline sock)
+ (close-port sock)))

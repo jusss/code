@@ -1,0 +1,69 @@
+;this is emacs config file on windows7, emacs 22.3 for windows
+;the config file dir is "c:\user\Administrator\AppData\Roaming\_emacs"
+
+;(create-fontset-from-fontset-spec
+;"-outline-Consolas-normal-r-normal-normal-16-120-96-96-c-*-iso8859-1,
+;ascii:-outline-Consolas-normal-r-normal-normal-16-120-96-96-c-*-iso8859-1,
+;chinese-gbk:-outline-新宋体-normal-r-normal-normal-13-97-96-96-c-*-iso8859-1
+;chinese-gb2312:-outline-新宋体-normal-r-normal-normal-13-97-96-96-c-*-iso8859-1")
+
+;set english font
+(set-default-font "-outline-新宋体-normal-r-normal-normal-13-97-96-96-c-*-iso8859-1")
+
+;set startup window
+(setq default-frame-alist
+'( (top . 25) (left . 130)
+(height . 47) (width . 140) (menu-bar-lines . 20) (tool-bar-lines . 0)))
+
+;cancel startup msg 
+(setq inhibit-startup-message t)
+(setq inhibit-startup-echo-area-message "Administrator")
+
+;set erc
+(require 'erc)
+(require 'tls)
+(global-set-key (kbd "C-.")
+	(lambda () 
+   " :server 195.148.124.79 ,variable cannot write this type"
+	
+	(interactive)
+
+	(erc-ssl :server "rajaniemi.freenode.net" :port 6697 :nick "jusss" :full-name "xxxxxxx" :password "xxx")
+
+	(setq erc-autojoin-channels-alist '(("freenode.net" "#scheme" "#lisp"
+	"#ubuntu-cn")))
+
+	(setq erc-autojoin-timing 'ident)))
+
+
+(require `ido)
+(ido-mode t)
+
+;set c-, bind (ido-switch-buffer) , same as c-x b
+(global-set-key (kbd "C-,") 'ido-switch-buffer)
+
+;set c-; bind (set-mark-command) , same as c-space or c-@
+(global-set-key (kbd "C-;") 'set-mark-command)
+
+;set the default file saved directory is Desktop
+(setq default-directory "C:/Users/Administrator/AppData/Desktop/")
+
+;set the default new buffer position thought (setenv "PATH"...)
+(setenv "PATH" "C:/Users/Administrator/AppData/Desktop/")
+
+;set the config file _emacs's position though (setenv "HOME"...) with (load-file ...)
+;(setenv "HOME" "C:/Users/Administrator/AppData/Desktop/")
+
+;set () highlight
+(show-paren-mode t)
+
+(require 'cmuscheme)
+
+(autoload 'scheme-mode "cmuscheme" "Major mode for Scheme." t)
+(autoload 'run-scheme "cmuscheme" "Switch to interactive Scheme buffer." t)
+(setq auto-mode-alist (cons '("\\.ss" . scheme-mode) auto-mode-alist))
+
+(setq scheme-program-name "D:/chez/bin/ta6nt/petite.exe")
+(global-set-key (kbd "C-'") `run-scheme)
+
+

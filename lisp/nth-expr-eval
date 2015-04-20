@@ -1,0 +1,20 @@
+(defun get-nth-atom (nth-atom a-list atom-var)
+  (if (eq nth-atom 0)
+      atom-var
+    (get-nth-atom (- nth-atom 1) (cdr a-list) (car a-list))))
+    
+(defmacro nth-expr (n &rest expr)
+  `(eval (get-nth-atom ,n ',expr '())))
+  
+  
+      定義一個宏，接受一個數字 n ，伴隨著一個或多個表達式，並返回第 n 個表達式的值:
+
+> (let ((n 2))
+    (nth-expr n (/ 1 0) (+ 1 2) (/ 1 0)))
+3
+
+http://acl.readthedocs.org/en/latest/zhTW/ch10.html  ansi cl
+
+(defmacro nth-expr (n &rest exprs)
+  `(eval (nth (1- ,n) ',exprs)))
+  http://www.douban.com/note/185047318/

@@ -1,0 +1,119 @@
+
+水木社区(展开完整界面) → 函数式编程语言 → 精华区文章阅读
+FuncProgram 版 (精华区)
+发信人: soycola (酱油可乐), 信区: FuncProgram
+标  题: Re: 讨论一道题
+发信站: BBS 水木清华站 (Wed Dec 15 10:25:51 2004), 站内
+
+呵呵，这两天看一个关于dsl的，忘了是谁推荐的，感觉拿来当
+综述挺好的，胡乱翻译了前面一点。
+
+When and How to Develop Domain-Specific Languages
+Marjan Mernik
+
+Domain-specific languages (DSLs) 是针对特定应用领域裁减过
+的语言。和通用编程语言相比，DSL在相关领域具有极强的表
+现能力。开发一个DSL通常是比较困难的，因为它要求开发者
+既精通领域知识，同时还要是个语言开发的专家。很少人能同
+时满足这两个条件。正因为如此，开发一个DSL的决定常常被
+无限期搁置，大多数DSL最终只能停留在程序库阶段。
+
+DSL不是什么新概念，早期的APT：一种控制数值控制计算工具
+的语言，就是一个DSL，57年就有了。BNF是59年的。所谓第四
+代语言，多数其实都是数据库领域的DSL。还有一些语言，通
+常称为little DSL，是指那些把通用编程语言（GPL）高度简
+化的结果。UML是一种图形化的DSL。
+
+DSL和GPL之间没有明确的界限，例如，HTML作为一种高度特化
+的DSL和C++作为GPL一样，都是没有什么争议的，但是二者之间
+存在很大的模糊地带。Cobol也可以看作是商业领域的DSL，介
+于C++和BNF之间，不过非常靠近C++。类似的，很难讲Unix的
+shell还有Tcl这样的脚本语言是不是DSL，所以，DSL和GPL之间
+有时只是量的差别。
+
+从方法论的角度看，编程就是把具体问题映射到所使用的语言
+上（然后在后者的模型世界里演算并最终返回到现实世界）。
+有时这种映射是非常困难、不直观、需要高度技巧、费时费力
+的。打个不恰当的比方，在现实世界以及人们为它建立的抽象
+模型和计算机之间，存在一个阻抗失配，人们发明编程语言来
+解决这个阻抗失配，随着计算机应用领域的不断扩大，阻抗失
+配的问题越来越严重，以至于通用的编程语言仍然和现实世界
+相距太远，这时DSL的引入就是很自然的事情了。
+
+和DSL类似的一个东西是程序库，DSL和程序库相比互有长短。
+由于我们讨论DSL的目的是为了解决实际问题，所以在此我们
+不打算进行诸如‘DSL和程序库’的优劣这种容易引起宗教战
+争的讨论。
+
+从是否可执行的角度看，DSL可以分为以下几个类别：
+\begin{itemize}
+\item 具有良好的操作语义的完全可执行DSL（例如Excel的宏
+语言，HTML等）。
+\item 应用程序生成器的输入语言，用这种DSL书写的程序经过
+应用程序生成器的处理可以变成最终的应用程序。
+\item 主要功能不是为了执行，但对程序生成很重要的语言。
+BNF就是这一类，它的功能是为了形式化的定义语言的语法，
+就其本身主要不是用来执行的，但是BNF仍然可以作为parser
+generator的输入语言。
+\item 压根儿不是用来执行的程序。
+\end{itemize}
+
+还可以从软件重用的角度看DSL的重大意义。
+
+DSL的代价：
+\begin{itemize}
+\item 实现困难。
+\item 和主流的GPL相距太远，常常缺乏成熟的例子可以参考，
+需要更多的考虑，存在风险。
+\item 维护困难。
+\end{itemize}
+
+还有一个更实际的问题是，很多时候很难预先评价是否值得去
+做一个新的DSL，必须等到花了老大一笔钱做出一个原型，并
+且在这个新的DSL上面进行了足够多的编程之后才能进行这种
+评估。在这种情况下，DSL的开发就成为software re-engineering
+or software evolution的一个关键步骤。
+
+在决策阶段，有如下几种决策模式：
+\begin{itemize}
+\item notation
+\item task automation
+\item data structure representation
+\item data structure traversal
+\item system front-end
+\item interaction
+\item analysis/verification/optimization/transmation
+\end{itemize}
+这些模式之间共同的地方在于，都需要考虑经济性、如何
+提供最终用户编程接口、如何提供领域相关的分析、验证、
+优化和变换能力等方面。
+
+分析阶段模式：
+\begin{itemize}
+\item 形式化
+\item 非形式化
+\item 从GPL代码中提取
+\end{itemize}
+
+分析阶段需要领域专家的介入，通常是非形式化的进行，也有一
+些形式化的方法包括：DARE（DomainAnalysis and Reuse
+Environment）、DSSA（Domain-Specific Software
+Architectures）、FODA(Feature-Oriented Domain
+
+Analysis)、ODM (Organization Domain Modelling)。
+
+设计阶段模式：
+DSL的设计模式可以从两个正交的方向去考察，其一是DSL和现存
+语言的关系，其二是设计描述的形式化本质。几种相关的设计模
+式：
+\begin{itemize}
+\item 挖掘现有语言，可以简化、特化或者扩展现有语言。
+\item 创造新语言。
+\item 非形式的描述。
+\item 用现有的形式的语义描述手段描述，例如属性文法、改写
+系统、抽象状态机等。
+\end{itemize}
+【 在 hhuu (田馥甄的粉丝) 的大作中提到: 】
+: 然后我就想到现在很流行的dsl domain specific language概念
+: 如果说有一种语言能对所有应用领域都具有强大的表达能力的话，
+: 它就是lisp啦

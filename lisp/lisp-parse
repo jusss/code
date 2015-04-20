@@ -1,0 +1,9 @@
+
+read读取的数据认为是字符串，然后字符串变字符列表，括号判断，cl的字符串就是数组，而list是链表
+http://zh.lucida.me/blog/how-to-implement-an-interpreter-in-csharp/
+
+http://norvig.com/lispy.html
+
+http://paste.lisp.org/display/144252
+
+http://blog.jobbole.com/44163/

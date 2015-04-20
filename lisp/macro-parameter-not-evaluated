@@ -1,0 +1,30 @@
+<jusss> a list as a parameter in (defmacro ...), the list will be evaluted in
+	parameter?							[15:13]
+<jusss> a list as a parameter in (defun ...) ,it will be evaluted in parameter
+	?								[15:14]
+<Grue`> what do you mean?						[15:15]
+
+<White_Flame> macro parameters are destructured, so lists there will generally
+	      match literal lists passed into them
+
+<Grue`> if you mean something like '(+ 1 2) being passed as a parameter, no it
+	won't be evaluated
+<White_Flame> ...so lists in defmacro parameters will generally match literal
+	      lists passed into them					[15:17]
+<Grue`> unless you call eval on it or something
+<jusss> (defun bla (a) ...)  (bla (+ 1 2))  (+ 1 2)will evaluted , eq (bla 3)
+<Grue`> depends on the macroexpansion then
+<White_Flame> parameters to regular functions are evaluated before calling
+	      them
+<White_Flame> parameters to macros are passed literally, generally transformed
+	      & returned via the macro as new source code		[15:18]
+<White_Flame> so with macros, effectively the parameters are evaluated after
+	      first being transformed by the macro
+<White_Flame> (the transformation happens at compile time, then the runtime
+	      effects happen on the transformed source code)		[15:19]
+
+<jusss> so parameters are evaluated before calling them in regular
+	functions,but not evaluated before calling in macro ?
+<Grue`> at runtime they may or may not be evaluated, depending on what code
+	the macro produces; at macro expansion time (compile time) they are
+	not evaluated							[15:22]

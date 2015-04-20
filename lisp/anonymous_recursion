@@ -1,0 +1,17 @@
+((lambda (g x y z)
+	    (if (eq z 0) y (funcall g g y (+ x y) (- z 1))))
+ (lambda (g x y z)
+	    (if (eq z 0) y (funcall g g y (+ x y) (- z 1))))
+ 0 1 1000000)
+
+
+(lambda g,x,y,z: y if z==0 else g(g,y,x+y,z-1))((lambda g,x,y,z: y if z==0 else g(g,y,x+y,z-1)),0,1,100)
+
+def f(g,x,y,z):
+    if z==0:
+       return y
+    else:
+	return g(g,y,x+y,z-1)
+
+f(f,0,1,100)
+

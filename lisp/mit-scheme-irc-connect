@@ -1,0 +1,38 @@
+(define (read-available-lines port)
+  (if (char-ready? port)
+      (begin
+        (write-line (read-line port))
+        (read-available-lines port))
+      #f))
+
+(define (irc-connect server port)
+  (let ((socket (open-tcp-stream-socket server port)))
+    (read-available-lines socket)
+    (sleep-current-thread 10000)
+    (read-available-lines socket)
+    (display "NICK blablatest\r\n" socket)
+    (display "USER blablatest 8 * :blablah\r\n" socket)
+    (flush-output socket)
+    (sleep-current-thread 5000)
+    (read-available-lines socket)
+    (close-port socket)))
+
+;;(irc-connect "irc.freenode.net"  6667)
+#scheme on freenode
+<jusss> ecraven: what's the effect of flush-output ?
+<ecraven> jusss: it flushes the output, it sends all unsent (buffered) text
+<ecraven> MIT/GNU Scheme internally buffers your output, so if you really want to send it right now, you need to use that
+
+
+
+(define (nc port)
+	(let ((socket (open-tcp-stream-socket "irc.freenode.net" port)))
+	     (define (my-read) (write-line (read-line socket)))
+	     (my-read)(my-read)(my-read)(my-read)
+	     (write-string "nick blablah" socket)(newline socket)
+	     (write-string "user badfwew 8 * :sdfwade" socket)(newline socket)
+	     (flush-output socket)
+	     (my-read)
+	     (close-port socket)))
+
+(nc 6665)

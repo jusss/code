@@ -1,0 +1,8 @@
+安装emacs sbcl后，使用quicklisp安装slime，从quicklisp网上下载quicklisp.lisp，
+然后用sbcl加载，如(load "e:/quicklisp.lisp")
+(quicklisp-quickstart:install)
+(ql:quickload quicklisp-slime-helper)
+
+然后出提示把信息写进~/.emacs
+
+开emacs M-x slime就可以了

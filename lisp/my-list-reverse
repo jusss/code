@@ -1,0 +1,8 @@
+;(define out-list '())
+(define my-reverse
+  (lambda (in-list  out-list)
+    (if (eq? in-list '())
+	out-list
+	(my-reverse (cdr in-list) (cons (car in-list) out-list)))))
+
+;(my-reverse '(1 2 3 4) '())

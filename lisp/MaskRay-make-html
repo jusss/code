@@ -1,0 +1,16 @@
+(define (f x)
+  (if (pair? x)
+    (begin
+      (display "<")
+      (display (car x))
+      (display ">")
+      (map f (cdr x))
+      (display "</")
+      (display (car x))
+      (display ">")
+      )
+     (display x)
+     )
+  )
+
+(f '(html (body (p as) (h1 as))))

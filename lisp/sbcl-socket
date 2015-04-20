@@ -1,0 +1,7 @@
+(require :sb-bsd-sockets）
+(defvar rh 8)
+(setq resolve-hostname (lambda (name) (car (sb-bsd-sockets:host-ent-addresses
+        (sb-bsd-sockets:get-host-by-name name)))))
+(funcall resolve-hostname "localhost")
+
+(funcall resolve-hostname "jusss.org")

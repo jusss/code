@@ -1,0 +1,12 @@
+ (sb-ext:run-program "c:/windows/system32/cmd.exe" '("/c" "e:/echo.bat") :output t)
+ 
+ (sb-ext:run-program "E:/mplayer/mplayer.exe" '("E:/etc/my_oh_my.mp3"))
+ 
+ External programs can be run with sb-ext:run-program.
+Function: run-program [sb-ext] program args &key env environment wait search pty input if-input-does-not-exist output 
+                                if-output-exists error if-error-exists status-hook external-format directory
+
+ run-program creates a new process specified by the program argument. args are the standard arguments that can be 
+ passed to a program. For no arguments, use nil (which means that just the name of the program is passed as arg 0).
+ 
+ http://www.sbcl.org/manual/#Shebang-Scripts

@@ -1,0 +1,28 @@
+(define get-atom-from-list
+    (lambda (nth-atom a-list atom-var)
+	(if (eq? nth-atom 0) 
+	    atom-var
+	    (get-atom-from-list (- nth-atom 1) (cdr a-list) (car a-list)))))
+
+(define nth-atom-a 1)
+(define nth-atom-b 1)
+
+(define procedure-bla
+  (lambda (nth-atom-a nth-atom-b string-list-a string-list-b )
+    (if (> nth-atom-b (length string-list-b))
+	#t
+	(if (eq? (get-atom-from-list nth-atom-a string-list-a 1)
+		 (get-atom-from-list nth-atom-b string-list-b 1))
+	    (procedure-bla (+ 1 nth-atom-a) (+ 1 nth-atom-b) string-list-a string-list-b)
+	    (begin (set! nth-atom-b 1) (string-match (+ 1 nth-atom-a) string-list-a string-list-b))))))
+
+(define string-match
+  (lambda (nth-atom-a string-list-a string-list-b)
+    (if (<= nth-atom-a (length string-list-a))
+	(if (eq? (get-atom-from-list nth-atom-a string-list-a 1)
+		 (get-atom-from-list nth-atom-b string-list-b 1))
+	    (procedure-bla nth-atom-a nth-atom-b string-list-a string-list-b)
+	    (string-match (+ 1 nth-atom-a) string-list-a string-list-b))
+	#f)))
+
+(string-match nth-atom-a (string->list "aabaa aacd") (string->list "aac"))

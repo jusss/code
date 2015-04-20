@@ -1,0 +1,19 @@
+;(define out-list '())
+(define my-reverse
+  (lambda (in-list  out-list)
+    (if (eq? in-list '())
+	out-list
+	(my-reverse (cdr in-list) (cons (car in-list) out-list)))))
+
+;(my-reverse '(1 2 3 4) '())
+
+(define string-catch
+  (lambda (list-a list-b)
+    (define list-c (my-reverse list-a '()))
+
+    (define get-it! 
+      (lambda (list-b list-c)
+	(if (eq? list-b '())
+	    (my-reverse list-c '())
+	    (get-it! (cdr list-b) (cons (car list-b) list-c)))))
+    (get-it! list-b list-c)))

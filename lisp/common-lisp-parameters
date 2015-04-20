@@ -1,0 +1,27 @@
+lisp 函数的可选参数 剩余参数以及关键字参数
+
+http://blog.csdn.net/keyboardota/article/details/7663792
+
+可选参数，关键字&optional 后面跟的参数是可选参数，如
+(defun function21 (a b &optional c d) ...) 
+function21的参数有4个，a和b是必须参数，c和d是可选参数
+如果c和d的在调用时没有提供，则默认是nil
+function21的参数必须是大于等于2个，小于等于4个
+可选参数设置缺省值，使用list形式(parameter-name default-value whether-supplied)
+(defun fuction22 (a b &optional (c "blabla" whether-supplied) d) ...)
+可选参数c,如果没有提供，就设值为"blabla",如果参数c被提供了，whether-supplied的值为t
+如果没有被提供，则为nil
+
+剩余参数，关键字&rest 定义剩余参数，函数调用过程中将“剩余的参数”打包成一个列表传入函数
+去除必须参数后留下的参数就是剩余参数
+(defun function23 (a b &rest other-parameters) ..)
+在function23中定义了2个必须参数a和b,还有一个剩余参数other-parameters,在调用function23时
+如果提供的参数超过了2个，则第三个参数和以后的所有参数被打包成一个列表传给other-parameters
+
+关键字参数，关键字&key 定义关键字参数，&key 后面跟参数名，在函数调用时可用 :parameter-name value
+来指定参数对应关系
+(defun function24 (&key a b c d) ...)
+(function24 :a "bla" :b "dd" :c "fio" :d "bit")
+某个参数可以不提供，如果不提供，怎默认值为nil,可以参数都不提供，则默认都为nil,参数顺序不重要,可以
+颠倒，参数还可以重复，参数重复时，重复的第一个参数起作用，如(function24 :b "dd" :b "cc")则b会取"dd"
+也可缺省指定如(defun fuction25 (&key a (b "bla" b-supplied-p) c d) ... )

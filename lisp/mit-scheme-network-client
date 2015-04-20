@@ -1,0 +1,5 @@
+(define (nc port)
+  (let ((socket (open-tcp-stream-socket "irc.freenode.net" port)))
+    (write (read-line socket)) 
+    (newline)
+    (close-port socket)))

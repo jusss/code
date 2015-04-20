@@ -1,0 +1,23 @@
+(open-input-file filename)读取模式打开文件返回一个端口port, (read-char port)读取单个字符
+read-char在文件末尾返回eof-object,可以(eof-object? char)测试是否到末尾
+用(close-input-port port)关闭文件
+
+或者用(call-with-input-file filename procedure) procedure是以port为参数的函数
+(call-with-input-file file-name (lambda (p) (read-char p)))
+procedure返回时不会关闭文件需要用(close-input-port p)手动关闭
+
+或(with-input-from-file filename procedure) filename作为stdin，procedure无参数，返回时文件自动关闭
+(with-input-from-file file-name (lambda () (read-char)))
+
+(read port) read可以读取S表达式，'(hello world)被read读取为((quote (hello world)))
+
+(open-output-file filename)写模式打开文件返回port
+(close-output-port port)关闭写端口
+(call-with-output-file filename procedure)同上
+(with-output-to-file filename procedure)将filename作为stdout打开
+
+(write object port) 字符串被双引号包围，字符以#\形式写入
+(display object port)
+(newline port)
+
+(write-char char port)将char写入port

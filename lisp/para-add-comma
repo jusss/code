@@ -1,0 +1,4 @@
+(defun para-add-comma (inlist outlist)
+	   (if (eq inlist nil)
+	       (reverse (cdr outlist))
+	       (para-add-comma (cdr inlist) (cons #\, (cons (car inlist) outlist)))))
