@@ -1,0 +1,41 @@
+;this is emacs config file on windows7, emacs 22.3 for windows
+;the config file dir is "c:\user\Administrator\AppData\Roaming\_emacs"
+; if the admin is jusss,and no administrator, it will be  C:\Users\jusss\AppData\Roaming\_emacs
+
+(set-default-font "-outline-ÐÂËÎÌå-normal-r-normal-normal-13-97-96-96-c-*-iso8859-1")
+
+;set gnus
+(require 'gnus)
+;set ~ for ~/.gnus.el, eg. this ~ is C:/Users/jusss/AppData/Roaming/
+(add-to-list 'load-path
+	     "C:/Users/jusss/AppData/Roaming/") 
+
+(setq load-path(cons "d:/emacs-config-jusss" load-path))
+
+(load "start-up.el")
+
+(load "my-erc.el")
+
+(load "ido-mode.el")
+
+(load "set-mark-hot-key.el")
+
+(load "set-default-directory.el")
+
+(load "high-light")
+
+(load "chez-scheme.el")
+
+(load "file-coding.el")
+
+(load "c-basic-offset.el")
+
+(setq inferior-lisp-program "d:/sbcl/sbcl.exe")
+(add-to-list 'load-path "d:/slime-master")
+(require 'slime)
+(slime-setup)
+(require 'slime-autoloads)
+(slime-setup '(slime-fancy))
+
+(setq initial-scratch-message nil)
+(setq completion-ignore-case t)

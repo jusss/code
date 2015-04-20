@@ -1,0 +1,6 @@
+(require 'cmuscheme)
+(autoload 'scheme-mode "cmuscheme" "Major mode for Scheme." t)
+(autoload 'run-scheme "cmuscheme" "Switch to interactive Scheme buffer." t)
+(setq auto-mode-alist (cons '("\\.ss" . scheme-mode) auto-mode-alist))
+(setq scheme-program-name "D:/chez/bin/ta6nt/petite.exe")
+(global-set-key (kbd "C-'") `run-scheme)
