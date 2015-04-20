@@ -1,0 +1,15 @@
+c:/MinGW/bin $ ./gcc.exe ../msys/1.0/curses/init-scr.c -o ../msys/1.0/curses/init.exe -lpdcurses
+
+ 
+
+c:/MinGW/bin $ ./gcc.exe curses/init-scr.c -o curses/in.exe -lpdcurses
+
+ 
+
+windows下有2种方式使用MinGW,一种是直接用C:\MinGW\bin\gcc.exe, 
+
+另一种是C:\MinGW\msys\1.0\msys.bat里使用gcc
+
+ 
+
+在eshell里可以用第一种方式

