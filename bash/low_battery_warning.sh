@@ -6,7 +6,7 @@ while true;do
     then
 	if [ -n "$(acpi|grep -o ',..%')" ]
 	then
-	    mplayer /home/jusss/bash/low_battery.mp3
+	    mplayer -noconsolecontrols -really-quiet /home/jusss/bash/low_battery.mp3 2>/dev/null
 	    sleep 1m
 	else
 	    sleep 5m
