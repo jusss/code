@@ -39,7 +39,7 @@ while True:
     if recv_msg.find('RECENT') > -1:
         
         if count > 0:
-            os.system("mplayer -really-quiet /home/jusss/sounds/new-email.mp3 2> /dev/null")
+            os.system("mplayer -noconsolecontrols -really-quiet /home/jusss/sounds/new-email.mp3 2> /dev/null")
             latest_recent_time=time.time()
         else:
             count=count+1
@@ -55,7 +55,7 @@ while True:
         ssl_socket.write('a_tag idle\r\n'.encode(encoding))
         
         if recv_msg[recv_msg.find('UNSEEN')+7] != '0':
-            os.system("mplayer -really-quiet /home/jusss/sounds/new-email.mp3 2> /dev/null")
+            os.system("mplayer -noconsolecontrols -really-quiet /home/jusss/sounds/new-email.mp3 2> /dev/null")
 
 
 #    ssl_socket.write('a_tag status inbox (unseen)\r\n'.encode(encoding))
