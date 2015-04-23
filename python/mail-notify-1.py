@@ -8,17 +8,27 @@
 
 import socket, ssl, os, io, time, sys
 
-address='jusss.org'
+address=''
 port=993
 user=''
 password=''
 encoding='utf-8'
 count=0
 latest_recent_time=time.time()
+write_file="/home/jusss/lab/mail.log"
 
 a_socket = socket.socket()
 ssl_socket = ssl.wrap_socket(a_socket)
-ssl_socket.connect((address,port))
+try:
+    ssl_socket.connect((address,port))
+except socket.gaierror as e:
+    log=open(write_file,'a')
+    log.write(e.__str__()+'\r\n')
+    log.close()
+    time.sleep(600)
+    os.system("/home/jusss/lab/mail-notify-0.py &")
+    sys.exit()
+    
 
 ssl_socket.write(('a_tag login ' + user + ' ' + password + '\r\n').encode(encoding))
 ssl_socket.write('a_tag select inbox\r\n'.encode(encoding))
@@ -29,9 +39,12 @@ while True:
     try:    
         recv_msg=ssl_socket.read().decode(encoding)[:-2]
     
-    except socket.timeout:
+    except socket.timeout as e:
+        log1=open(write_file,'a')
+        log1.write(e.__str__()+'\r\n')
+        log1.close()
         time.sleep(300)
-        os.system("/home/jusss/lab/mail-notify-0.py")
+        os.system("/home/jusss/lab/mail-notify-0.py &")
         sys.exit()
 
 #   print(recv_msg)
@@ -39,7 +52,7 @@ while True:
     if recv_msg.find('RECENT') > -1:
         
         if count > 0:
-            os.system("mplayer -noconsolecontrols -really-quiet /home/jusss/sounds/new-email.mp3 2> /dev/null")
+            os.system("mplayer -noconsolecontrols -really-quiet /home/jusss/sounds/new-email.mp3 2>/dev/null &")
             latest_recent_time=time.time()
         else:
             count=count+1
@@ -55,7 +68,7 @@ while True:
         ssl_socket.write('a_tag idle\r\n'.encode(encoding))
         
         if recv_msg[recv_msg.find('UNSEEN')+7] != '0':
-            os.system("mplayer -noconsolecontrols -really-quiet /home/jusss/sounds/new-email.mp3 2> /dev/null")
+            os.system("mplayer -noconsolecontrols -really-quiet /home/jusss/sounds/new-email.mp3 2>/dev/null &")
 
 
 #    ssl_socket.write('a_tag status inbox (unseen)\r\n'.encode(encoding))
