@@ -3,8 +3,6 @@
 ### "(html ...)" -> [ '(', 'html', ... ')'] -> ['</html>',...'<html>'] -> ['<html>'...'</html>'] -> "<html>...</html>"
 
 ### set a list as a stack to store one token after '<', convert_list to store the list after changingn
-global stack
-global clist
 stack=[]
 clist=[]
 s="(html (body (h1 hello)))"
@@ -19,7 +17,7 @@ def cons(atom,alist):
     return [atom]+alist
 
 def reverse(alist):
-    return alist[-1:]
+    return alist[::-1]
 
 def tokenize(s):
     "Convert a string into a list of tokens."
@@ -33,7 +31,7 @@ def convert(alist, clist, stack):
         return clist
     else:
         if car(alist) == '(':
-            return convert(cdr(alist), cons('<'+car(cdr(alist))+'>',clist), cons(car(cdr(alist)),stack))
+            return convert(cdr(cdr(alist)), cons('<'+car(cdr(alist))+'>',clist), cons(car(cdr(alist)),stack))
         else:
             if car(alist) == ')':
                 return convert(cdr(alist), cons('</'+car(stack)+'>',clist), cdr(stack))
