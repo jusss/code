@@ -3,8 +3,11 @@
 ### "(html ...)" -> [ '(', 'html', ... ')'] -> ['</html>',...'<html>'] -> ['<html>'...'</html>'] -> "<html>...</html>"
 
 ### set a list as a stack to store one token after '<', convert_list to store the list after changingn
-global stack=[]
-global clist=[]
+global stack
+global clist
+stack=[]
+clist=[]
+s="(html (body (h1 hello)))"
 
 def car(alist):
     return alist[0]
@@ -21,6 +24,9 @@ def reverse(alist):
 def tokenize(s):
     "Convert a string into a list of tokens."
     return s.replace('(',' ( ').replace(')',' ) ').split()
+
+def list2string(alist):
+    return ''.join(alist)
 
 def convert(alist, clist, stack):
     if not alist:
