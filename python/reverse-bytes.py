@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 import sys, os
 
-read_file='rki299.avi'
-write_file='iva.992ikr'
+read_file=sys.argv[1]
+write_file=sys.argv[2]
 io_speed=17*1024*1024
 length=os.path.getsize(read_file)
 r=open(read_file,'rb')
