@@ -47,8 +47,10 @@ while True:
 
             # if there are two more '\r\n', then what
             if result1.find('\r\n',result1.find('\r\n')+1) > -1:
-                result2=result1[result1.find('\r\n')+2:-result1[::-1].find('\n\r')-2]
+                result2=result1[result1.find('\r\n')+2:-(result1[::-1].find('\n\r',result1[::-1].find('\n\r')+2)+1)]
                 result3=':services. 212 jusss #ics :' + result2.replace('\r\n','\r\n:services. 213 jusss #ics :')+ '\r\n'
+                #result2=result1
+                #result3=':services. 212 jusss #irc-ctrl-shell :' + result2.replace('\n','N ').replace('\r',' R-') + '\r\n'
                 print(result2)
                 fd1.send(result3.encode())
             else:
