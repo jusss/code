@@ -1,8 +1,11 @@
-original_file_name = 'a.srt'
+#!/usr/bin/env python3
+
+import sys
+original_file_name = sys.argv[1]
 original_file_encoding = 'utf-8'
-new_file_name = 'an.srt'
+new_file_name = sys.argv[2]
 new_file_encoding = 'utf-8'
-delay_time = 7200
+delay_time = int(sys.argv[3])
 alist=[]
 
 b1=open(original_file_name,'r',encoding=original_file_encoding)
@@ -10,7 +13,12 @@ a1=b1.read()
 
 ''' position is position of the comma in xx:xx:xx,xxx , delay_time is second '''
 
-import sys
+''' 匹配:xx:这种字符串，xx应该为数字，如果为字符串可能就得不到想要的了， 00:01:35 
+    分三种情况，1，匹配到了:xx:这种，直接递归， 然后就是另一种情况就是没匹配到:xx:
+    而没匹配到:xx:又分两种， 2，没匹配到:xx:，而且也没匹配到: 这说明这是文件结尾部分了
+    可以直接把这块写到字符串列表里并结束。  3，没匹配到:xx:，但是匹配到:了，这时，就把position到
+    :+1这段写入字符串列表里，并把:的位置+1给position然后递归可以跳过这段继续判断 '''
+
 class TailRecurseException(BaseException):
   def __init__(self, args, kwargs):
     self.args = args
@@ -57,8 +65,12 @@ def bla3 (h,m,s):
 @tail_call_optimized
 def bla (position,original,new):
     if not (original.find(':',position) > -1 and original[(original.find(':',position)) + 3] == ':') :
-        new.append(original[position:])
-        return 0
+        if original.find(':',position) == -1:
+            new.append(original[position:])
+            return 0
+        else:
+            new.append(original[position:original.find(':',position)+1])
+            return bla(original.find(':',position)+1,original,new)
     else:
         hour=int(original[original.find(':',position)-2 : original.find(':',position)])
         minute=int(original[original.find(':',position)+1 : original.find(':',position)+3])
@@ -95,3 +107,5 @@ a2.write(''.join(alist))
 
 b1.close()
 a2.close()
+
+
