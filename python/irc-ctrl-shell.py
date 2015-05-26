@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
 import socket, os, sys, pty, select, subprocess, time
 
+def read_master(master_fd,a_string):
+    r,w,x = select.select([master_fd], [], [], 1)
+    if r:
+        return read_master(master_fd,a_string+os.read(master_fd,10240).decode('utf-8','replace'))
+    else:
+        return a_string
+
 # allocate pty for shell
 (master,slave)=pty.openpty()
 subprocess.Popen(["bash","-l","-i"],stdin=slave,stdout=slave,stderr=slave)
@@ -15,15 +22,19 @@ join_channel=[':jusss.org NOTICE * :Welcome :) \r\n',
              ':jusss!~jusss@127.0.0.1 JOIN #ics\r\n']
 
 # client use andchat on android, and just set nick is jusss and server address, do not set autojoin channel
-# result=':services. 212 jusss #ics :' + 'hi' + '\r\n'
+result=':services. 211 jusss #ics :' + 'connected...' + '\r\n'
 
 fd = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 fd.bind((address,port))
-fd.listen(22)
+# 128 is default maximum value, it's socket.SOMAXCONN and it's 128
+fd.listen(128)
+
+print('waiting for connecting...')
 
 fd1, addr1 = fd.accept()
 fd1.send(join_channel[0].encode(encoding))
 fd1.send(join_channel[1].encode(encoding))
+fd1.send(result.encode(encoding))
 
 print('connected...')
 
@@ -45,7 +56,8 @@ while True:
                 print(cmd)
                 os.write(master,(cmd+'\n').encode())
             time.sleep(1)
-            result1=os.read(master,102400).decode('utf-8','replace')
+            # result1=os.read(master,102400).decode('utf-8','replace')
+            result1=read_master(master,'')
 
             # if there are two more '\r\n', then what
             if result1.find('\r\n',result1.find('\r\n')+2) > -1:
@@ -74,10 +86,11 @@ while True:
 
         if exit_msg > -1:
             print(recv_msg)
-            print('disconnect...')
+            print('disconnected...')
             fd1, addr1 = fd.accept()
             fd1.send(join_channel[0].encode(encoding))
             fd1.send(join_channel[1].encode(encoding))
+            fd1.send(result.encode(encoding))
             print('connected...')
 
 
@@ -88,3 +101,10 @@ while True:
    #     alist.append(string[p1:po])
     #    p1=po
      #   nr(string[po+1:],po
+#def read_master(master_fd,a_string):
+ #   r,w,x = select.select([master_fd], [], [], 10)
+  #  if r:
+   #     return read_master(master_fd,a_string+os.read(master_fd,10240).decode('utf-8','replace'))
+    #else:
+     #   return a_string
+    
