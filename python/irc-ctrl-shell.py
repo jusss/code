@@ -59,8 +59,18 @@ def thread_i(count1):
     print('connected...')
 
     while True:
-        recv_msg = fds[fd1].recv(1024).decode('utf-8')
-        exit_msg=recv_msg[0:4].find('QUIT')
+        # if client disconnected, recv() will read the empty string,then what
+        recv_msg = fds[fd1].recv(1024)
+        if not recv_msg:
+            print('client closed socket without quit message, disconnected...')
+            fds[fd1],fds[fd1+1] = fd.accept()
+            fds[fd1].send(join_channel[0].encode(encoding))
+            fds[fd1].send(join_channel[1].encode(encoding))
+            fds[fd1].send(result.encode(encoding))
+            print('connected...')
+        else:
+            recv_msg=recv_msg.decode('utf-8','replace')
+            exit_msg=recv_msg[0:4].find('QUIT')
 
         if len(recv_msg) > 0:
             position=recv_msg.find('PRIVMSG #ics :')
