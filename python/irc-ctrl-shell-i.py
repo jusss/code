@@ -8,10 +8,7 @@
     four threads run at the same time, two for read master , two for read socket, this case can handle two
     connection at the same time, and the code can be optimized ,because all read master code is same,and
     read socket code either
-
-
 """
-
 import socket, os, sys, pty, select, subprocess, time, threading
 
 def read_master(master_fd,a_string):
@@ -20,8 +17,6 @@ def read_master(master_fd,a_string):
         return read_master(master_fd,a_string+os.read(master_fd,10240).decode('utf-8','replace'))
     else:
         return a_string
-
-
 
 address='192.168.1.254'
 port=6667
@@ -32,15 +27,16 @@ join_channel=[':jusss.org NOTICE * :Welcome :) \r\n',
 # client use andchat on android, and just set nick is jusss and server address, do not set autojoin channel
 result=':services. 211 jusss #ics :' + 'connected...' + '\r\n'
 
+# define a global variable in python, global x; x=3; def f(): global x; x=x+1;
 # fds list store all return values of accept(), count is offset for fds
-global fds, master, slave, count
+# msp is short for master_slave_pair,it is a list, and two are a pair, like msp[0] is master and msp[1] is slave from openpty
+# fds is a pair of fd and address from accept(), like fds[0] is a fd for connection, fds[1] is the address for server
+# one connection will take two threads,read_socket() and read_master(),so if the connection limit is 128, the threads limit will be 256
+# count will be offset for msp too.
+global fds, msp, count
 fds=[i for i in range(256)]
+msp=[i for i in range(256)]
 count=0
-threads=[]
-
-#define a global variable in python, global x; x=3; def f(): global x; x=x+1;
-master=None
-slave=None
 
 fd = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 fd.bind((address,port))
@@ -53,33 +49,33 @@ print('waiting for connecting...')
 # variable's name in all functions and get different values from one global variable at different time,
 # and the local variables which have one same name in different functions don't effect each other.
 
-def read_socket_i():
-
+def read_socket_loop():
+    global fds, msp, count
+    offset=count
+    
     # allocate pty for shell
-    global master,slave,fds,count
-    (master,slave)=pty.openpty()
-    subprocess.Popen(["bash","-l","-i"],stdin=slave,stdout=slave,stderr=slave)
-    os.write(master,"echo 'hi'\n".encode())
+    (msp[offset],msp[offset+1])=pty.openpty()
+    subprocess.Popen(["bash","-l","-i"],stdin=msp[offset+1],stdout=msp[offset+1],stderr=msp[offset+1])
+    os.write(msp[offset],"echo 'hi'\n".encode())
     time.sleep(1)
-    os.read(master,1000).decode()
-
-    fd1=count
-    fds[fd1], fds[fd1+1] = fd.accept()
-    fds[fd1].send(join_channel[0].encode(encoding))
-    fds[fd1].send(join_channel[1].encode(encoding))
-    fds[fd1].send(result.encode(encoding))
+    os.read(msp[offset],1000).decode()
+    
+    fds[offset], fds[offset+1] = fd.accept()
+    fds[offset].send(join_channel[0].encode(encoding))
+    fds[offset].send(join_channel[1].encode(encoding))
+    fds[offset].send(result.encode(encoding))
 
     print('connected...')
 
     while True:
         # if client disconnected, recv() will read the empty string,then what
-        recv_msg = fds[fd1].recv(1024)
+        recv_msg = fds[offset].recv(1024)
         if not recv_msg:
             print('client closed socket without quit message, disconnected...')
-            fds[fd1],fds[fd1+1] = fd.accept()
-            fds[fd1].send(join_channel[0].encode(encoding))
-            fds[fd1].send(join_channel[1].encode(encoding))
-            fds[fd1].send(result.encode(encoding))
+            fds[offset],fds[offset+1] = fd.accept()
+            fds[offset].send(join_channel[0].encode(encoding))
+            fds[offset].send(join_channel[1].encode(encoding))
+            fds[offset].send(result.encode(encoding))
             print('connected...')
         else:
             recv_msg=recv_msg.decode('utf-8','replace')
@@ -87,10 +83,10 @@ def read_socket_i():
             if exit_msg > -1:
                 print(recv_msg)
                 print('disconnected...')
-                fds[fd1],fds[fd1+1] = fd.accept()
-                fds[fd1].send(join_channel[0].encode(encoding))
-                fds[fd1].send(join_channel[1].encode(encoding))
-                fds[fd1].send(result.encode(encoding))
+                fds[offset],fds[offset+1] = fd.accept()
+                fds[offset].send(join_channel[0].encode(encoding))
+                fds[offset].send(join_channel[1].encode(encoding))
+                fds[offset].send(result.encode(encoding))
                 print('connected...')
             else:
                 if len(recv_msg) > 0:
@@ -102,19 +98,19 @@ def read_socket_i():
                         # if recv string is ret, then send '\n' to master
                         if cmd=='ret':
                             print(' ')
-                            os.write(master,('\n'.encode()))
+                            os.write(msp[offset],('\n'.encode()))
                         else:
                             print(cmd)
-                            os.write(master,(cmd+'\n').encode())
+                            os.write(msp[offset],(cmd+'\n').encode())
                           
-def read_master_i():
-    global master,slave,fds,count
-    fd1=count
+def read_master_loop():
+    global fds, msp, count
+    offset=count
     
     while True:
         # result1=os.read(master,10240).decode('utf-8','replace')
         # time.sleep(1)
-        result1=read_master(master,'')
+        result1=read_master(msp[offset],'')
         if result1:
             """
             # if there are two more '\r\n', then what
@@ -151,38 +147,36 @@ def read_master_i():
             if result1.find('\r\n') > -1:
                 result3=':services. 212 jusss #ics :' + result1.replace('\r\n','\r\n:services. 212 jusss #ics :')+ '\r\n'
                 print(result1)
-                fds[fd1].send(result3.encode())
+                fds[offset].send(result3.encode())
             else:
                 result3=':services. 212 jusss #ics :' + result1 + '\r\n'
                 print(result1)
-                fds[fd1].send(result3.encode())
-                
+                fds[offset].send(result3.encode())
 
-#def nr(string,p1):
- #   po=string.find('\n')
-  #  if po>-1:
-   #     alist.append(string[p1:po])
-    #    p1=po
-     #   nr(string[po+1:],po
-#def read_master(master_fd,a_string):
- #   r,w,x = select.select([master_fd], [], [], 10)
-  #  if r:
-   #     return read_master(master_fd,a_string+os.read(master_fd,10240).decode('utf-8','replace'))
-    #else:
-     #   return a_string
-    
-for i in range(1):
-    # parameters in args() is a sequence, so I add a comma after the first parameter
-    t0=threading.Thread(target=read_socket_i)
-    t1=threading.Thread(target=read_master_i)
-    
-    # read_socket_ii and read_master_ii, and count=count+2
-    threads.append(t0)
-    threads.append(t1)
-for i in range(2):
+# create threads
+t=[i for i in range(256)]
+threads=[]
+# thread_number is the number of threads that will be created, two threads for one connection, 6 threads for 3 connection
+
+thread_number=6
+
+for i in range(0,thread_number,2):
+    # parameters in args() is a sequence, so I add a comma after the first parameter, or don't set args()
+    t[i]=threading.Thread(target=read_socket_loop)
+    t[i+1]=threading.Thread(target=read_master_loop)
+    threads.append(t[i])
+    threads.append(t[i+1])
+
+# start threads
+for i in range(0,thread_number,2):
     threads[i].start()
-    #start read_socket_i, then sleep for 2 seconds, then start read_socket_ii , read_master_i, read_master_ii, because open pty on read_socket_i
+    # start read_socket_loop, then sleep for 2 seconds, then start read_socket_loop, because open pty on read_socket_loop
     time.sleep(2)
-# count=count+2
-for i in range(2):
+    threads[i+1].start()
+    # two threads use one same count,like in read_socket_loop and read_master_loop, fds[0] fds[1] msp[0] msp[1] use the same count==0 at the same time
+    count=count+2
+    time.sleep(2)
+
+# block threads
+for i in range(thread_number):
     threads[i].join()
