@@ -74,9 +74,10 @@ def read_socket_loop():
         # try except else finally, if there's an exception on try block, then run except block, if not, then run else block,
         # it always runs finally block, don't care there's an exception on try block or not.
         try:
-            fds[offset].settimeout(180)
+            # consider add PING PONG to solve this long timeout
+            fds[offset].settimeout(60*30)
             recv_msg = fds[offset].recv(1024)
-        except socket.timeout:
+        except (socket.timeout, ConnectionResetError):
             print('timeout, disconnected...')
             fds[offset],fds[offset+1] = fd.accept()
             fds[offset].send(join_channel[0].encode(encoding))
@@ -122,17 +123,17 @@ def read_master_loop():
                 result3=':services. 212 jusss #ics :' + result1.replace('\r\n','\r\n:services. 212 jusss #ics :')+ '\r\n'
                 print(result1)
                 try:
-                    fds[offset].settimeout(180)
+                    fds[offset].settimeout(60*30)
                     fds[offset].send(result3.encode())
-                except socket.timeout:
+                except (socket.timeout, BrokenPipeError, ConnectionResetError):
                     print('failed to send data to client')
             else:
                 result3=':services. 212 jusss #ics :' + result1 + '\r\n'
                 print(result1)
                 try:
-                    fds[offset].settimeout(180)
+                    fds[offset].settimeout(60*30)
                     fds[offset].send(result3.encode())
-                except socket.timeout:
+                except (socket.timeout, BrokenPipeError, ConnectionResetError):
                     print('failed to send data to client')
 
 # create threads
@@ -140,7 +141,7 @@ t=[i for i in range(256)]
 threads=[]
 # thread_number is the number of threads that will be created, two threads for one connection, 6 threads for 3 connection
 
-thread_number=6
+thread_number=4
 
 for i in range(0,thread_number,2):
     # parameters in args() is a sequence, so I add a comma after the first parameter, or don't set args()
