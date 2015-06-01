@@ -69,9 +69,16 @@ def read_socket_loop():
 
     while True:
         # if client disconnected, recv() will read the empty string,then what
-        recv_msg = fds[offset].recv(1024)
-        if not recv_msg:
-            print('client closed socket without quit message, disconnected...')
+        # ok, maybe the up words are wrong, recv() on client will read empty string, not recv() on server
+        # and if the network is shut down directly, how server to detect the connection is alive or over?
+        # so use the exception socket.settimeout() to solve this case
+        # try except else finally, if there's an exception on try block, then run except block, if not, then run else block,
+        # it always runs finally block, don't care there's an exception on try block or not.
+        try:
+            fds[offset].settimeout(180)
+            recv_msg = fds[offset].recv(1024)
+        except socket.timeout:
+            print('timeout, disconnected...')
             fds[offset],fds[offset+1] = fd.accept()
             fds[offset].send(join_channel[0].encode(encoding))
             fds[offset].send(join_channel[1].encode(encoding))
