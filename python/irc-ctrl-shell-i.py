@@ -116,29 +116,47 @@ def read_master_i():
         # time.sleep(1)
         result1=read_master(master,'')
         if result1:
+            """
             # if there are two more '\r\n', then what
             if result1.find('\r\n',result1.find('\r\n')+2) > -1:
                 # result2=result1[result1.find('\r\n')+2:-(result1[::-1].find('\n\r',result1[::-1].find('\n\r')+2)+1)]
                 # result3=':services. 212 jusss #ics :' + result2.replace('\r\n','\r\n:services. 213 jusss #ics :')+ '\r\n'
                 result2=result1[result1.find('\r\n')+2:-(result1[::-1].find('\n\r')+1)]
-                result3=':services. 212 jusss #ics :' + result2.replace('\r\n','\r\n:services. 213 jusss #ics :')+ '\r\n'
+                result3=':services. 212 jusss #ics :' + result2.replace('\r\n','\r\n:services. 212 jusss #ics :')+ '\r\n'
                 # result2=result1
                 # result3=':services. 212 jusss #ics :' + result2.replace('\n','N ').replace('\r',' R-') + '\r\n'
-                print(result2)
+                print(result1)
                 fds[fd1].send(result3.encode())
             else:
-                # if there is one '\r\n', then what
-                if result1.find('\r\n') > -1:
-                    result2=result1[result1.find('\r\n')+2:]
-                    # result3=':services. 212 jusss #ics :' + result2.replace('\n','N ').replace('\r',' R-') + '\r\n'
-                    result3=':services. 212 jusss #ics :' + result2 + '\r\n'
-                    os.write(1,result2.encode())
+                # if result1 eq '\r\n', then what
+                if result1=='\r\n':
+                    result3=':services. 212 jusss #ics :'+ '\r\n'
                     fds[fd1].send(result3.encode())
-                # if there is no '\r\n' in output,then what
-                if result1.find('\r\n') == -1:
-                    result3=':services. 212 jusss #ics :' + result1 + '\r\n'
-                    print(result1)
-                    fds[fd1].send(result3.encode())
+                else:
+                    # if there is one '\r\n', then what
+                    if result1.find('\r\n') > -1:
+                        result3=':services. 212 jusss #ics :' + result1.replace('\r\n','\r\n:services. 212 jusss #ics :')+ '\r\n'
+                        # result2=result1[result1.find('\r\n')+2:]
+                        # result3=':services. 212 jusss #ics :' + result2.replace('\n','N ').replace('\r',' R-') + '\r\n'
+                        # result3=':services. 212 jusss #ics :' + result1 + '\r\n'
+                        # os.write(1,result1.encode())
+                        print(result1)
+                        fds[fd1].send(result3.encode())
+                    # if there is no '\r\n' in output,then what
+                    if result1.find('\r\n') == -1:
+                        result3=':services. 212 jusss #ics :' + result1 + '\r\n'
+                        print(result1)
+                        fds[fd1].send(result3.encode())
+            """
+            if result1.find('\r\n') > -1:
+                result3=':services. 212 jusss #ics :' + result1.replace('\r\n','\r\n:services. 212 jusss #ics :')+ '\r\n'
+                print(result1)
+                fds[fd1].send(result3.encode())
+            else:
+                result3=':services. 212 jusss #ics :' + result1 + '\r\n'
+                print(result1)
+                fds[fd1].send(result3.encode())
+                
 
 #def nr(string,p1):
  #   po=string.find('\n')
