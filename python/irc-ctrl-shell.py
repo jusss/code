@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-#1. send 0x0d, then send \n to master
+#1. recv a string 'ret', then send \n to master
 #2. multi-thread
 #3. text editor
 
@@ -78,8 +78,8 @@ def thread_i(count1):
             if position > -1:
                 cmd = recv_msg[position + 14:]
                 cmd=cmd.replace('\r','').replace('\n','')
-                # if recv string is 0x0d, then send '\n' to master
-                if cmd=='0x0d':
+                # if recv string is ret, then send '\n' to master
+                if cmd=='ret':
                     print(' ')
                     os.write(master,('\n'.encode()))
                 else:
