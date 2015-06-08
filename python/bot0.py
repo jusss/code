@@ -1,22 +1,34 @@
 #!/usr/bin/env python3
+"""
+recv(...) method of socket.socket instance
+    recv(buffersize[, flags]) -> data
 
-import socket
-import os
-import string
-import time
+    Receive up to buffersize bytes from the socket.  For the optional flags
+    argument, see the Unix manual.  When no data is available, block until
+    at least one byte is available or until the remote end is closed.  When
+    the remote end is closed and all data is read, return the empty string.
+comments don't screw your indentation levels. docstrings do,docstrings are not comments
+"""
+import socket, os, string, time, sys
 
-alist = ['morgan.freenode.net',
+alist = ['holmes.freenode.net',
          6665,
          'NICK sssuj\r\n',
          'USER sssuj 8 * :sssuj\r\n',
          'join #ubuntu-cn\r\n',
-         'PONG :morgan.freenode.net\r\n']
+         'PONG :holmes.freenode.net\r\n']
 storage_list = []
 recv_count = 30
 previous_time_stamp = '2015-02-04'
 
 fd1 = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-fd1.connect((alist[0],alist[1]))
+try:
+ fd1.connect((alist[0],alist[1]))
+except socket.error:
+ time.sleep(300)
+ os.system("/root/irc/bot1 &")
+ sys.exit()
+
 fd1.send(alist[2].encode('utf-8'))
 fd1.send(alist[3].encode('utf-8'))
 fd1.send(alist[4].encode('utf-8'))
@@ -35,15 +47,30 @@ while True:
             mail_cmd = 'mailx -a ' + '"' + \
                        'Content-Type: text/plain; charset=utf-8' + '"'\
                        + ' -s ' + '"' + previous_time_stamp + '"' + \
-                       ' l@jusss.org < /root/irc/irclog'
+                       ' x@x.x < /root/irc/irclog'
             mv_cmd = 'mv ' + '/root/irc/irclog ' + '/root/irc/' + previous_time_stamp
             os.system(mail_cmd)
             os.system(mv_cmd)
             previous_time_stamp = time_stamp[0:10]
 
-    recv_msg = fd1.recv(1024).decode('utf-8','replace')
+    """
+    the data from socket with recv() , compare it if it's empty string, 
+    four ways:
+    if not empty-string :
+    len(fd1.recv()) == 0
+    fd1.recv() == ''
+    fd1.recv() == b''
+    """
+
+    recv_msg = fd1.recv(1024)
+    if not recv_msg :
+        storage_file.close()
+        time.sleep(300)
+        os.system("/root/irc/bot1 &")
+        sys.exit()
+    else:
+        recv_msg = recv_msg.decode('utf-8','replace')
     recv_count = recv_count - 1
-    print(recv_msg, end='')
     if recv_msg.startswith('PING') :
         fd1.send(alist[5].encode('utf-8'))
     if recv_msg.find('PRIVMSG #ubuntu-cn :') > -1 :    

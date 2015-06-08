@@ -17,18 +17,24 @@ import string
 import time
 import sys
 
-alist = ['morgan.freenode.net',
+alist = ['holmes.freenode.net',
          6665,
          'NICK sssuj\r\n',
          'USER sssuj 8 * :sssuj\r\n',
          'join #ubuntu-cn\r\n',
-         'PONG :morgan.freenode.net\r\n']
+         'PONG :holmes.freenode.net\r\n']
 storage_list = []
 recv_count = 30
 previous_time_stamp = '2015-02-04'
 
 fd1 = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-fd1.connect((alist[0],alist[1]))
+try:
+ fd1.connect((alist[0],alist[1]))
+except socket.error:
+ time.sleep(300)
+ os.system("/root/irc/bot0 &")
+ sys.exit()
+ 
 fd1.send(alist[2].encode('utf-8'))
 fd1.send(alist[3].encode('utf-8'))
 fd1.send(alist[4].encode('utf-8'))
@@ -47,7 +53,7 @@ while True:
             mail_cmd = 'mailx -a ' + '"' + \
                        'Content-Type: text/plain; charset=utf-8' + '"'\
                        + ' -s ' + '"' + previous_time_stamp + '"' + \
-                       ' l@jusss.org < /root/irc/irclog'
+                       ' x@x.x < /root/irc/irclog'
             mv_cmd = 'mv ' + '/root/irc/irclog ' + '/root/irc/' + previous_time_stamp
             os.system(mail_cmd)
             os.system(mv_cmd)
@@ -65,7 +71,8 @@ while True:
     recv_msg = fd1.recv(1024)
     if not recv_msg :
         storage_file.close()
-        os.system('/root/irc/bot1')
+        time.sleep(300)
+        os.system("/root/irc/bot0 &")
         sys.exit()
     else:
         recv_msg = recv_msg.decode('utf-8','replace')
