@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 """
 #1. recv a string 'ret', then send \n to master
-#2. multi-thread
-#3. text editor
-#4. multi-thread , one for read master and send to socket, one for recv data from socket and write master,
+#2. multi-thread , one for read master and send to socket, one for recv data from socket and write master,
     it's better to use multi-process than multi-thread, but I don't know how to use multi-process,
     four threads run at the same time, two for read master , two for read socket, this case can handle two
     connection at the same time, and the code can be optimized ,because all read master code is same,and
     read socket code either
+#3. text editor
 """
 import socket, os, sys, pty, select, subprocess, time, threading
 
