@@ -6,7 +6,13 @@
     four threads run at the same time, two for read master , two for read socket, this case can handle two
     connection at the same time, and the code can be optimized ,because all read master code is same,and
     read socket code either
-#3. text editor
+#3. text editor: write a text editor is so hard, and vim or emacs can't be used for this script, only ex works.
+#4. trans file, paste context into a website and wget it on server , it's not a good idea, write another simple 
+    script is better, like 'file-trans.py ip file1 file2' and run the same in the client and server, maybe netcat
+    or socat are better than this.
+#5. restart this script, when one of the threads get some exceptions, send 'restart', then restart it maybe is a 
+    good idea.
+#6. send Control key
 """
 import socket, os, sys, pty, select, subprocess, time, threading
 
