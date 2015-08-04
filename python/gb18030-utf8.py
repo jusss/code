@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 
-#usage srt.py file.srt new-file.srt delay-time
+#usage: gbk-utf8 file.srt new-file.srt
 import sys
 original_file_name = sys.argv[1]
-original_file_encoding = 'utf-8'
+original_file_encoding = 'gb18030'
 new_file_name = sys.argv[2]
 new_file_encoding = 'utf-8'
-delay_time = int(sys.argv[3])
+#delay_time = int(sys.argv[3])
+delay_time=0
 alist=[]
 
-b1=open(original_file_name,'r',encoding=original_file_encoding)
-a1=b1.read()
+b1=open(original_file_name,'rb')
+a1=b1.read().decode(original_file_encoding, 'ignore')
 
 ''' position is position of the comma in xx:xx:xx,xxx , delay_time is second '''
 
