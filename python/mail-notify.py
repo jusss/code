@@ -8,7 +8,7 @@
 ### 取消gnus的每隔5分钟的时间检查
 
 """
-1. 当有新未读邮件并未在其它客户端下载，声音提醒并offlineimap下载，然后下载2小时后offlineimap同步一次把已读的状态同步上去，2小时10分钟后判断是否有未读邮件，声音提醒并offlineimap同步一次,并把计时置零
+1. 当有新未读邮件并未在其它客户端下载，声音提醒并offlineimap下载，然后下载2小时后offlineimap同步一次把已读的状态同步上去，2小时10分钟后判断是否有未读邮件，声音提醒并offlineimap同步一次,并把计时置零, 当有多封邮件同时到达时，因为不能同时运行2个offlineimap，所以间隔10分钟后再次运行offlineimap同步
 2. 如果根据邮件ID来判断新邮件的话，还得有个ID表文件，或者判断ID个数，这不是很好，所以用RECENT来判断新邮件，但如果在别的客户端上已下新邮件，则这面就不会有RECENT了
    所以如果在别的客户端上已收取新邮件后，这里就不再提醒和offlineimap下载
 3. 之所以不开offlineimap主动每10分钟下载一次，是怕当在下载过程中会收到新邮件再开offlineimap下载，这样2个offlineimap会冲突，但可以开offlineimap前先检查是否有offlinimap进程来避免
@@ -25,6 +25,7 @@ password=''
 encoding='utf-8'
 
 latest_recent_time=time.time()
+same_time_flag = 0
 write_file="/home/jusss/lab/mail.log"
 
 a_socket = socket.socket()
@@ -64,14 +65,21 @@ while True:
             # use psutil module can detect if offlineimap process exist or not
             if not os.popen("pidof -x offlineimap").read():
                 os.system("offlineimap >/dev/null 2>&1 &")
+                same_time_flag = 0
+            else:
+                # if two mail arrive at the same time, and offlineimap can't run tow instance at the same time, then run the second offlineimap after 10 minutes
+                latest_recent_time = time.time() - 6600
+                same_time_flag = 1
             os.system("mplayer -noconsolecontrols -really-quiet /home/jusss/sounds/new-email.mp3 2>/dev/null &")
-            latest_recent_time=time.time()
+            if same_time_flag == 0:
+                latest_recent_time=time.time()
 
     if time.time() - latest_recent_time > 7200:
         if not os.popen("pidof -x offlineimap").read():
             os.system("offlineimap >/dev/null 2>&1 &")
         if time.time() - latest_recent_time > 7800:
             latest_recent_time=time.time()
+            same_time_flag = 0
             ssl_socket.write('done\r\n'.encode(encoding))
             recv_msg=ssl_socket.read().decode(encoding)[:-2]
             print(recv_msg)
@@ -84,7 +92,11 @@ while True:
                 os.system("mplayer -noconsolecontrols -really-quiet /home/jusss/sounds/new-email.mp3 2>/dev/null &")
                 if not os.popen("pidof -x offlineimap").read():
                     os.system("offlineimap >/dev/null 2>&1 &")
-            
+                    same_time_flag = 0
+                else:
+                    latest_recent_time = time.time() - 6600
+                    same_time_flag = 1
+                    
 #    ssl_socket.write('a_tag status inbox (unseen)\r\n'.encode(encoding))
 #    * STATUS "inbox" (UNSEEN 0)
 #    idle need to be end with 'done'
