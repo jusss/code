@@ -8,6 +8,7 @@
 ### 取消gnus的每隔5分钟的时间检查
 
 """
+0. 开始运行后首先检查下是否有未读如果有就声音提醒并同步，如果没有，仍然同步
 1. 当有新未读邮件并未在其它客户端下载，声音提醒并offlineimap下载，然后下载2小时后offlineimap同步一次把已读的状态同步上去，2小时10分钟后判断是否有未读邮件，声音提醒并offlineimap同步一次,并把计时置零, 当有多封邮件同时到达时，因为不能同时运行2个offlineimap，所以间隔10分钟后再次运行offlineimap同步
 2. 如果根据邮件ID来判断新邮件的话，还得有个ID表文件，或者判断ID个数，这不是很好，所以用RECENT来判断新邮件，但如果在别的客户端上已下新邮件，则这面就不会有RECENT了
    所以如果在别的客户端上已收取新邮件后，这里就不再提醒和offlineimap下载
@@ -43,6 +44,7 @@ except Exception as e:
 
 ssl_socket.write(('a_tag login ' + user + ' ' + password + '\r\n').encode(encoding))
 ssl_socket.write('a_tag select inbox\r\n'.encode(encoding))
+ssl_socket.write('a_tag status inbox (unseen)\r\n'.encode(encoding))
 ssl_socket.write('a_tag idle\r\n'.encode(encoding))
 ssl_socket.settimeout(180)
 while True:
@@ -59,6 +61,25 @@ while True:
         os.system("/home/jusss/lab/mail-notify.py &")
         sys.exit()
     print(recv_msg)
+    
+    ### first time run, and check unseen and offlineimap to update
+    if recv_msg.find('* STATUS "inbox" (UNSEEN') > -1:
+        if recv_msg[recv_msg.find('UNSEEN')+7] != '0':
+            os.system("mplayer -noconsolecontrols -really-quiet /home/jusss/sounds/new-email.mp3 2>/dev/null &")
+            if not os.popen("pidof -x offlineimap").read():
+                os.system("offlineimap >/dev/null 2>&1 &")
+                same_time_flag = 0
+            else:
+                latest_recent_time = time.time() - 6600
+                same_time_flag = 1
+        else:
+            if not os.popen("pidof -x offlineimap").read():
+                os.system("offlineimap >/dev/null 2>&1 &")
+                same_time_flag = 0
+            else:
+                latest_recent_time = time.time() - 6600
+                same_time_flag = 1
+    
 
     if recv_msg.find("RECENT") > 0:
         if int(recv_msg[0:recv_msg.find("RECENT")-1][::-1][0:recv_msg[0:recv_msg.find("RECENT")-1][::-1].find(" ")][::-1]) > 0:
