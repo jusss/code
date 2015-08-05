@@ -83,8 +83,9 @@ def read_socket_loop():
             # consider add PING PONG to solve this long timeout
             fds[offset].settimeout(60*30)
             recv_msg = fds[offset].recv(1024)
-        except (socket.timeout, ConnectionResetError):
+        except Exception as e:
             print('timeout, disconnected...')
+            print(e.__str__())
             fds[offset],fds[offset+1] = fd.accept()
             fds[offset].send(join_channel[0].encode(encoding))
             fds[offset].send(join_channel[1].encode(encoding))
@@ -131,16 +132,18 @@ def read_master_loop():
                 try:
                     fds[offset].settimeout(60*30)
                     fds[offset].send(result3.encode())
-                except (socket.timeout, BrokenPipeError, ConnectionResetError):
+                except Exception as e:
                     print('failed to send data to client')
+                    print(e.__str__())
             else:
                 result3=':services. 212 jusss #ics :' + result1 + '\r\n'
                 print(result1)
                 try:
                     fds[offset].settimeout(60*30)
                     fds[offset].send(result3.encode())
-                except (socket.timeout, BrokenPipeError, ConnectionResetError):
+                except Exception as e:
                     print('failed to send data to client')
+                    print(e.__str__())
 
 # create threads
 t=[i for i in range(256)]
