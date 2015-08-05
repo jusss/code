@@ -11,7 +11,8 @@
 0. 开始运行后首先检查下是否有未读如果有就声音提醒并同步，如果没有，仍然同步, 自动检查是为了代替ID检查这样即使别的客户端读取了邮件这里不再有RECENT提示也可以一段时间后
    自动检查并提醒当过了2小时后自动更新但不检查，2小时10分钟后检查但不更新，因为此时在切换进idle模式前，只有1秒不到的切换时间，除非这时发邮件来，这样会延迟10分钟下载,
    只要不在切换Idle模式这1秒时间内有新邮件，进入Idle模式后若有新邮件可以随时同步，因为不确定同步需要的时间所以都是在检查前10分钟同步，检查前的同步是为了把已读的状态同步到
-   服务器上，然后检查之后之所以不立即同步因为已经进了Idle模式，这样只有2种可能才同步，一种是2小时同步，同步状态，2小时10分钟后检查，另一种是Idle收到RECENT信息
+   服务器上，然后检查之后之所以不立即同步因为已经进了Idle模式，这样只有3种可能才同步，一种是2小时同步，同步状态，2小时10分钟后检查，另一种是Idle收到RECENT信息
+   第三种同步，Idle同步之后10分钟再同步一次,同步已读状态
 1. 当有新未读邮件并未在其它客户端下载，声音提醒并offlineimap下载，然后下载2小时后offlineimap同步一次把已读的状态同步上去，2小时10分钟后判断是否有未读邮件，声音提醒但不同步,并把计时置零, 当有多封邮件同时到达时，因为不能同时运行2个offlineimap，所以间隔10分钟后再次运行offlineimap同步
 2. 如果根据邮件ID来判断新邮件的话，还得有个ID表文件，或者判断ID个数，这不是很好，所以用RECENT来判断新邮件，但如果在别的客户端上已下新邮件，则这面就不会有RECENT了
    所以如果在别的客户端上已收取新邮件后，这里就不再提醒和offlineimap下载
@@ -29,7 +30,7 @@ password=''
 encoding='utf-8'
 
 latest_recent_time=time.time()
-same_time_flag = 0
+
 run_one_time = 1
 write_file="/home/jusss/lab/mail.log"
 
@@ -74,19 +75,19 @@ while True:
                 run_one_time = 0
                 if not os.popen("pidof -x offlineimap").read():
                     os.system("offlineimap >/dev/null 2>&1 &")
-                    same_time_flag = 0
+
                 else:
                     latest_recent_time = time.time() - 6600
-                    same_time_flag = 1
+
         else:
             if run_one_time == 1:
                 run_one_time = 0
                 if not os.popen("pidof -x offlineimap").read():
                     os.system("offlineimap >/dev/null 2>&1 &")
-                    same_time_flag = 0
+
                 else:
                     latest_recent_time = time.time() - 6600
-                    same_time_flag = 1
+
     
 
     if recv_msg.find("RECENT") > 0:
@@ -94,21 +95,22 @@ while True:
             # use psutil module can detect if offlineimap process exist or not
             if not os.popen("pidof -x offlineimap").read():
                 os.system("offlineimap >/dev/null 2>&1 &")
-                same_time_flag = 0
+
+                latest_recent_time = time.time() - 6600
             else:
                 # if two mail arrive at the same time, and offlineimap can't run tow instance at the same time, then run the second offlineimap after 10 minutes
                 latest_recent_time = time.time() - 6600
-                same_time_flag = 1
+
             os.system("mplayer -noconsolecontrols -really-quiet /home/jusss/sounds/new-email.mp3 2>/dev/null &")
-            if same_time_flag == 0:
-                latest_recent_time=time.time()
+            
 
     if time.time() - latest_recent_time > 7200:
         if not os.popen("pidof -x offlineimap").read():
             os.system("offlineimap >/dev/null 2>&1 &")
+            latest_recent_time=time.time()
         if time.time() - latest_recent_time > 7800:
             latest_recent_time=time.time()
-            same_time_flag = 0
+
             ssl_socket.write('done\r\n'.encode(encoding))
             ssl_socket.write('a_tag status inbox (unseen)\r\n'.encode(encoding))
             ssl_socket.write('a_tag idle\r\n'.encode(encoding))
