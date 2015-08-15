@@ -28,7 +28,7 @@ log_file="/home/jusss/lab/mail.log"
 
 ### sync mailbox after 30 minutes when get new mail
 def delay_check_thread():
-    sleep(1800)
+    time.sleep(1800)
     if not os.popen("pidof -x offlineimap").read():
         os.system("offlineimap >/dev/null 2>&1 &")
 
