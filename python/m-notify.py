@@ -69,13 +69,12 @@ while True:
             # use psutil module can detect if offlineimap process exist or not
             if not os.popen("pidof -x offlineimap").read():
                 os.system("offlineimap >/dev/null 2>&1 &")
+                t[offset]=threading.Thread(target=delay_check_thread)
+                threads.append(t[offset])
+                threads[offset].start()
+                ### it's not necessary use threads.join() to block main thread, because main thread is loop, and I'd like to finish sub-thread when main thread is done
+                offset = offset+1
             os.system("mplayer -noconsolecontrols -really-quiet /home/jusss/sounds/new-email.mp3 2>/dev/null &")
-            t[offset]=threading.Thread(target=delay_check_thread)
-            threads.append(t[offset])
-            threads[offset].start()
-            ### it's not necessary use threads.join() to block main thread, because main thread is loop, and I'd like to finish sub-thread when main thread is done
-            offset = offset+1
-            
                     
 #    ssl_socket.write('a_tag status inbox (unseen)\r\n'.encode(encoding))
 #    * STATUS "inbox" (UNSEEN 0)
