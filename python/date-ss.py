@@ -20,7 +20,7 @@ while True:
         port.append(month)
     
     day =  datetime.datetime.now().day
-    if day < 9:
+    if day < 10:
         port.append(0)
         port.append(day)
     else:
