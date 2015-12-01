@@ -21,7 +21,7 @@ local_socket_origin.listen(128)
 # global variable in python, a=[3,2,1]; def c(): global a; a=3;  c(); a==3
 # a list called who_is_alive, one ip pair, one switch, who_is_alive=[('1.1.1.1',66666), 1, ...]
 # even though recv_server thread is created in recv_local thread, when recv_local thread is over, recv_server thread is not over, it still block Main thread.
-# so you have to kill recv_server thread after recv_local thread is over
+# so recv_local thread have to wait for recv_server thread is over with 't.join()', then recv_server and recv_local can both exit.
 
 who_is_alive = []
 switch_on = 1
