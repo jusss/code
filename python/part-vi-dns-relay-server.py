@@ -4,7 +4,7 @@ import os, sys, socket, threading
 # Multi ip accept, Tcp 53 for long bytes domain, Password for auth
 
 # TCP connection, server shut down, client recv ''. client shut down, server recv [Errno 32] Broken pipe, you can use try except Exception to catch it
-# local_addr should be your vps'ip and port
+# local_addr should be your dns-relay server's ip and port, run this script on your vps
 local_addr = ('1.1.1.1',66666)
 server_addr = ('114.114.114.114',53)
 recv_send_size = 10240
@@ -45,7 +45,7 @@ def recv_local(local_socket, local_socket_addr, recv_server, server_addr, recv_s
             # data received is reverse, keep away from poison
             query_data = local_socket.recv(recv_send_size)[::-1]
             if not query_data:
-                print('disconnect from client')
+                print('read empty strings  from client')
                 break
         except socket.timeout as e:
             print(e)
@@ -68,9 +68,10 @@ def recv_local(local_socket, local_socket_addr, recv_server, server_addr, recv_s
         server_socket.close()
     except Excepion as e:
         print(e)
+    print(local_socket_addr, 'disconnect...')
     who_is_alive.remove(local_socket_addr)
     who_is_alive.remove(switch_off)
-    print('recv_local thread and recv_server thread are over')
+    # print('recv_local thread and recv_server thread are over')
     print('current alive connection is ',who_is_alive)
         
 def recv_server(local_socket, server_socket, recv_send_size):
@@ -97,14 +98,21 @@ def recv_server(local_socket, server_socket, recv_send_size):
     # why to write the next line here, because it's for local_socket.send(), when it fail to send, then recv_local and recv_server threads exit
     # or it can do that for server_socket.recvfrom() when it can't recv from dns server, you nedd to change 'pass' to 'break' in the up line
     who_is_alive[who_is_alive.index(local_socket_addr) + 1] = switch_off
-    print('recv_server thread is over')
+    # print('recv_server thread is over')
 
 # accept one ip it will start two thread, don't start all thread to wait for accept. and threads exit after one disconnetion
 # and don't set the max thread, because there's a limit for accept, via listen(128)
 # Main thread is always waiting for new accept, accept one ip then start recv_local thread, recv_local thread will start recv_server thread
+
+# ok, there're three ways to choice, 1. use one variable t to store all threads, it meas all threads have the same name 't', don't worry, it can't conflict. unless you
+# need to operate threads after t.start(), you will need to give every thread a different name.
+# 2. use a list to store all threads' names. 3. use who_is_alive to store all threads's names and sockets, complicated. so I use 1
+
+print('network is ok, waiting for connecting')
 accept_count = 1
 while True:
     local_socket, local_socket_addr = local_socket_origin.accept()
+    print(local_socket_addr, 'connect')
     who_is_alive.append(local_socket_addr)
     who_is_alive.append(switch_on)
 
