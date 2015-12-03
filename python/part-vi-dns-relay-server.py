@@ -4,7 +4,7 @@ import os, sys, socket, threading
 # Multi ip accept, Tcp 53 for long bytes domain, Password for auth
 
 # TCP connection, server shut down, client recv ''. client shut down, server recv [Errno 32] Broken pipe, you can use try except Exception to catch it
-# local_addr should be your dns-relay server's ip and port, run this script on your vps
+# local_addr should be your vps'ip and port
 local_addr = ('1.1.1.1',66666)
 server_addr = ('114.114.114.114',53)
 recv_send_size = 10240
@@ -36,7 +36,8 @@ def recv_local(local_socket, local_socket_addr, recv_server, server_addr, recv_s
     t.start()
         
     # set timeout for this case like client network directly shut down without exit signals
-    local_socket.settimeout(60*10)
+    # maybe ten minutes is a not good idea, comment it
+    # local_socket.settimeout(60*10)
     while True:
         if who_is_alive[who_is_alive.index(local_socket_addr) + 1] == switch_off:
             print('recv_server thread is over, and recv_local thread will be over too')
@@ -47,9 +48,10 @@ def recv_local(local_socket, local_socket_addr, recv_server, server_addr, recv_s
             if not query_data:
                 print('read empty strings  from client')
                 break
-        except socket.timeout as e:
+        # except socket.timeout as e:
+        except Exception as e:
             print(e)
-            print('receive nothing over ten minutes, disconnect')
+            # print('receive nothing over ten minutes, disconnect')
             break
         print('receive from :',local_socket_addr)
         print(query_data)
@@ -76,13 +78,13 @@ def recv_local(local_socket, local_socket_addr, recv_server, server_addr, recv_s
         
 def recv_server(local_socket, server_socket, recv_send_size):
     global who_is_alive, switch_on, switch_off
-    server_socket.settimeout(30)
+    server_socket.settimeout(3)
     while True:
         if who_is_alive[who_is_alive.index(local_socket_addr) + 1] == switch_off:
             # print('recv_local thread read nothing from client, and recv_server thread will be over')
             break
         try:
-            # server_socket.recvfrom() will block current thread to exit, so set timeout to unblock
+            # server_socket.recvfrom() will block current thread to exit, so set timeout server_socket.settimeout(3) to unblock
             answer_data, answer_addr = server_socket.recvfrom(recv_send_size)
             print('receive from: ', answer_addr)
             print(answer_data)

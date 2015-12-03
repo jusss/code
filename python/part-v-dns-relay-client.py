@@ -3,7 +3,7 @@
 import os, sys, socket, threading
 
 local_addr = ('127.0.0.1',53)
-# server_addr should be your dns-relay server's ip and port
+# server_addr should be your vps'ip and port
 server_addr = ('1.1.1.1',66666)
 recv_send_size = 102400
 
@@ -71,7 +71,7 @@ except Exception as e:
 python3 , 1. 可以把tuple ('127.0.0.1',53) 当成一个元素存list里  a=[('127.0.0.1',53),b'\x82',...]
           2. 可以使用append()制造个无限长的list,或者匹配后把他们pop出list  ok then
 
-two threads, one for read and send , one for recv and send
+two threads, one for recv from local over udp  and send to server over tcp, one for recv from server over tcp and send to local over udp
 
 b'#\x05\x01\x00\x00\x01\x00\x00\x00\x00\x00\x00\x03www\x11googletagservices\x03com\x00\x00\x01\x00\x01'
 receive from:  ('114.114.114.114', 53)
