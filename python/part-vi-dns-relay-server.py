@@ -2,6 +2,10 @@
 import os, sys, socket, threading
 
 # Multi ip accept, Tcp 53 for long bytes domain, Password for auth
+# bug: 1. cancel timeout for local_socket, and client timeout disconnect network directly without an exit signal, then server cann't release the threads connected.
+# then when the second disconnect with an exit signal , who_is_alive there will be two same ip addr and not same port, who_is_alive.remove() will be error
+# maybe use udp to instead of tcp is a good way to solve that, needn't consider tcp timeout problem, udp just sendto and recvfrom, no connect, of course no timeout
+# and tcp socket have a default timeout if you don't set timeout for it
 
 # TCP connection, server shut down, client recv ''. client shut down, server recv [Errno 32] Broken pipe, you can use try except Exception to catch it
 # local_addr should be your vps'ip and port
@@ -36,8 +40,7 @@ def recv_local(local_socket, local_socket_addr, recv_server, server_addr, recv_s
     t.start()
         
     # set timeout for this case like client network directly shut down without exit signals
-    # maybe ten minutes is a not good idea, comment it
-    # local_socket.settimeout(60*10)
+    local_socket.settimeout(300)
     while True:
         if who_is_alive[who_is_alive.index(local_socket_addr) + 1] == switch_off:
             print('recv_server thread is over, and recv_local thread will be over too')
@@ -48,10 +51,10 @@ def recv_local(local_socket, local_socket_addr, recv_server, server_addr, recv_s
             if not query_data:
                 print('read empty strings  from client')
                 break
-        # except socket.timeout as e:
-        except Exception as e:
-            print(e)
-            # print('receive nothing over ten minutes, disconnect')
+        except socket.timeout as e:
+        # except Exception as e:
+            # print(e)
+            print('receive nothing from client over 5 minutes')
             break
         print('receive from :',local_socket_addr)
         print(query_data)
@@ -68,13 +71,16 @@ def recv_local(local_socket, local_socket_addr, recv_server, server_addr, recv_s
     try:
         local_socket.close()
         server_socket.close()
+        print(local_socket_addr, 'disconnect...')
+        # who_is_alive like this [('1.1.1.1',22), 1, ('2.2.2.2',23), 1, ...], remove switch_off after local_socket_addr in who_is_alive
+        del who_is_alive[who_is_alive.index(local_socket_addr) + 1]
+        who_is_alive.remove(local_socket_addr)
+        # who_is_alive.remove(switch_off) is not good, what if there're two disconnection at the near time, one exit quickly, it will
+        # remove all switch_off, another will have no able to get switch_off to exit, because who_is_alive structure is destroyed
+        # print('recv_local thread and recv_server thread are over')
+        print('current alive connection is ',who_is_alive)
     except Excepion as e:
         print(e)
-    print(local_socket_addr, 'disconnect...')
-    who_is_alive.remove(local_socket_addr)
-    who_is_alive.remove(switch_off)
-    # print('recv_local thread and recv_server thread are over')
-    print('current alive connection is ',who_is_alive)
         
 def recv_server(local_socket, server_socket, recv_send_size):
     global who_is_alive, switch_on, switch_off
@@ -99,7 +105,9 @@ def recv_server(local_socket, server_socket, recv_send_size):
             pass
     # why to write the next line here, because it's for local_socket.send(), when it fail to send, then recv_local and recv_server threads exit
     # or it can do that for server_socket.recvfrom() when it can't recv from dns server, you nedd to change 'pass' to 'break' in the up line
+    
     who_is_alive[who_is_alive.index(local_socket_addr) + 1] = switch_off
+    
     # print('recv_server thread is over')
 
 # accept one ip it will start two thread, don't start all thread to wait for accept. and threads exit after one disconnetion
@@ -110,6 +118,7 @@ def recv_server(local_socket, server_socket, recv_send_size):
 # need to operate threads after t.start(), you will need to give every thread a different name.
 # 2. use a list to store all threads' names. 3. use who_is_alive to store all threads's names and sockets, complicated. so I use 1
 
+# here we go, begin
 print('network is ok, waiting for connecting')
 accept_count = 1
 while True:
