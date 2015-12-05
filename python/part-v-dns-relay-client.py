@@ -3,15 +3,15 @@ import os, sys, socket, threading
 
 local_addr = ('127.0.0.1',53)
 # server_addr should be your vps'ip and port
-server_addr = ('1.1.1.1',66666)
+server_addr = ('1.1.1.7',11000)
 recv_send_size = 102400
 query_addr_ID = []
 switch = 1
 switch_on = 1
 switch_off = 0
     
-def recv_local():
-    global switch, switch_on, switch_off
+def recv_local(local_socket, server_socket, recv_send_size):
+    global switch, switch_on, switch_off, query_addr_ID
     while True:
         if switch == switch_off:
             print('recv_local thread got switch_off')
@@ -32,8 +32,8 @@ def recv_local():
             pass
     switch = switch_off
 
-def recv_server():
-    global switch, switch_on, switch_off
+def recv_server(local_socket, server_socket, recv_send_size):
+    global switch, switch_on, switch_off, query_addr_ID
     while True:
         if switch == switch_off:
             print('recv_server thread got switch_off')
@@ -51,15 +51,16 @@ def recv_server():
                 if match_query_addr :
                     try:
                         local_socket.sendto(answer_data, match_query_addr)
-                        del query_addr_ID[match_ID_index]
-                        del query_addr_ID[match_ID_index - 1]
-                        #query_addr_ID.remove(answer_data[0:2])
-                        #query_addr_ID.remove(match_query_addr)
+                        #del query_addr_ID[match_ID_index]
+                        #del query_addr_ID[match_ID_index - 1]
+                        query_addr_ID.remove(answer_data[0:2])
+                        query_addr_ID.remove(match_query_addr)
                         #ok, query_addr_ID.remove() will remove something make sendto() error like match_query_addr is not a tuple, so just use del to delete element.
                     except Exception as e:
                         print(e)
                         break
-        except socket.timeout as e:
+        except Exception as e:
+            print(e)
             print('recv nothing over 5 minutes, timeout')
             break
     switch = switch_off
@@ -81,8 +82,8 @@ while True:
         sys.exit()
     print('it already has connected to dns relay server.')
     try:
-        thread_recv_local = threading.Thread(target=recv_local)
-        thread_recv_server = threading.Thread(target=recv_server)
+        thread_recv_local = threading.Thread(target=recv_local, args=(local_socket, server_socket, recv_send_size))
+        thread_recv_server = threading.Thread(target=recv_server, args=(local_socket, server_socket, recv_send_size))
         thread_recv_local.start()
         thread_recv_server.start()
         thread_recv_local.join()
