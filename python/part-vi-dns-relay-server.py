@@ -9,7 +9,7 @@ import os, sys, socket, threading
 
 # TCP connection, server shut down, client recv ''. client shut down, server recv [Errno 32] Broken pipe, you can use try except Exception to catch it
 # local_addr should be your vps'ip and port
-local_addr = ('1.1.1.1',66666)
+local_addr = ('1.1.1.7',11000)
 server_addr = ('114.114.114.114',53)
 recv_send_size = 10240
 
@@ -51,9 +51,9 @@ def recv_local(local_socket, local_socket_addr, recv_server, server_addr, recv_s
             if not query_data:
                 print('read empty strings  from client')
                 break
-        except socket.timeout as e:
-        # except Exception as e:
-            # print(e)
+        # except socket.timeout as e:
+        except Exception as e:
+            print(e)
             print('receive nothing from client over 5 minutes')
             break
         print('receive from :',local_socket_addr)
@@ -74,6 +74,7 @@ def recv_local(local_socket, local_socket_addr, recv_server, server_addr, recv_s
         print(local_socket_addr, 'disconnect...')
         # who_is_alive like this [('1.1.1.1',22), 1, ('2.2.2.2',23), 1, ...], remove switch_off after local_socket_addr in who_is_alive
         del who_is_alive[who_is_alive.index(local_socket_addr) + 1]
+        # del who_is_alive[who_is_alive.index(local_socket_addr)]
         who_is_alive.remove(local_socket_addr)
         # who_is_alive.remove(switch_off) is not good, what if there're two disconnection at the near time, one exit quickly, it will
         # remove all switch_off, another will have no able to get switch_off to exit, because who_is_alive structure is destroyed
