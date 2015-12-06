@@ -43,8 +43,10 @@ def recv_server(local_socket, server_socket, recv_send_size):
                 local_socket.sendto(answer_data, match_query_addr)
                 del query_addr_ID[match_ID_index]
                 del query_addr_ID[match_ID_index - 1]
-                #query_addr_ID.remove(answer_data[0:2])
-                #query_addr_ID.remove(match_query_addr)
+                # query_addr_ID.remove(answer_data[0:2])
+                # query_addr_ID.remove(match_query_addr)
+                # what if query_addr send two or three query_data, and you use query_addr_ID.remove(), then you will remove query_addr when you
+                # just get the first answer_data. and the second and third answer_data will not be sent to query_addr, so use del query_addr_ID
                 
 
 try:

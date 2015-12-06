@@ -3,7 +3,7 @@ import os, sys, socket, threading
 
 local_addr = ('127.0.0.1',53)
 # server_addr should be your vps'ip and port
-server_addr = ('1.1.1.7',11000)
+server_addr = ('1.1.1.1',66666)
 recv_send_size = 102400
 query_addr_ID = []
 switch = 1
@@ -51,11 +51,12 @@ def recv_server(local_socket, server_socket, recv_send_size):
                 if match_query_addr :
                     try:
                         local_socket.sendto(answer_data, match_query_addr)
-                        #del query_addr_ID[match_ID_index]
-                        #del query_addr_ID[match_ID_index - 1]
-                        query_addr_ID.remove(answer_data[0:2])
-                        query_addr_ID.remove(match_query_addr)
-                        #ok, query_addr_ID.remove() will remove something make sendto() error like match_query_addr is not a tuple, so just use del to delete element.
+                        del query_addr_ID[match_ID_index]
+                        del query_addr_ID[match_ID_index - 1]
+                        # query_addr_ID.remove(answer_data[0:2])
+                        # query_addr_ID.remove(match_query_addr)
+                        # what if query_addr send two or three query_data, and you use query_addr_ID.remove(), then you will remove query_addr when you
+                        # just get the first answer_data. and the second and third answer_data will not be sent to query_addr, so use del query_addr_ID
                     except Exception as e:
                         print(e)
                         break
