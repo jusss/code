@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 import os, sys, socket, threading
 
-# gfw poison dns 1. check port is udp 53 or tcp 53.  2. if first rule match, then check keyword, match, return spoof packet 
+# gfw dns poison rules: 1. check port is udp 53 or tcp 53.  2. if first rule match, then check keyword, match, return spoof packet and drop the correct packet
 # opendns tokyo 208.69.37.0/24 #5353
 # OpenDNS：208.67.222.222   208.67.220.220 The OpenDNS servers also respond on ports 443 and 5353.
+# through test, 208.67.222.222:5353 is ok, it can keep dns away from gfw's poison.
 
 local_addr = ('127.0.0.1',53)
 server_addr = ('208.67.222.222',5353)
@@ -40,10 +41,10 @@ def recv_server(local_socket, server_socket, recv_send_size):
             
             if match_query_addr :
                 local_socket.sendto(answer_data, match_query_addr)
-                #del query_addr_ID[match_ID_index]
-                #del query_addr_ID[match_ID_index - 1]
-                query_addr_ID.remove(answer_data[0:2])
-                query_addr_ID.remove(match_query_addr)
+                del query_addr_ID[match_ID_index]
+                del query_addr_ID[match_ID_index - 1]
+                #query_addr_ID.remove(answer_data[0:2])
+                #query_addr_ID.remove(match_query_addr)
                 
 
 try:
