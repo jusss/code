@@ -46,7 +46,7 @@ def recv_local(local_socket, local_socket_addr, recv_server, server_addr, recv_s
             print('recv_server thread is over, and recv_local thread will be over too')
             break
         try:
-            # data received is reverse, keep away from poison
+            # data received is reversed, keep away from poison
             query_data = local_socket.recv(recv_send_size)[::-1]
             if not query_data:
                 print('read empty strings  from client')
@@ -97,7 +97,8 @@ def recv_server(local_socket, server_socket, recv_send_size):
             print('receive from: ', answer_addr)
             print(answer_data)
             try:
-                local_socket.send(answer_data)
+                # reverse data to  keep away from poison
+                local_socket.send(answer_data[::-1])
             except Exception as e:
                 print(e)
                 print('send answer_data to client, fail')

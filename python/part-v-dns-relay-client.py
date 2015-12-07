@@ -39,7 +39,8 @@ def recv_server(local_socket, server_socket, recv_send_size):
             print('recv_server thread got switch_off')
             break
         try:
-            answer_data = server_socket.recv(recv_send_size)
+            # data is reversed to keep away from poison
+            answer_data = server_socket.recv(recv_send_size)[::-1]
             if not answer_data:
                 print('recv empty strings from server')
                 break
