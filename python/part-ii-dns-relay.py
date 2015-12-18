@@ -18,6 +18,8 @@ local_socket.bind(local_addr)
 
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
+print('connect to dns server, Ok then ...')
+
 def recv_local(local_socket, server_socket, recv_send_size):
     global query_addr_ID
     while True:
