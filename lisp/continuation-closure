@@ -148,3 +148,6 @@ racket@>
 	     
 	       (loop (lambda () (func k)))))))
 
+在call/cc里面continuation k可以用作break, return
+在call/cc外面continuation k可以用作goto, loop
+
