@@ -1,0 +1,71 @@
+http://www.douban.com/note/66859771/
+
+Consider the simple examples below.
+
+(call/cc
+  (lambda (k)
+    (* 5 4))) ⇒ 20
+(call/cc
+  (lambda (k)
+    (* 5 (k 4)))) ⇒ 4
+(+ 2
+  (call/cc
+    (lambda (k)
+      (* 5 (k 4))))) ⇒ 6
+
+In the first example, the continuation is obtained and bound to k, but k is never used, so the value is simply the product of 5 and 4. In the second, the continuation is invoked before the multiplication, so the value is the value passed to the continuation, 4. In the third, the continuation includes the addition by 2; thus, the value is the value passed to the continuation, 4, plus 2.
+
+continuation就是表达式求值之后的运算
+continuation就是(call/cc (lambda (k) ...))之后的运算，而且这个continuation就是call/cc里面lambda的参数k
+(+ 3 (call/cc (lambda (k) ...))) 这个continuation就是(+ 3 x), 一旦这个lambda求值之后，后面的运算就是加3, 加3这个运算就是continuation
+就好比有个continuation k是(+ 3 x)即表示加3这个运算，然后通过(k 9)这种方式把9传递给continuation k,让它去加3, 这个加3的运算就是continuation
+
+1. continuation k就是一个等待参数的运算(或者叫过程或函数)
+2. (k 9)通过这种方式把参数9传递给continuation k
+
+利用2的这个特性可以在(call/cc (lambda ...))里面的循环计算中退出来带着一个值，类似break + return
+比如求出列表(1 2 3 4 5 6 7 8)最接近于6且大于6的数
+创造一个啥也不计算的continuation,就是(call/cc ...)之后没有需要运算的表达式
+(call/cc (lambda (k) (map (lambda (x) (if (> x 6) (k x) 1)) '(1 2 3 4 5 6 7 8))))   => 7
+
+continuation : 等待参数的运算/过程/函数
+一旦参数被传递，马上进行运算
+(k 9)这种方式传递参数
+
+http://community.schemewiki.org/?call-with-current-continuation
+
+利用1的特性可以把continuation用作label然后通过传递参数给continuation来做goto重新运算
+
+(define (bla)
+        (define goto 0)
+        (call/cc (lambda (k) (set! goto k)))
+        (display 10)
+        (goto 1))
+
+
+还可以用来做循环无论是在call/cc里面还是外面
+显示10个0
+(define (bla)
+        (define c 0)
+        (define count 10)
+        (call/cc (lambda (k) (set! c k)))
+        (if (> count 0) (begin (display 0) (set! count (- count 1)) (c count))))
+
+或者
+先用一个continuation l做一个loop用goto
+(define (loop exp exp1 exp2)
+        (define goto 0)
+        (call/cc (lambda (k) (set! goto k)))
+        (exp exp1 exp2)
+        (goto 1))
+
+(define (compare x l)
+        (if (> x 0) (dispaly 0) (l 1)))
+        
+然后再来个call/cc内部的循环去显示10个0
+(define (bla2)
+        (call/cc (lambda (k) (define count 10) (loop compare (- count 1) k))))
+这个代码会显示无限个0,因为count参数在里面没法改变除了用尾递归，但如果用为尾递归就没意思了，就这样吧，不改了                         
+
+continuation可以做 break, return, goto, loop
+
