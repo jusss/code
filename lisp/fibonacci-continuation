@@ -1,0 +1,64 @@
+Welcome to Racket v6.3.
+racket@> (define (fib n)
+  (call/cc (lambda (k)
+	     (let ((m n) (k2 0) (a 0) (b 1) (c 1))
+	       (call/cc (lambda (s) (set! k2 s)))
+	       (if (> m 0) (begin (set! a b) (set! b c) (set! c (+ a b)) (set! m (- m 1)) (k2 m))
+		 (k c))))))
+racket@> (fib 9)
+89
+racket@> (fib 9)
+89
+racket@> (fib 3)
+5
+racket@> (fib 4)
+8
+racket@> (fib 5)
+13
+racket@> (fib 6)
+21
+racket@> (fib 0)
+1
+racket@> (fib 1)
+2
+racket@> (fib 2)
+3
+racket@> (fib 3)
+5
+racket@> (define (fib n)
+  (call/cc (lambda (k)
+	     (let ((m n) (k2 0) (a 0) (b 1) (c 1))
+	       (call/cc (lambda (s) (set! k2 s)))
+	       (if (> m 2) (begin (set! a b) (set! b c) (set! c (+ a b)) (set! m (- m 1)) (k2 m))
+		 (k c))))))
+racket@> (fib 3)
+2
+racket@> (define (fib n)
+  (call/cc (lambda (k)
+	     (if (= n 0) (k 0)
+	       (if (< n 3) (k 1)
+		 (let ((m n) (k2 0) (a 0) (b 1) (c 1))
+		   (call/cc (lambda (s) (set! k2 s)))
+		   (if (> m 2) (begin (set! a b)
+				      (set! b c)
+				      (set! c (+ a b))
+				      (set! m (- m 1))
+				      (k2 m))
+		     (k c))))))))
+racket@> (fib 0)
+0
+racket@> (fib 1)
+1
+racket@> (fib 2)
+1
+racket@> (fib 3)
+2
+racket@> (fib 4)
+3
+racket@> (fib 5)
+5
+racket@> (fib 6)
+8
+racket@> (fib 100)
+354224848179261915075
+racket@> 
