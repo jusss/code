@@ -1,0 +1,13 @@
+scheme@(guile-user)> (define b (lambda (x)
+				 (display "2")
+				 (set! x (call/cc x))
+				 (display "4")
+				 (call/cc x )))
+scheme@(guile-user)> (define a (lambda (x)
+				 (display "1")
+				 (set! x (call/cc x))
+				 (display "3")
+				 (call/cc x)
+				 (display "5")))
+scheme@(guile-user)> (a b)
+12345scheme@(guile-user)> 
