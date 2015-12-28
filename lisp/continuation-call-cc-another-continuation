@@ -1,0 +1,123 @@
+
+(call/cc continuation) means (continuation current-continuation), or called (call/cc k) means (k current-continuation)
+
+(call/cc k) or (call/cc continuation) make the current continuation (like called k2) as return value, give it to k and jump to k then execute k.
+(let ((a (call/cc (lambda (z) z)))) (display 0) (call/cc a) (display 1))  => 001
+(call/cc k) jump and execute continuation k and make the current continuation as the parameter that continuation k needed.
+if k2 is current continuation, so (call/cc k) means (k k2)
+continuation : what the next to do.
+
+(call/cc x) catch current continuation to x and eval x, x can be (lambda (k) ...) or another continuation, if x is (lambda (k) ...) then give the current con
+tinuation to k and eval (lambda (k) ...), if x is another continuation, then jump and execute another continuation, and make current continuation as the param
+eter that another continuation needed. like (x current-continuation)
+
+scheme@(guile-user)> (define b (lambda (x)
+				 (display "2")
+				 (set! x (call/cc x))
+				 (display "4")
+				 (call/cc x )))
+scheme@(guile-user)> (define a (lambda (x)
+				 (display "1")
+				 (set! x (call/cc x))
+				 (display "3")
+				 (call/cc x)
+				 (display "5")))
+scheme@(guile-user)> (a b)
+12345scheme@(guile-user)> 
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+http://community.schemewiki.org/?call-with-current-continuation
+
+(define (hefty-computation do-other-stuff) 
+    (let loop ((n 5)) 
+      (display "Hefty computation: ") 
+      (display n) 
+      (newline) 
+      (set! do-other-stuff (call/cc do-other-stuff)) 
+      (display "Hefty computation (b)")  
+      (newline) 
+      (set! do-other-stuff (call/cc do-other-stuff)) 
+      (display "Hefty computation (c)") 
+      (newline) 
+      (set! do-other-stuff (call/cc do-other-stuff)) 
+      (if (> n 0) 
+          (loop (- n 1)))))
+
+ ;; notionally displays a clock 
+ (define (superfluous-computation do-other-stuff) 
+    (let loop () 
+      (for-each (lambda (graphic) 
+                  (display graphic) 
+                  (newline) 
+                  (set! do-other-stuff (call/cc do-other-stuff))) 
+                '("Straight up." "Quarter after." "Half past."  "Quarter til.")) 
+      (loop)))
+
+> (hefty-computation superfluous-computation) 
+ Hefty computation: 5 
+ Straight up. 
+ Hefty computation (b) 
+ Quarter after. 
+ Hefty computation (c) 
+ Half past. 
+ Hefty computation: 4 
+ Quarter til.
+
+http://ccl.clozure.com/irc-logs/scheme/2013-01/scheme-2013.01.17.txt
+00:00:59 doomrobo [~Michael@unaffiliated/doomrobo] has joined #scheme
+00:04:21 <doomrobo> can someone please explain to me how in the world this works? I understand continuations but I don't understand what the call/cc is returning that is being set!    http://ideone.com/0jisFF
+00:18:02 <ijp> doomrobo: it returns another continuation
+00:18:18 <doomrobo> drewc, when it says (set! do-other (call/cc do-other)) what is the (call/cc do-other) returning? It looks like that call/cc just calls another function that call/cc's right back
+00:18:27 <doomrobo> ijp, I just can't see how it returns a continuations
+00:19:09 <jonrafkind> (call/cc e) evaluates to e
+00:19:30 <jonrafkind> but it passes the current continuation to e so that you have ethe chance of getting the current continuation
+00:19:59 <doomrobo> Just understood it
+00:19:59 <ijp> I hate call/cc, it needs set! to be useful, so you rarely get to give a simple answer
+00:20:14 <doomrobo> So here's how I understand it:
+00:20:39 <drewc> ijp: I like call/cc if it is really shift/reset and delim rather then first class conts :)
+00:20:45 <ijp> drewc: agreed
+00:21:05 <ijp> well, delimted are still first class, but I know what you mean
+00:21:13 <doomrobo> I pass my state to function b which then does some shit then calls the function to get back to my state and passes its state as an argument. Its state is then interpreted as a return value and is set to the running state I'm keeping of function b.
+00:21:18 <doomrobo> god that was a mouthful
+00:21:28 <drewc> http://drewc.org/interface/monads.html#sec-6 <--- I know a wee bit about things :)
+00:23:54 <ijp> doomrobo: whenever you call do-other-stuff in superfluous-computation, you do it with call/cc. Passing in the continuation of the loop in superflous-continuation.
+00:24:22 <doomrobo> I understand that, that wasn't the part that had confused me
+00:24:25 <doomrobo> but I got it now
+00:24:35 <ijp> now, that do-other-stuff argument is always the continuation of hefty-continuation
+00:25:24 <ijp> so, the result of the (call/cc do-other-stuff) in hefty-computation is always a continuation.
+00:25:36 <ijp> doomrobo: yes, I just wanted to clarify why I said the result was always a continuation
+00:25:56 <ijp> now that you know how to use call/cc, read up on delimited control, and never use it again :)
+03:35:58 <asumu> Ah, call/cc. For a fun call/cc puzzle, figure out how same-fringe? works in this paper: http://www.ccs.neu.edu/racket/pubs/pldi93-sitaram.pdf
+
+http://stackoverflow.com/questions/13338559/scheme-how-does-a-nested-call-cc-work-for-a-coroutine
+
+The context of call/cc is where ever call/cc is being called from. You can almost think of a call/cc like goto that jumps the code right back to where you were before and substitutes (call/cc whatever) with the return value.
+call/cc basically says, "let's go do this function and give it away to jump right back here and forget about whatever else it was doing"
+Ok when I was trying to understand call/cc for the first time, I found this code confusing in the extreme so let's look at a simplified coroutine example:
+(define r1
+  (lambda (cont)
+    (display "I'm in r1!")
+    (newline)
+    (r1 (call/cc cont))))
+(define r2
+  (lambda (cont2)
+    (display "I'm in r2!")
+    (newline)
+    (r2 (call/cc cont2))))
+Ok this is exactly the same concept as your code. But it's much simpler.
+
+In this case, if we call (r1 r2) this prints
+I'm in r1
+I'm in r2
+I'm in r1
+I'm in r2    
+...
+Why? Because r1 first takes in r2 as cont so it announces to us that it's in r1. And then it recurses on itself with the result of (call/cc cont) aka (call/cc r2).
+
+Ok so what's the return of this? well (call/cc r2) will start executing r2 and announce that it's in r2 and then recurse on itself with the result of (call/cc cont2). Ok so what was cont2 again? cont2 was a continuation to that expression before in r1. So when we call it here, we pass back a continuation to the spot we're currently at. Then we forget anything about what we were doing in r2 and hop back into executing r1.
+
+This repeats in r1 now. We announce stuff and then jump back to where we where before in r2 with and our expression from before, (call/cc cont2) returns a continuation to where we were in r1 and then we continue in our merry infinite loop.
+
+Back to your code
+In your code the concept is exactly the same. In fact superfluous-computation is almost identical to the above functions when you stop and think about it. So what's up with the set!s? In this code all they do is change the value of do-other-work to the newest continuation. That's it. In my example I used recursion. In this example they use set!.
+
