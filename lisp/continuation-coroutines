@@ -50,3 +50,8 @@ scheme@(guile-user)> (a b)
 先执行call/cc里面的, 再执行call/cc外面的
 先执行shift里面的, 再执行reset到shift之间的
 
+real trick at the current position (another-k current-k) jump to another-k with current-k for jump back into the current position
+在当前位置(another-continuation current-continuation)这样带着当前continuation跳到another-continuation之后，还可以在那边调用current-continuation再跳回
+当前位置
+
+
