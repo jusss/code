@@ -1,0 +1,94 @@
+;;;列表的第一个元素在列表的位置是1, oh god,正常一回吧，像c的数组那种从0开始实在是不符合人类计数习惯，第0个元素，怎么听怎么别扭，所以完全匹配时返回的list-a的第一个元素在list-b
+;;;的位置，那个数是在list-b第一个元素的位置是1开始数的
+;;;比较list-a的首个字符和list-b,直到首个字符匹配才比较list-a的第二个字符和剩下的list-b
+;;;如果接着匹配成功，然后带着剩下的list-a和剩下的list-b接着匹配，循环n回后,如果完全匹配,list-a最终为空列表
+;;;如果匹配不成功，就接着从原始的list-a的首字符和剩下的list-b匹配,最后list-b的长度小于list-a时就能证明不匹配
+;;;比较car list-a和car list-b,不匹配, 原始的list-a 和 cdr list-b递归
+;;;car list-a和car list-b匹配时 cdr list-a和cdr list-b递归
+;;;第一个就是比较car list-a和car list-b
+;;;有三种情况，1. list-a在list-b最后一个字符前匹配上了，
+;;;2. list-a在list-b在最后一个字符才完全匹配,
+;;;3. list-a和list-b不匹配
+;;;list-a为空列表时返回计数器-a的长度,对应1和2
+;;;当list-b长度小于list-a时返回 #f,对应3 因为一直在递归而list-b的长度一直在减小
+;;;(可有可无list-b为空列表时切list-a不为空列表返回#f)
+;;;来个计数器，每cdr list-b递归一次，计数器加1,当car list-a为空列表时返回 计数器-a的长度,这个就是list-a的首个字符在list-b中的位置
+
+(define find-string-a-in-string-b
+  (lambda (string-a string-b)
+    (let ((list-a (string->list string-a))
+	  (origin-list-a (string->list string-a))
+	  (list-b (string->list string-b))
+	  (offset-count 1))
+      (define find-list-a-in-list-b
+	(lambda (list-a list-b offset-count)
+	  (if (eq? list-a '())
+	      (- offset-count (length origin-list-a))
+	      (if (> (length list-a) (length list-b))
+		  #f
+		  (if (eq? (car list-a) (car list-b))
+		      (find-list-a-in-list-b (cdr list-a)
+					     (cdr list-b)
+					     (+ 1 offset-count))
+		      (find-list-a-in-list-b origin-list-a
+					     (cdr list-b)
+					     (+ 1 offset-count)))))))
+      (find-list-a-in-list-b list-a list-b offset-count))))
+
+
+(define find-string-a-in-string-b
+  (lambda (string-a string-b)
+    (define list-a (string->list string-a))
+    (define origin-list-a (string->list string-a))
+    (define list-b (string->list string-b))
+    (define offset-count 1)
+    (define find-list-a-in-list-b
+      (lambda (list-a list-b offset-count)
+	(if (eq? list-a '())
+	    (- offset-count (length origin-list-a))
+	    (if (> (length list-a) (length list-b))
+		#f
+		(if (eq? (car list-a) (car list-b))
+		    (find-list-a-in-list-b (cdr list-a)
+					   (cdr list-b)
+					   (+ 1 offset-count))
+		    (find-list-a-in-list-b origin-list-a
+					   (cdr list-b)
+					   (+ 1 offset-count)))))))
+    (find-list-a-in-list-b list-a list-b offset-count)))
+
+
+(define find-all-elements-of-list-a-in-list-b
+  (lambda (list-a list-b)
+    (define list-b-offset-count 1)
+    (define origin-list-a list-a)
+    
+    (define match-all-elements-of-list-a-in-list-b
+      (lambda (list-a list-b list-b-offset-count)
+	(if (eq? list-a '())
+	    (- list-b-offset-count (length origin-list-a))
+	    (if (> (length list-a) (length list-b))
+		#f
+		(if (eq? (car list-a) (car list-b))
+		    (match-all-elements-of-list-a-in-list-b (cdr list-a)
+							    (cdr list-b)
+							    (+ 1 list-b-offset-count))
+		    (match-all-elements-of-list-a-in-list-b origin-list-a
+							    (cdr list-b)
+							    (+ 1 list-b-offset-count)))))))
+    
+    (match-all-elements-of-list-a-in-list-b list-a list-b list-b-offset-count)))
+
+
+(define find-string-a-in-string-b
+  (lambda (string-a string-b)
+    (find-all-elements-of-list-a-in-list-b (string->list string-a)
+					   (string->list string-b))))
+
+
+
+
+
+					   
+
+
