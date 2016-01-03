@@ -361,8 +361,12 @@
 (define split-string split-string-a-with-string-b)
 ;;;(split-string string-a string-b) 用string-b分割string-a，返回分割之后的字符串列表 如果在string-b中没找到string-a,就返回包含原封不动的string-b的列表
 
+;;;数字应该是1.2 4/3 这样的，也就是0到9 . / -这13个字符,把字符串转成字符列表去匹配这13个字符, 但还是无法判断16进制字符串表示字符串还是表示16进制数, 如果真的是个字符串"12"，""12""就是错的，更别提解析了
+
 (define string-list->symbol-list
   (lambda (string-list)
+;;;    0 1 2... and booleans
+    
     (map string->symbol string-list)))
 
 ;;;(string-list->symbol-list string-list) 把字符串列表变成符号列表返回
