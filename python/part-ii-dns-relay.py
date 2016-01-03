@@ -7,7 +7,10 @@ import os, sys, socket, threading
 # through test, 208.67.222.222:5353 is ok, it can keep dns away from gfw's poison.
 
 local_addr = ('127.0.0.1',53)
-server_addr = ('208.67.222.222',5353)
+#server_addr = ('208.67.222.222',5353)
+#server_addr = ('210.2.4.8',53)
+server_addr = ('223.5.5.5',53)
+#server_addr = ('119.29.29.29',53)
 recv_send_size = 10240
 
 query_addr_ID = []
