@@ -100,67 +100,6 @@
 
 ;;;"(+ 1 1)" 用string-replace变成" ( + 1 1 ) "再用string-split变成("(" "+" "1" "1" ")") 再用string-list->symbol-list变成(( + 1 1 )) 再用parse-a变成 ((+ 1 1)) 再用eval求值
 
-;;;parse FAIL string->symbol时如果是16进制字符串，怎么判断是它是字符串还是16进制数
-;;;如果是16进制数需要把它转换成数字，如果是字符串需要把它转成symbol，所以无法判断
-;;;把"(+ n 1)"变成(+ n 1)还有个的问题，如果字符串中出现了字符串怎么办?
-;;; "(display "hello world")" 这怎么解析 string->symbol是解析不了这种的 split-string和merge-string对于这种字符串中的字符串貌似也不行
-;;;如果真的是个字符串"12"，""12""就是错的，更别提解析了
-;;;把字符串变成symbol去求值貌似是不行的
-;;;把字符串变成在字符去求值 ???
-;;;(eval (read-from-string "(+ 1 1)")) 这种是怎么实现的 ???
-;;; "12" 是个字符串，但对人来说也是个数字，但机器识别不了它是数字，怎么让机器去知道它是个数字 ???
-
-<jusss> hi there, (string->symbol "12") => a symbol 12, and how I can get a
-	integer 12?  [22:54]
-<jusss> I mean how to know a string is a integer or not 
-<jusss> is there a procedure can decide a string is integer or not ?  [23:06]
-<jusss> like "12"
-<pierpa> (integer? (string->number  [23:09]
-<jusss> pierpa: what if to decide a string is number or not ?  [23:13]
-<wasamasa> jusss: you'd ideally not get into that situation in the first place
-<wasamasa> jusss: string->integer returns #f in case it cannot decode a number
-	   though
-<pierpa> string->number  [23:16]
-<wasamasa> jusss: also, a string is not a number, otherwise it wouldn't be a
-	   string
-<wasamasa> jusss: a string can contain a sequence of characters that can be
-	   interpreted as a number though
-<wasamasa> jusss: the #f string->number returns informs you that this is not
-	   the case
-<jusss> wasamasa: I know what string is, like this "12" it's a string, ok, but
-	human can know it's integer 12, but machine can't, I'd like to make
-	machine know it's a number  [23:19]
-<jusss> like "abc" it's a string, and it's not a number
-<jusss> "12.13" is a string, but it also means a number to human  [23:20]
-<pierpa> these are called "numerals"
-<jusss> how to decide a string it means number to human ?
-<pierpa> you check it against a grammar for numerals
-* wasamasa waits for jusss to realize the answer has already been given
-<pjb> jusss: \12 (or |12|) and 12 are two different things ;-)
-<pjb> jusss: is "twelve" an integer? How can a _string_ "be" an integer???
-<pjb> jusss: what about "deadbeef"? Is it an integer?  [23:28]
-<pjb> jusss: what about "\"12\""?
-<pjb> jusss: what about "(+ 2 3)"? Why or why not?  [23:29]
-<pjb> jusss: what about "π"?
-<jusss> pjb: I'm doing this "(+ 2 3)" right now ...
-<pjb> jusss: Seriously, try to answer those questions.
-<jusss> pjb: turn "(+ 2 3)" to (+ 2 3)
-<jusss> it sounds I'm on a wrong way
-<pjb> Yep.  [23:30]
-<pjb> You are confusing objects, such as an integer, with a representation of
-      those objects.
-<pjb> What integer does "12" represent?  It could be 42; it could be 3.
-<pjb> The question is what representation system it is?
-<jusss> pjb: I think I find a way to do that, like numbers in lisp are like
-	0-9 1.2 3/4 , I can turn a string to characters, and compare them with
-	0 1 - . / this characters, if there's one not match, I can know it
-	can't mean number to me   [23:47]
-<jusss> all the symbols of numbers , compare them with characters of strings
-<wasamasa> you should learn to read the backlog, the solution was mentioned
-	   four times  [23:49]
-<pjb> jusss: what about "#xdeadbeef" or "#b010101101110" ?  [23:50]
-<jusss> pjb: the first parameter of define, how define to detective it's
-	number or not ?  [23:54]
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	
 (define list-a '(( + 1 1 )))
@@ -239,6 +178,68 @@
 ;;;
 
 
+;;;parse FAIL string->symbol时如果是16进制字符串，怎么判断是它是字符串还是16进制数
+;;;如果是16进制数需要把它转换成数字，如果是字符串需要把它转成symbol，所以无法判断
+;;;把"(+ n 1)"变成(+ n 1)还有个的问题，如果字符串中出现了字符串怎么办?
+;;; "(display "hello world")" 这怎么解析 string->symbol是解析不了这种的 split-string和merge-string对于这种字符串中的字符串貌似也不行
+;;;如果真的是个字符串"12"，""12""就是错的，更别提解析了
+;;;把字符串变成symbol去求值貌似是不行的
+;;;把字符串变成在字符去求值 ???
+;;;(eval (read-from-string "(+ 1 1)")) 这种是怎么实现的 ???
+;;; "12" 是个字符串，但对人来说也是个数字，但机器识别不了它是数字，怎么让机器去知道它是个数字 ???
+
+<jusss> hi there, (string->symbol "12") => a symbol 12, and how I can get a
+	integer 12?  [22:54]
+<jusss> I mean how to know a string is a integer or not 
+<jusss> is there a procedure can decide a string is integer or not ?  [23:06]
+<jusss> like "12"
+<pierpa> (integer? (string->number  [23:09]
+<jusss> pierpa: what if to decide a string is number or not ?  [23:13]
+<wasamasa> jusss: you'd ideally not get into that situation in the first place
+<wasamasa> jusss: string->integer returns #f in case it cannot decode a number
+	   though
+<pierpa> string->number  [23:16]
+<wasamasa> jusss: also, a string is not a number, otherwise it wouldn't be a
+	   string
+<wasamasa> jusss: a string can contain a sequence of characters that can be
+	   interpreted as a number though
+<wasamasa> jusss: the #f string->number returns informs you that this is not
+	   the case
+<jusss> wasamasa: I know what string is, like this "12" it's a string, ok, but
+	human can know it's integer 12, but machine can't, I'd like to make
+	machine know it's a number  [23:19]
+<jusss> like "abc" it's a string, and it's not a number
+<jusss> "12.13" is a string, but it also means a number to human  [23:20]
+<pierpa> these are called "numerals"
+<jusss> how to decide a string it means number to human ?
+<pierpa> you check it against a grammar for numerals
+* wasamasa waits for jusss to realize the answer has already been given
+<pjb> jusss: \12 (or |12|) and 12 are two different things ;-)
+<pjb> jusss: is "twelve" an integer? How can a _string_ "be" an integer???
+<pjb> jusss: what about "deadbeef"? Is it an integer?  [23:28]
+<pjb> jusss: what about "\"12\""?
+<pjb> jusss: what about "(+ 2 3)"? Why or why not?  [23:29]
+<pjb> jusss: what about "π"?
+<jusss> pjb: I'm doing this "(+ 2 3)" right now ...
+<pjb> jusss: Seriously, try to answer those questions.
+<jusss> pjb: turn "(+ 2 3)" to (+ 2 3)
+<jusss> it sounds I'm on a wrong way
+<pjb> Yep.  [23:30]
+<pjb> You are confusing objects, such as an integer, with a representation of
+      those objects.
+<pjb> What integer does "12" represent?  It could be 42; it could be 3.
+<pjb> The question is what representation system it is?
+<jusss> pjb: I think I find a way to do that, like numbers in lisp are like
+	0-9 1.2 3/4 , I can turn a string to characters, and compare them with
+	0 1 - . / this characters, if there's one not match, I can know it
+	can't mean number to me   [23:47]
+<jusss> all the symbols of numbers , compare them with characters of strings
+<wasamasa> you should learn to read the backlog, the solution was mentioned
+	   four times  [23:49]
+<pjb> jusss: what about "#xdeadbeef" or "#b010101101110" ?  [23:50]
+<jusss> pjb: the first parameter of define, how define to detective it's
+	number or not ?  [23:54]
+
 ;;;AST 构造一门语言出来 
 		
 ;;;以空格分离字串，返回一个包含字串的列表,然后把列表里的字串转成symbol
@@ -262,32 +263,23 @@ racket@> (car (cdr ''1))
 (mapcar (lambda
 	    (quoted-form) (second quoted-form)) '('+ '1 '1)) #| --> (+ 1 1) |#
 
-
-
 <jusss> ggole: do repl work like this ? read a string and eval  [00:10]
 <profan_> ggole: read from string port?  [00:14]
-*** nilg` (~user@92.247.176.166) has joined channel #scheme  [00:20]
 <pjb> jusss: you need to use map to remove the quoted form: (map (lambda
       (quoted-form) (cadr quoted-form)) '('+ '1 '2)) #| --> (+ 1 2) |#  [00:22]
-*** nilg (~user@92.247.176.166) has quit: Ping timeout: 255 seconds  [00:23]
 <pjb> jusss: but it's idiotic to turn a string like "(+ 1 2)" into a list ('+
       '1 '2). It would be saner to turn it into a list (+ 1 2) directly.
 								        [00:24]
 <jusss> pjb: how ?
 <pjb> read from string port.
-*** nilg``` (~user@92.247.176.166) has joined channel #scheme
 <pjb> in CL, just use read-from-string.  [00:25]
 <jusss> pjb: and scheme ?
 <pjb> in scheme read from string port.
-*** nilg` (~user@92.247.176.166) has quit: Ping timeout: 245 seconds
 <pjb> jusss: now, of course, string ports are not standard r5rs, so you would
       first save the string to a file then reopen the file and read from it.
 								        [00:26]
 <jusss> pjb: how repl works ?  [00:27]
 <pjb> you launch a scheme implementation and type stuff
-
-
-
 
 scheme@(guile-user)> (string->symbol "a")
 $2 = a
@@ -326,34 +318,19 @@ user1>
 
 <jusss> hi there, if there's a list like ('+ 1 2) and how I can eval it like
 	(+ 1 2) ?
-*** Riastradh (~riastradh@netbsd/developer/riastradh) has joined channel
-    #scheme  [23:38]
 <ggole> (apply (car list) (cdr list))  [23:39]
 <ggole> Or possibly eval, depending on what this form might look like  [23:40]
-*** jyc (~jonathan@2600:3c00:e000:a5::) has quit: Ping timeout: 240 seconds
-								        [23:46]
-*** nilg (~user@92.247.176.166) has joined channel #scheme
 <jusss> ggole: get error mesg, '+ is not a procedure  [23:56]
 <jusss> ggole: I turn a string like "(+ 1 1)" to a list ('+ '1 '1), now I'd
 	like to eval it like eval (+ 1 1)  [23:57]
 <ggole> O_o  [23:58]
 <ggole> Well, remove the quotes first
 <jusss> but I don't know how to transform
-*** Riastradh (~riastradh@netbsd/developer/riastradh) has quit: Ping timeout:
-    246 seconds
 <jusss> ggole: how  [23:59]
 
 [Thu Dec 31 2015]
 <ggole> jusss: figure out how to turn '1 into 1. Then, figure out how to do
 	that for each element of the list.  [00:01]
-*** jcowan (~jcowan@static-108-30-103-116.nycmny.fios.verizon.net) has joined
-    channel #scheme
-*** jcowan_ (~jcowan@static-108-30-103-116.nycmny.fios.verizon.net) has joined
-    channel #scheme
-*** jcowan_ (~jcowan@static-108-30-103-116.nycmny.fios.verizon.net) has quit:
-    Read error: Connection reset by peer
-*** GGMethos (methos@2600:3c00::f03c:91ff:fea8:426e) has joined channel
-    #scheme  [00:02]
 <jusss> ggole: "(+ 1 1)", I can split it turn to ("+" "1" "1") then
 	string->symbol can turn to ('+ '1 '1)  [00:03]
 <jusss> turn '1 into 1, is there symbol->number or what ? and it sounds not
@@ -366,20 +343,15 @@ user1>
 	though
 <jusss> ggole: do repl work like this ? read a string and eval  [00:10]
 <profan_> ggole: read from string port?  [00:14]
-*** nilg` (~user@92.247.176.166) has joined channel #scheme  [00:20]
 <pjb> jusss: you need to use map to remove the quoted form: (map (lambda
       (quoted-form) (cadr quoted-form)) '('+ '1 '2)) #| --> (+ 1 2) |#  [00:22]
-*** nilg (~user@92.247.176.166) has quit: Ping timeout: 255 seconds  [00:23]
 <pjb> jusss: but it's idiotic to turn a string like "(+ 1 2)" into a list ('+
       '1 '2). It would be saner to turn it into a list (+ 1 2) directly.
-								        [00:24]
 <jusss> pjb: how ?
 <pjb> read from string port.
-*** nilg``` (~user@92.247.176.166) has joined channel #scheme
 <pjb> in CL, just use read-from-string.  [00:25]
 <jusss> pjb: and scheme ?
 <pjb> in scheme read from string port.
-*** nilg` (~user@92.247.176.166) has quit: Ping timeout: 245 seconds
 <pjb> jusss: now, of course, string ports are not standard r5rs, so you would
       first save the string to a file then reopen the file and read from it.
 								        [00:26]
@@ -388,9 +360,6 @@ user1>
 <jusss> pjb: so repl don't receive your input stuff as strings ?  [00:28]
 <pjb> No, it uses read directly. REPL = (loop (print (eval (read)))).  [00:29]
 <pjb> jusss: you may find string ports in your implementation extensions.
-								        [00:30]
-*** cemerick (~cemerick@c-24-34-140-98.hsd1.ma.comcast.net) has joined channel
-    #scheme
 <jusss> pjb: now I'm using racket
 <pjb> jusss: but it would be an impair to read lines as strings, to read them
       again with a string port, because this would prevent to write sexps over
@@ -403,10 +372,7 @@ user1>
       object is of type integer, and of value 10.  [00:32]
 <jusss> I don't remember there's symbol type in other languages like c or
 	python
-*** _sjs (~steven.sp@108-228-29-235.lightspeed.sntcca.sbcglobal.net) has quit:
-    Ping timeout: 272 seconds
 <wasamasa> it is there in ruby though  [00:33]
-*** jyc (~jonathan@2600:3c00:e000:a5::) has joined channel #scheme
 <pjb> in MIT scheme, you can write a REPL as: (let ((env
       (make-top-level-environment))) (let loop () (display (eval (read) env))
       (newline) (loop)))  [00:37]
@@ -462,8 +428,6 @@ user1>
 <jusss> and I found the concept is not easy to understand   [00:48]
 <pjb> #t is not a symbol. 42 is not a symbol. #(1 2 3) is not a symbol.  (a b
       c) is not a symbol. 'a is not a symbol.
-*** Beluki (~HexChat@39.46.165.83.dynamic.reverse-mundo-r.com) has quit: Quit:
-    Beluki  [00:49]
 <jusss> pjb: and symbol is easy to understand in cl ?  [00:50]
 <jusss> it's not between scheme and cl ?
 <pjb> jusss:
@@ -475,7 +439,6 @@ user1>
 <rudybot> http://teensy.info/0MwuZhjr2C
 <rudybot> http://teensy.info/d7ZYtcV4AF
 <pjb> jusss: r5rs is fucking 50 pages only.  You can read 50 pages can't you?
-*** O7_ (~d@185.57.82.25) has joined channel #scheme  [00:51]
 <jusss> pjb: ok then, so 'a is not a symbol, and why (string->symbol "a")
 	return 'a ?  [00:52]
 <pjb> CL is easier because you have more standardized tools, including
@@ -486,7 +449,6 @@ user1>
       interaction-environment is not mandatory by r5rs.
 <pjb> jusss: it does not.
 <pjb> (string->symbol "a")  returns a.
-*** O7 (~d@185.57.82.25) has quit: Ping timeout: 272 seconds  [00:53]
 <pjb> You may be using a deficient implementation that prints 'a instead of a,
       but it's a.
 <pierpa> he uses an implementation whose output format can be taylored in
@@ -501,7 +463,6 @@ user1>
 	don't care for it myself.
 <pjb> jusss: here, the object tested is foo.
 <pjb> ggole: deficient thought.  [00:55]
-*** O7_ (~d@185.57.82.25) is now known as O7
 <pjb> It ignores the modularity of the lisp reader.
 <jusss> pjb: I will try this (string->symbol "a") in guile  [00:56]
 <pjb> What did you get for  [00:58]
@@ -509,8 +470,6 @@ user1>
 <pjb> Type: (symbol? (read)) RET 'a RET
 <pjb>  
 <pjb> >
-*** nilg``` (~user@92.247.176.166) has quit: Remote host closed the connection
-								        [00:59]
 <jusss> pjb: in guile, (define a 10) (symbol? a) => #f
 <jusss> pjb: in guile, 'a => a, (string->symbol "a") => a, (car (cdr ''a)) =>
 	a  [01:00]
@@ -518,22 +477,11 @@ user1>
 <pjb> (define sym 'a) (symbol? sym) -> #f
 <pjb> 10 is an integer.
 <pjb> have you read 2.1?  [01:01]
-*** jcowan_ (~jcowan@static-108-30-103-116.nycmny.fios.verizon.net) has joined
-    channel #scheme
 <pjb> Notice that by 2.1 42<35 is not a standard identifier, but
       implementation dependant. It could be something else than a symbol in a
       different implementation. DUH.  In CL it's a symbol by standard.  [01:02]
-*** jcowan__ (~jcowan@static-108-30-103-116.nycmny.fios.verizon.net) has
-    joined channel #scheme  [01:03]
-*** jcowan (~jcowan@static-108-30-103-116.nycmny.fios.verizon.net) has quit:
-    Ping timeout: 240 seconds  [01:04]
-*** _sjs (~steven.sp@173.226.103.101) has joined channel #scheme  [01:05]
 <jusss> now I'm totally confused about identifer and symbol  [01:07]
 <pjb> Yes, scheme is confusing.  Assume they're the same.
-*** jcowan_ (~jcowan@static-108-30-103-116.nycmny.fios.verizon.net) has quit:
-    Ping timeout: 276 seconds
-*** tmtwd (~tmtwd@CPE0c473da71813-CM0c473da71810.cpe.net.cable.rogers.com) has
-    joined channel #scheme
 <ggole> Most of the difference is that you can create symbols from arbitrary
 	strings with string->symbol: identifiers are the subset that read will
 	create for you from scheme source.  [01:08]
@@ -542,10 +490,6 @@ user1>
 <jusss> get error
 <pjb> Yes, you cannot add symbols to numbers.  [01:11]
 <pjb> or numbers to symbols.
-*** cemerick (~cemerick@c-24-34-140-98.hsd1.ma.comcast.net) has quit: Ping
-    timeout: 245 seconds  [01:12]
-*** bb010g (uid21050@gateway/web/irccloud.com/x-cremdfzsscurawzn) has joined
-    channel #scheme  [01:13]
 <pjb> Also, (define a 10) defines the variable named a in an environment. To
       get access to its value from the symbol a, you would have to use eval
       (there's no symbol-value in scheme), and therefore you would have to
@@ -575,8 +519,6 @@ user1>
       an a-list, where you map symbols to values and can do whatever you
       want. Of course, then you don't use define to put associations in your
       a-list, you would define your own procedures or macros.  [01:19]
-*** badkins (~badkins@cpe-107-15-212-104.nc.res.rr.com) has quit: Ping
-    timeout: 246 seconds
 <jusss> pjb: so a is a symbol before (define a 10) and after that a is not a
 	symbol ?  [01:20]
 <pjb> a is always a symbol.
@@ -591,17 +533,10 @@ user1>
       the variable, or duplicated it; in any case, it has forgotten the naming
       of the bytes in memory.
 <pjb> 'a is (quote a)
-*** lambda-11235 (~lambda-11@75-111-50-39.erkacmtk01.res.dyn.suddenlink.net)
-    has joined channel #scheme
 <pjb> Try: (read) RET 'a RET
 <pjb> Try: (read) RET (quote a) RET
 <pjb> Try: (let ((x (read)) (y (read))) (equal? x y)) RET 'a RET (quote a) RET
-								        [01:23]
-*** jcowan_ (~jcowan@static-108-30-103-116.nycmny.fios.verizon.net) has joined
-    channel #scheme  [01:24]
 <pjb> jusss: see: http://paste.lisp.org/display/304200  [01:26]
-*** jcowan__ (~jcowan@static-108-30-103-116.nycmny.fios.verizon.net) has quit:
-    Ping timeout: 255 seconds  [01:28]
 <jusss> pjb: I really need a time to think about it, thanks very much  [01:29]
 <jusss> I have to go  [01:30]
 <pjb> Good night!
