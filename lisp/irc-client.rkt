@@ -1,6 +1,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;this file is ~/lab/irc-client.rkt
-;;;(load "lab/irc-client.rkt") then (irc-client)
+;;;(load "lab/irc-client.rkt") 3秒后 (irc-client), 因为racket/gui加载需要2秒左右,当racket/gui加载不完全就执行(irc-client)会出现输入的字符串在print-area的位置不正确
 (require racket/tcp)
 (require racket/gui)
 (load "lab/string-library.rkt")
@@ -25,24 +25,27 @@
 
 (define read-data
   (lambda (in out read-strings)
-    ;;;把从socket接收到的信息发送到显示区域
     (if (eof-object? read-strings)
 	'()
-	(send (send print-area get-editor)
-	  insert
-	  read-strings))
-    ;;; string match PING
-    (if (find-string-a-in-string-b "PING :"
-				   read-strings)
-	(begin (write-string
-		(string-a-merge-string-b
-		 "PONG :"
-		 (get-rest-string-from-string "PING :" read-strings))
-		out)
-	       (flush-output out))
-	'())
-    ;;; tail call for loop
-    (read-data in out (read-line in))))
+	(begin
+	  ;;;把从socket接收到的信息发送到显示区域
+	  (send (send print-area get-editor)
+		insert
+		read-strings)
+	  
+           ;;; string match PING
+	  (if (find-string-a-in-string-b "PING :"
+					 read-strings)
+	      (begin (write-string
+		      (string-a-merge-string-b
+		       "PONG :"
+		       (get-rest-string-from-string "PING :" read-strings))
+		      out)
+		     (flush-output out))
+	      '())
+	  
+          ;;; tail call for loop
+	  (read-data in out (read-line in))))))
 
 (define (icbot)
   ;;; send user name and nick
@@ -89,6 +92,15 @@
 	    (send (send t get-editor) erase))
 	  '()))))
 
+;;;添加输入框，检测到回车就发送字符串到socket
+(new text-field%
+	      (parent frame1)
+	      (label #f)
+	      (min-height 25)
+	      (callback
+	       (lambda (t e)
+		 (send-msg t e))))
+
 (send frame1 show #t)
 
 (define-values (in out) (tcp-connect "irc.freenode.net" 6665))
@@ -99,16 +111,5 @@
   (for-each thread thunks))
 (parallel-execute (lambda () (icbot)))
 
-
-;;;添加输入框，检测到回车就发送字符串到socket
-(new text-field%
-	      (parent frame1)
-	      (label #f)
-	      (min-height 25)
-	      (callback
-	       (lambda (t e)
-		 (send-msg t e))))
-
 ))
-
 
