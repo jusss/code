@@ -1,9 +1,12 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;(load "lab/irc-client.rkt") then (irc-client)
 (require racket/tcp)
-(load "lab/string-library.rkt")
 (require racket/gui)
+(load "lab/string-library.rkt")
 
-(define (parallel-execute . thunks)
-  (for-each thread thunks))
+(define irc-client
+  (lambda ()
+    
 
 (define frame1
   (new frame%
@@ -42,21 +45,13 @@
 
 (define (icbot)
   ;;; send user name and nick
-  (write-string "nick john-wick \r\n" out)
-  (write-string "user john-wick 8 * :john-wick \r\n" out)
+  (write-string "nick all-l28 \r\n" out)
+  (write-string "user all-l4 8 * :all-l4 \r\n" out)
   (write-string "join #ubuntu-cn \r\n" out)
   ;;; flush it for send
   (flush-output out)
   ;;; read data from server
   (read-data in out (read-line in)))
-
-(send frame1 show #t)
-
-(define-values (in out) (tcp-connect "irc.freenode.net" 6665))
-
-;;;GUI编程时，如果有循环，貌似就只能把循环放到另一个线程里来解决了，因为GUI本身就是个循环,然后再有个函数循环就只能把函数循环放到另一个线程这样才能同时运行
-;;;用多线程把icbot这个循环读取socket的procedure放到另一个线程里，不阻塞当前线程
-(parallel-execute (lambda () (icbot)))
 
 (define send-msg
   (let ((kbd-input "")
@@ -93,6 +88,17 @@
 	    (send (send t get-editor) erase))
 	  '()))))
 
+(send frame1 show #t)
+
+(define-values (in out) (tcp-connect "irc.freenode.net" 6665))
+
+;;;GUI编程时，如果有循环，貌似就只能把循环放到另一个线程里来解决了，因为GUI本身就是个循环,然后再有个函数循环就只能把函数循环放到另一个线程这样才能同时运行
+;;;用多线程把icbot这个循环读取socket的procedure放到另一个线程里，不阻塞当前线程
+(define (parallel-execute . thunks)
+  (for-each thread thunks))
+(parallel-execute (lambda () (icbot)))
+
+
 ;;;添加输入框，检测到回车就发送字符串到socket
 (new text-field%
 	      (parent frame1)
@@ -102,9 +108,6 @@
 	       (lambda (t e)
 		 (send-msg t e))))
 
-
-
-
-
+))
 
 
