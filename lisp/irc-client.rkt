@@ -1,4 +1,5 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;this file is ~/lab/irc-client.rkt
 ;;;(load "lab/irc-client.rkt") then (irc-client)
 (require racket/tcp)
 (require racket/gui)
