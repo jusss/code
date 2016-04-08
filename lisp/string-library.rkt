@@ -1,3 +1,7 @@
+#lang racket
+(provide (all-defined-out))
+;;;provide所有函数的定义，当然也可单独(provide find-string)只provide find-string这一个函数
+;;;然后在其它文件里用(require (file "~/lab/string-library.rkt"))然后就能调用这个文件里所有的函数了,这种方式比(load ...)更好
 ;;;(load "lab/string-library.rkt")  文件位置是 ~/lab/string-library.rkt
 
 ;;;(find-string string-a string-b) 在string-b中找string-a并返回string-a的首字符在string-b中的位置，第一个元素的位置是1,如果没找到返回#f
@@ -380,4 +384,5 @@
 	    #f)
 	#f)))
 ;;;(list-eq? list-a list-b) 比较list-a和list-b是否相同，是 返回#t, 否 返回#f 如果想比较列表长短用length 比较list-a是否包含在list-b里用find-list
+
 
