@@ -20,8 +20,8 @@
   (new text-field%
        (parent notify-window)
        (label #f)
-       (style '(multiple))
-       (enabled #f)))
+       (style '(multiple))))
+       
 
 (define click-button
   (new button%
@@ -34,11 +34,12 @@
 
 (define send-message
   (lambda (message)
-    (send
-     (send print-message
-	   get-editor)
-     insert
-     message)
+    (define print-message-editor
+      (send print-message get-editor))
+    (send print-message-editor
+	  insert
+	  message)
+    (send print-message-editor lock #t)
     (send notify-window show #t)))
 
 (send-message (car cmd-line-parameter-list))
