@@ -16,6 +16,7 @@
 ;;;(nth-element nth list-a) 返回list-a中第n个元素，如果n大于list-a的长度返回 #f
 ;;;(merge-list list-a list-b) 返回合并的list-a和list-b, list-a在list-b之前
 ;;;(merge-string string-a string-b) 返回合并的string-a和string-b, string-a在string-b之前
+;;;(merge-strings string-list) 将列表中的字符串依次合并，返回合并后的字符串
 ;;;(replace-string string-a string-b string-c) 把string-c中的string-a替换为string-b并返回, 如果在string-c中没找到string-a,则string-c原封不动返回
 ;;;(split-string string-a string-b) 用string-b分割string-a，返回分割之后的字符串列表 如果在string-b中没找到string-a,就返回包含原封不动的string-b的列表
 ;;;(string-list->symbol-list string-list) 把字符串列表变成符号列表返回
@@ -384,5 +385,18 @@
 	    #f)
 	#f)))
 ;;;(list-eq? list-a list-b) 比较list-a和list-b是否相同，是 返回#t, 否 返回#f 如果想比较列表长短用length 比较list-a是否包含在list-b里用find-list
+
+
+(define merge-str
+  (lambda (string-list expect-string)
+    (if (eq? string-list '())
+	expect-string
+	(merge-str (cdr string-list)
+		   (merge-string expect-string
+				 (car string-list))))))
+
+(define merge-strings
+  (lambda (a-string-list)
+    (merge-str a-string-list "")))
 
 
