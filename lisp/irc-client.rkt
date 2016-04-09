@@ -1,11 +1,17 @@
 #!/usr/bin/env racket
 #lang racket
+;;;检测窗口是否最小化来决定是否开启通知窗口，或添加一按钮来控制，或检测当前窗口看有没有irc-client来控制
+;;; ssl
+;;;服务器中断，测试客户端是否读取eof
+
+
 ;;;this file is ~/lab/irc-client.rkt
 ;;;(load "lab/irc-client.rkt") 当出现输入的字符串在print-area的位置不正确,是因为print-area可写，写完信息后lock锁定可以解决这个问题
 ;;;如果服务器主动断开连接，好像(read-line in)读不到空字符串不知道怎么回事，所以不在这写空字符串判断了
 (require racket/tcp)
 (require racket/gui)
-(require (file "~/lab/string-library.rkt"))
+;;;(require (file "~/lab/string-library.rkt"))
+(require "string-library.rkt")
 
 (define irc-client
   (lambda ()
