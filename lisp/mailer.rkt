@@ -24,7 +24,9 @@
     (write-string a-string)
     (newline)
     (if (find-string "RECENT" a-string)
-	(system "/home/xxx/lab/notifier.rkt new_mail &")
+	(if (find-string "* 0 RECENT" a-string)
+	    '()
+	    (system "/home/xxx/lab/notifier.rkt new_mail &"))
 	'())
     (if (eof-object? a-port)
 	"network disconnect..."
