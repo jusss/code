@@ -17,7 +17,7 @@
 
 (with-handlers ((exn:fail:network?
 		 (lambda (e)
-		   (system "/home/xxx/lab/notifier \" Fail to Connect Mail Server, It will restart after 3 minutes\" &")
+		   (system "/home/xxx/lab/notifier \" Fail to Connect Mail Server, Restart after 3 minutes\" &")
 		  ;;; if network is down, wait for 3 minutes then restart
 		  (sleep 180)
 		  (system "/home/xxx/lab/mailer-part-ii.rkt &")
@@ -53,7 +53,7 @@
 
 ;;;(thread-wait connect-thread)
 
-
+;;;use multi-thread to detect reading timeout, and use continuation make a loop inside threads
 
 (define got-string " ")
 
@@ -86,7 +86,7 @@
 	    (if (eq? upper-counter counter)
 		(begin
 		  (system "/home/xxx/lab/mailer-part-ii.rkt &")
-		  (system "/home/xxx/lab/notifier.rkt \" Disconnect... It will restart\" &")
+		  (system "/home/xxx/lab/notifier.rkt \" Disconnect from Mail Server, Restart\" &")
 		  (exit))
 		(thread-loop thread-loop)))))
 
