@@ -4,7 +4,7 @@
 ;;;然后在其它文件里用(require (file "~/lab/string-library.rkt"))然后就能调用这个文件里所有的函数了,这种方式比(load ...)更好
 ;;;(load "lab/string-library.rkt")  文件位置是 ~/lab/string-library.rkt
 
-;;;(find-string string-a string-b) 在string-b中找string-a并返回string-a的首字符在string-b中的位置，第一个元素的位置是1,如果没找到返回#f
+;;;(find-string string-a string-b) 在string-b中找string-a并返回string-a的首字符在string-b中的位置，第一个元素的位置是1,如果没找到返回#f,如果2个参数中有一个是#f,直接返回#f
 ;;;(find-list list-a list-b) 在list-b中寻找list-a的所有元素并返回list-a的第一个元素在list-b中的位置,第一个元素的位置是1,如果没找到返回#f
 ;;;(rest-string string-a string-b) 返回string-b中string-a后面的所有字符串 如果没在string-b中找到string-a返回 #f
 ;;;(rest-list list-a list-b) 返回list-b中list-a的所有元素之后的所有元素 如果没在list-b中找到list-a的所有元素返回 #f
@@ -108,9 +108,10 @@
 
 (define find-string-a-in-string-b
   (lambda (string-a string-b)
-    (find-all-elements-of-list-a-in-list-b (string->list string-a)
-					   (string->list string-b))))
-
+    (if (and string-a string-b)
+	(find-all-elements-of-list-a-in-list-b (string->list string-a)
+					       (string->list string-b))
+	#f)))
 
 (define find-string find-string-a-in-string-b)
 ;;;(find-string string-a string-b) 在string-b中找string-a并返回string-a的首字符在string-b中的位置，第一个元素的位置是1,如果没找到返回#f
