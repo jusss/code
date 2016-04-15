@@ -1,5 +1,8 @@
 #lang racket
 (provide (all-defined-out))
+
+;;;        写函数的第一件事就是判断参数类型！判断参数类型！判断参数类型！
+
 ;;;provide所有函数的定义，当然也可单独(provide find-string)只provide find-string这一个函数
 ;;;然后在其它文件里用(require (file "~/lab/string-library.rkt"))然后就能调用这个文件里所有的函数了,这种方式比(load ...)更好
 ;;;(load "lab/string-library.rkt")  文件位置是 ~/lab/string-library.rkt
@@ -12,7 +15,7 @@
 ;;;(front-string string-a string-b) 返回string-b中string-a之前的字符串 如果没在string-b中找到string-a 返回 #f
 ;;;(front-list list-a list-b) 返回list-b中list-a的前面元素，如果没在list-b中找到list-a就返回 #f
 ;;;(n-to-m-list list-a n m) 返回list-a中第n个到第m个中间的元素,n小于等于m且m小于等于list-a的长度，若n>m或m>list-a的长度则返回 #f
-;;;(n-to-m-string string-a n m)返回string-a中第n个字符到第m个字符这一段的字符串,若n>m或m>string-a的长度则返回 #f
+;;;(n-to-m-string string-a n m)返回string-a中第n个字符到第m个字符这一段的字符串,若n>m或m>string-a的长度则返回 #f 如果string-a不是字符串返回#f, n m不是数字返回#f
 ;;;(nth-element nth list-a) 返回list-a中第n个元素，如果n大于list-a的长度返回 #f
 ;;;(merge-list list-a list-b) 返回合并的list-a和list-b, list-a在list-b之前
 ;;;(merge-string string-a string-b) 返回合并的string-a和string-b, string-a在string-b之前
@@ -249,13 +252,14 @@
 
 
 (define get-n-to-m-from-string
-  (lambda (string-a n m)
-    (define list-a (string->list string-a))
-    (if (> n m)
-	#f
-	(if (> m (length list-a))
-	    #f
-	    (list->string (get-n-to-m-from-list list-a n m))))))
+    (lambda (string-a n m)
+      (if (and (string? string-a) (number? n) (number? m))
+	  (if (> n m)
+	      #f
+	      (if (> m (length (string->list string-a)))
+		  #f
+		  (list->string (get-n-to-m-from-list (string->list string-a) n m))))
+	  #f)))
 
 (define n-to-m-list get-n-to-m-from-list)
 ;;;(n-to-m-list list-a n m) 返回list-a中第n个到第m个中间的元素,n小于等于m且m小于等于list-a的长度，若n>m或m>list-a的长度则返回 #f
