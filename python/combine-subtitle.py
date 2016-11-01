@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+### usage: $./combine-subtitle.py English.srt Chinese.srt English-Chinese.srt
+
 import sys
 empty_line = '\n'
         
@@ -40,20 +42,33 @@ while True:
     ### append timestamp to file3_string_list
     file3_string_list.append(timestamp)
     ### append file1_string_list's subtitle into file3_string_list
-    file3_string_list.append(
-        file1_string_list[position1 + 1:
-                          file1_string_list.index(empty_line, position1)])
+    try:
+        file3_string_list.append(
+            file1_string_list[position1 + 1:
+                              file1_string_list.index(empty_line, position1)])
+    ### if last line is not \n, do this    
+    except ValueError as e:
+        file3_string_list.append(
+            file1_string_list[position1 + 1:])
 
     try:
         ### find timestamp in file2_string_list, if don't find it then pass and loop again
         position2 = file2_string_list.index(timestamp)
-        file3_string_list.append(
-            file2_string_list[position2 + 1:
-                              file2_string_list.index(empty_line, position2) + 1])
+        try:
+            file3_string_list.append(
+                file2_string_list[position2 + 1:
+                                  file2_string_list.index(empty_line, position2) + 1])
+        except ValueError as e:
+            ### if last line is not \n
+            file3_string_list.append(
+                file2_string_list[position2 + 1:])
     except ValueError as e:
         pass
+            
 
-print(file3_string_list)
+
+
+### print(file3_string_list)
 ### file3_string_list is like [["00:00:00 --> 00:00:04"], ["hi"], ["\n"]], there're inner list in it, unpack it first, then turn it to string
 new_list = []
 for i in file3_string_list:
