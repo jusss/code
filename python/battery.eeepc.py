@@ -28,6 +28,7 @@ while True:
     percent_number=int(percent_str)
     if percent_number<10:
         """
+        Solution Two.
         try: 
             plist.pop().kill()
         except Exception as e:
@@ -37,7 +38,20 @@ while True:
         next(y)
         p=subprocess.Popen(['/home/jusss/lab/notifier.py', 'Power', 'Power is ', percent_str, '%'], shell=False)
         plist.append(p)
-        ###subprocess.os.popen("~/lab/notifier.py Power power is " + percent_str + "%")
+        
+        """
+        Solution One.
+        subprocess.os.popen("~/lab/notifier.py Power power is " + percent_str + "%")
+        """
+        """
+        Solution Four.
+        Consider if you click the button and then notifier.py terminate, what plist.pop().kill() will get?
+        maybe an error that said wrong PID or terminate another new process with the same PID
+        so display the notified message, after 3 seconds, then terminate it will be a good choice
+        p=subprocess.Popen(['/home/jusss/lab/notifier.py', 'Power', 'Power is ', percent_str, '%'], shell=False)
+        time.sleep(3)
+        p.kill()
+        """
         
     time.sleep(120)
 
