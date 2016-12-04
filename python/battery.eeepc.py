@@ -1,5 +1,20 @@
 #!/usr/bin/env python3
 import subprocess, time
+
+### same function call, but different process, yield
+### don't run at the first time, yield
+
+plist=[]
+def dont_pop_at_the_first_time():
+    1+1
+    yield 0
+    while True:
+        plist.pop().kill()
+        yield 0
+
+y=dont_pop_at_the_first_time()
+    
+    
 while True:
     try:
         return_obj=subprocess.os.popen("acpi")
@@ -12,6 +27,17 @@ while True:
     percent_str=return_str[position - return_str[0:position][::-1].find(" ") : position]
     percent_number=int(percent_str)
     if percent_number<10:
-        subprocess.os.popen("~/lab/notifier.py Power power is " + percent_str + "%")
+        """
+        try: 
+            plist.pop().kill()
+        except Exception as e:
+            ###subprocess.Popen(['/home/jusss/lab/notifier.py', 'Error', str(e)], shell=False)
+            pass
+        """
+        next(y)
+        p=subprocess.Popen(['/home/jusss/lab/notifier.py', 'Power', 'Power is ', percent_str, '%'], shell=False)
+        plist.append(p)
+        ###subprocess.os.popen("~/lab/notifier.py Power power is " + percent_str + "%")
+        
     time.sleep(120)
 
