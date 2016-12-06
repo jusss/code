@@ -36,6 +36,7 @@ while True:
             pass
         """
         next(y)
+        ### p=subprocess.Popen(['/usr/bin/env', 'DISPLAY=:0', '/home/jusss/lab/notifier.py', 'Power', 'Power is ', percent_str, '%'], shell=False)
         p=subprocess.Popen(['/home/jusss/lab/notifier.py', 'Power', 'Power is ', percent_str, '%'], shell=False)
         plist.append(p)
         
