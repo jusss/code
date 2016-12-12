@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import sys, os, subprocess, signal
 
+### usage: $~/lab/erc-notifier.py title message
 ### pop up the first notify window, and kill it when pop up the second notify window
 controler=0
 previous_pid=0
