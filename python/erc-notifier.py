@@ -6,6 +6,7 @@ controler=0
 previous_pid=0
 if controler == 0:
     p0=subprocess.Popen(['/home/jusss/lab/notifier.py', sys.argv[1], sys.argv[2]], shell=False)
+    ### time.sleep(3) or p0.wait() if the script is too fast to exit that make python don't have time to call tk
     ### just replace once! sed -i '0,/a/ s//e/' example
     os.system("sed -i -e '0,/controler=0/ s//controler=1/' ~/lab/erc-notifier.py")
     os.system("sed -i -e '0,/previous_pid=0/ s//previous_pid=" + str(p0.pid) + "/' ~/lab/erc-notifier.py")
