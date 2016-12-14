@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 import tkinter.messagebox, sys, time, multiprocessing
 
+### usage: $~/lab/erc-notifier.py "title" "message"
+### you should use double quote " because shell auto evaluate parameters 
+
 class My_Frame(tkinter.Frame):
 
     def __init__(self, parent):
