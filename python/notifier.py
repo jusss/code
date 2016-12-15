@@ -2,6 +2,7 @@
 import tkinter, tkinter.messagebox, sys
 
 ### usage: $~/lab/notifier.py "title" "message"
+### you should use double quote " because shell auto evaluate parameters
 
 top=tkinter.Tk()
 top.title(sys.argv[1])
@@ -14,7 +15,7 @@ label=tkinter.Label(frame, text=sys.argv[2], font=("DejaVu Sans", 12),
 label.pack(expand=True, fill="both")
 button=tkinter.Button(frame,text="OK", command=sys.exit, foreground="black")
 button.pack()
-tkinter.mainloop()
+top.mainloop()
 ### 或许该用text scollbar替代label比较好
 
 #######################################################################
