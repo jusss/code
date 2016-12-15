@@ -12,6 +12,7 @@ frame.pack(expand=True, fill="both")
 label=tkinter.Label(frame, text=sys.argv[2], font=("DejaVu Sans", 12),
                     foreground="black", background="ghost white",
                     wraplength=300)
+### wraplength should be same long as geometry's width, otherwise it will miss some texts
 label.pack(expand=True, fill="both")
 button=tkinter.Button(frame,text="OK", command=sys.exit, foreground="black")
 button.pack()
