@@ -11,5 +11,5 @@ label=tkinter.Label(frame, text=sys.argv[2], font=("DejaVu Sans", 12),
 label.pack(expand=True, fill="both")
 button=tkinter.Button(frame,text="OK", command=sys.exit, foreground="black")
 button.pack()
-tkinter.mainloop()
+top.mainloop()
 ### 或许该用text scollbar替代label比较好
