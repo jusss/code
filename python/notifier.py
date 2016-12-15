@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import tkinter.messagebox, sys
 
+### usage: $~/lab/notifier.py "title" "message"
+
 class My_Frame(tkinter.Frame):
 
     def __init__(self, parent):
