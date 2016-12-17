@@ -9,7 +9,11 @@ def dont_pop_at_the_first_time():
     1+1
     yield 0
     while True:
-        plist.pop().kill()
+        try:
+            #what if you click OK, then process exit
+            plist.pop().kill()
+        except Exception as e:
+            print(e)
         yield 0
 
 y=dont_pop_at_the_first_time()
@@ -26,7 +30,7 @@ while True:
     position=return_str.find("%")
     percent_str=return_str[position - return_str[0:position][::-1].find(" ") : position]
     percent_number=int(percent_str)
-    if percent_number<10:
+    if percent_number<15:
         """
         Solution Two.
         try: 
@@ -37,7 +41,7 @@ while True:
         """
         next(y)
         ### p=subprocess.Popen(['/usr/bin/env', 'DISPLAY=:0', '/home/jusss/lab/notifier.py', 'Power', 'Power is ', percent_str, '%'], shell=False)
-        p=subprocess.Popen(['/home/jusss/lab/notifier.py', 'Power', 'Power is ', percent_str, '%'], shell=False)
+        p=subprocess.Popen(['/home/jusss/lab/notifier.py', 'Power', 'Power is ' + percent_str + '%'], shell=False)
         plist.append(p)
         
         """
