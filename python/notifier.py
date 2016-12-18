@@ -2,6 +2,7 @@
 import tkinter, tkinter.messagebox, sys
 
 ### usage: $~/lab/notifier.py "title" "message"
+### or $env DISPLAY=:0.0 /home/jusss/lab/notifier.py "title" "message"
 ### you should use double quote " because shell auto evaluate parameters
 
 top=tkinter.Tk()
