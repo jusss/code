@@ -12,5 +12,6 @@ xauth extract - $DISPLAY | sudo tee ./root/.Xauthority
 sudo cp /etc/hosts  ./etc/hosts
 sudo cp /etc/resolv.conf ./etc/resolv.conf
 ### /etc/fstab, /etc/mtab, /proc/mounts, /proc/self/mounts, these four files manage mount file system, and /usr/bin/mount read /etc/mtab
-sudo chroot . rm /etc/mtab
-sudo chroot . ln -s /proc/mounts /etc/mtab
+###sudo chroot . rm /etc/mtab
+###sudo chroot . ln -s /proc/mounts /etc/mtab
+### you just need run rm and ln once in chroot env, and you can use `chroot --userspec john:john  your-chroot-path /bin/bash` login as john not root
