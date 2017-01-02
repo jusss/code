@@ -15,3 +15,6 @@ sudo cp /etc/resolv.conf ./etc/resolv.conf
 ###sudo chroot . rm /etc/mtab
 ###sudo chroot . ln -s /proc/mounts /etc/mtab
 ### you just need run rm and ln once in chroot env, and you can use `chroot --userspec john:john  your-chroot-path /bin/bash` login as john not root
+
+### for that you can change host system's /bla2 in chroot env
+sudo mount -o bind /bla2 /bla2/jessie/bla2
