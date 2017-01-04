@@ -19,3 +19,6 @@ sudo cp /etc/resolv.conf ./etc/resolv.conf
 
 ### for that you can change host system's /bla2 in chroot env
 sudo mount -o bind /bla2 /bla2/jessie/bla2
+
+### for use wpa_supplicant in chroot env, I don't know why wlp3s0 can not be up in chroot with this command
+sudo ip link set wlp3s0 up

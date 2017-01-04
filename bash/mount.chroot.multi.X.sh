@@ -31,3 +31,6 @@ sudo mount -o bind /run/udev  ./run/udev
 ### or
 ### sudo mount -t tmpfs tmpfs ./tmp
 ### sudo mount -o bind /tmp ./tmp ?
+
+### for use wpa_supplicant in chroot env, I don't know why wlp3s0 can not be up in chroot with this command
+sudo ip link set wlp3s0 up
