@@ -25,7 +25,7 @@ sudo ip addr add 192.168.2.254/24 broadcast 192.168.2.255 dev wlp3s0
 sudo ip route add default via 192.168.2.1 dev wlp3s0  src 192.168.2.254
 
 ### or just use dhcpcd to instead of ip addr and ip route
-### sudo dhcpcd -n wlp3s0 -4 -S ip_address=192.168.2.254 -S routes=192.168.2.1 -S domain_name_servers=127.0.0.1 
+### sudo dhcpcd -n wlp3s0 -4 -S ip_address=192.168.2.254 -S routers=192.168.2.1 -S domain_name_servers=127.0.0.1 
 
 ### for dnsmasq
 ### echo "nameserver 127.0.0.1" | sudo tee /etc/resolv.conf
