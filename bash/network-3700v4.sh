@@ -24,6 +24,9 @@ sudo ip addr add 192.168.2.254/24 broadcast 192.168.2.255 dev wlp3s0
 ### route address, maybe try add 'metric 302' to ip route
 sudo ip route add default via 192.168.2.1 dev wlp3s0  src 192.168.2.254
 
+### use ip addr and ip route, connect to TP-LINK router, the delay will be huge after 5 minutes 
+### but it's normal when it connects to netgear router, it's weird! so try dhcpcd instead of ip addr and ip route
+
 ### or just use dhcpcd to instead of ip addr and ip route
 ### sudo dhcpcd -n wlp3s0 -4 -S ip_address=192.168.2.254 -S routers=192.168.2.1 -S domain_name_servers=127.0.0.1 
 
