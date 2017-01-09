@@ -5,7 +5,7 @@ sudo killall wpa_supplicant > /dev/null 2>&1
 
 ### `ip link show dev network-interface` show the status of network interfaces
 ### `ip link set network-interface up` or substitute up with down, activate or deactivate network interface
-sudo ip link set wlp3s0 up
+#sudo ip link set wlp3s0 up
 
 sleep 1
 
