@@ -35,3 +35,6 @@ sudo ip link set wlp3s0 up
 
 sudo mount -t tmpfs tmpfs ./tmp
 sudo mount --make-rslave ./tmp
+
+###  login with regular user john in chroot env
+sudo chroot --userspec john:john  .  /bin/su john

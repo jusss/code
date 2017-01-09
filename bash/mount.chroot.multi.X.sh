@@ -43,7 +43,7 @@ sudo mount -o bind /run/udev  ./run/udev
 ### option for /tmp
 ### sudo mount -t tmpfs /tmp  ./tmp
 ### or
-#sudo mount -t tmpfs tmpfs ./tmp
+sudo mount -t tmpfs tmpfs ./tmp
 #sudo mount --make-rslave ./tmp
 ### sudo mount -o bind /tmp ./tmp ?
 
@@ -67,3 +67,8 @@ sudo ip link set wlp3s0 up
 ###                 Option "EmulateTwoFingerMinZ" "40"
 ###                 Option "EmulateTwoFingerMinW" "8"
 ### EndSection
+
+### mount -o bind /dev ./dev is same with mount -t devtmpfs devtmpfs ./dev ?
+
+###  login with regular user john in chroot env
+sudo chroot --userspec john:john  .  /bin/su john
