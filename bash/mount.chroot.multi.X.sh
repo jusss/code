@@ -70,5 +70,15 @@ sudo ip link set wlp3s0 up
 
 ### mount -o bind /dev ./dev is same with mount -t devtmpfs devtmpfs ./dev ?
 
+### for chrome, but it's safe for the host system?
+### sudo mount -o bind /var/run/dbus ./var/run/dbus
+### sudo mount -o bind /var/lib/dbus ./var/lib/dbus
+
+### for kernel modules
+### sudo mount -o bind /lib/modules  ./lib/modules
+
+### for cdrom
+### sudo mount -o bind /media/cdrom  ./media/cdrom
+
 ###  login with regular user john in chroot env
 sudo chroot --userspec john:john  .  /bin/su john
