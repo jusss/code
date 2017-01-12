@@ -10,11 +10,12 @@
 ### mount have shared, private, slave, unbindable four objects
 
 sudo mount -t proc proc ./proc
+sudo mount --make-rslave ./proc
 sudo mount -t sysfs sysfs ./sys
-#sudo mount --make-rslave  ./sys
+sudo mount --make-rslave  ./sys
 ### pass the change from host sytem's /dev to chroot's /dev, but don't pass chroots to hosts, use slave mount
 sudo mount -t devtmpfs devtmpfs ./dev
-#sudo mount --make-rslave  ./dev
+sudo mount --make-rslave  ./dev
 sudo mount -t tmpfs tmpfs ./dev/shm
 sudo mount -t devpts devpts ./dev/pts
 #sudo cp /etc/hosts  ./etc/hosts
@@ -37,8 +38,8 @@ sudo mount -o bind /bla2 ./bla2
 ### for mouse and keyboard can use in chroot's Xorg
 ### sudo mkdir ./run/udev
 sudo mount -o bind /run/udev  ./run/udev
-#sudo mount --rbind /run/udev  ./run/udev
-#sudo mount --make-rslave ./run/udev
+### sudo mount --rbind /run/udev  ./run/udev
+sudo mount --make-rslave ./run/udev
 
 ### option for /tmp
 ### sudo mount -t tmpfs /tmp  ./tmp
