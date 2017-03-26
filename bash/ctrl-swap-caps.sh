@@ -1,3 +1,3 @@
 #!/bin/bash
-setxkbmap -option ctrl:swapcaps
-#setxkbmap -layout us -option ctrl:nocaps
+#setxkbmap -option ctrl:swapcaps
+setxkbmap -layout us -option ctrl:nocaps
