@@ -2,7 +2,7 @@
 INTERFACE=wlp3s0
 CONFIG_FILE=/home/jusss/network/wifi.wpa
 DRIVER=wext
-LOG_FILE=/home/jusss/lab/wpa.log
+LOG_FILE=/home/jusss/network/wpa.log
 IP=192.168.1.254
 BROADCAST=192.168.1.255
 GATEWAY=192.168.1.1
@@ -19,7 +19,8 @@ sleep 1
 
 ### wpa_supplicant -iwlp3s0 -c ~/networks/home -Dwext -d >> ~/lab/log 2>&1 &
 ### sudo wpa_supplicant -i wlp3s0 -c ~/networks/boom -Dnl80211 > /dev/null 2>&1 &
-sudo wpa_supplicant -i $INTERFACE -c $CONFIG_FILE -D $DRIVER -f $LOG_FILE &
+#sudo wpa_supplicant -i $INTERFACE -c $CONFIG_FILE -D $DRIVER -f $LOG_FILE &
+sudo wpa_supplicant -i $INTERFACE -c $CONFIG_FILE -f $LOG_FILE &
 
 sleep 2
 
