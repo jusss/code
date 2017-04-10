@@ -1,0 +1,5 @@
+network={
+ssid="your-wifi"
+scan_ssid=1
+psk="your-password"
+}
