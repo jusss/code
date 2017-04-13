@@ -83,4 +83,5 @@ sudo ip link set wlp3s0 up
 
 ###  login with regular user john in chroot env
 sudo chroot --userspec john:john  .  /bin/su john
-### startx -- :1 vt2    in case Xorg run on :0 vt1 in host os
+### startx -- :1 vt2    in case Xorg run on :0 vt1 in host os, also don't switch Xorg :0 with Xorg :1 directly, C-M-F1 C-M-F2 cause blank screen,
+### try switch tty3 then switch tty1 or tty2, C-M-F3 C-M-F1 C-M-F3 C-M-F2
