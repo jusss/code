@@ -83,3 +83,4 @@ sudo ip link set wlp3s0 up
 
 ###  login with regular user john in chroot env
 sudo chroot --userspec john:john  .  /bin/su john
+### startx -- :1 vt2    in case Xorg run on :0 vt1 in host os
