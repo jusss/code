@@ -6,7 +6,8 @@ from tkinter.messagebox import *
 from tkinter.filedialog import *
 from tkinter.filedialog import askopenfilename
 
-default_path="~"
+default_path="."
+#default_path="~"
 # default_path="D:\"
 empty_line='\n'
 root = Tk()
@@ -37,8 +38,8 @@ def choose(file):
         input2.insert(0, file_list[1])
 
 def combine():
-    os.system("./combine-subtitle.py " + file_list[0] + " " + file_list[1] + " a.srt")
-    showinfo(title='success', message='it is done!')
+    os.system("./combine-subtitle.py " + file_list[0] + " " + file_list[1] + " english-chinese.srt")
+    showinfo(title='success', message='it wrote in english-chinese.srt!')
 
 root.mainloop()
 
