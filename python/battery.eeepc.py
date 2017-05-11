@@ -30,7 +30,7 @@ while True:
     position=return_str.find("%")
     percent_str=return_str[position - return_str[0:position][::-1].find(" ") : position]
     percent_number=int(percent_str)
-    if percent_number<15:
+    if percent_number<15 and return_str.find("Discharging,")>-1:
         """
         Solution Two.
         try: 
@@ -58,5 +58,5 @@ while True:
         p.kill()
         """
         
-    time.sleep(120)
+    time.sleep(180)
 
