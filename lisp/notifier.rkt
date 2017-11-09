@@ -13,15 +13,12 @@
        (label "Notifier")
        (x 1136)
        (y 10)
-       (width 220)
-       (height 100)))
+       (width 300)
+       (height 200)))
 
+(define receive-string (new text% (auto-wrap #t)))
 (define print-message
-  (new text-field%
-       (parent notify-window)
-       (label #f)
-       (style '(multiple))))
-       
+    (new editor-canvas% (parent notify-window) (style '(auto-vscroll auto-hscroll)) (editor receive-string)))
 
 (define click-button
   (new button%
@@ -33,15 +30,12 @@
 	  (send notify-window show #f)))))
 
 (define send-message
-  (lambda (message)
-    (define print-message-editor
-      (send print-message get-editor))
-    (send print-message-editor
+  (lambda (editor message)
+    (send editor
 	  insert
 	  message)
-    (send print-message-editor lock #t)
     (send notify-window show #t)))
 
-(send-message (car cmd-line-parameter-list))
+(send-message receive-string (car cmd-line-parameter-list))
 
 
