@@ -24,6 +24,7 @@
 ;;;(split-string string-a string-b) 用string-b分割string-a，返回分割之后的字符串列表 如果在string-b中没找到string-a,就返回包含原封不动的string-b的列表
 ;;;(string-list->symbol-list string-list) 把字符串列表变成符号列表返回
 ;;;(list-eq? list-a list-b) 比较list-a和list-b是否相同，是 返回#t, 否 返回#f 如果想比较列表长短用length 比较list-a是否包含在list-b里用find-list
+;;;(find-index-string index-string string-list) 在字符串列表里寻找包含index-string的字符串元素，并返回第一个匹配的，否则返回#f
 
 
 ;;;列表的第一个元素在列表的位置是1, oh god,正常一回吧，像c的数组那种从0开始实在是不符合人类计数习惯，第0个元素，怎么听怎么别扭，所以完全匹配时返回的list-a的第一个元素在list-b
@@ -405,3 +406,9 @@
     (merge-str a-string-list "")))
 
 
+(define (find-index-string index-string string-list)
+    (if (empty? string-list) #f
+      (if (find-string index-string (car string-list))
+	  (car string-list)
+	  (find-index-string index-string (cdr string-list)))))
+;;;(find-index-string index-string string-list) 在字符串列表里寻找包含index-string的字符串元素，并返回第一个匹配的，否则返回#f
