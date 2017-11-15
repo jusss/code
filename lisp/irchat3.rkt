@@ -142,14 +142,27 @@
              (displayln "TAB")
              (define ed (get-editor))
 	     (define kbd-input (get-value))
-	     (define compare-result (compare-index-with-nick-list kbd-input current-channel-nick-list))
-	     (if compare-result
-		 (begin
-		   (send ed begin-edit-sequence)
-		   (send ed erase)
-		   (send ed insert (merge-string compare-result ": "))
-		   ;;;(send ed insert (compare-index-with-nick-list kbd-input current-channel-nick-list))
-		   (send ed end-edit-sequence)) '())]
+	     (define compare-result #f)
+	     ;;; like this "john: joe: " or "hello, john: " multi-nicks auto complete, use space split, so when you press tab check the space if it's multi-nicks or not 
+	     (if (find-string " " kbd-input)
+		 (begin 
+		   (set! compare-result (compare-index-with-nick-list (car (reverse (split-string kbd-input " "))) current-channel-nick-list))
+		   (if compare-result
+		       (begin
+			 (send ed begin-edit-sequence)
+			 (send ed erase)
+			 (send ed insert (merge-string (replace-string (car (reverse (split-string kbd-input " "))) compare-result kbd-input) ": "))
+			 (send ed end-edit-sequence))
+		       '()))
+		 (begin 
+		   (set! compare-result (compare-index-with-nick-list kbd-input current-channel-nick-list))
+		   (if compare-result
+		       (begin
+			 (send ed begin-edit-sequence)
+			 (send ed erase)
+			 (send ed insert (merge-string compare-result ": "))
+			 (send ed end-edit-sequence))
+		       '())))]
             [else (super on-subwindow-char receiver key-event)]))))
 
 (define read-from-kbd-send-to-server
