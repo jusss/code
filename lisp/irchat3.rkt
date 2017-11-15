@@ -18,6 +18,7 @@
 ;;;在text-field%里每一次按键都会执行依次callback函数,通过get-value匹配tab字符来自动补全,但是在text-field%里按tab键竟然无输入？？？
 ;;;get-evevt-type only return 'text-field or 'text-field-enter in text-field%
 ;;;names #channel,返回的信息以353开始，366结尾, 因为现在是单窗口，所以执行/join之后自动清空nick列表然后得到当前频道的nick列表,还有设置channel为当前频道以便发送接收信息，但会接收上一个频道的信息但却不显示
+;;; like this "john: joe: " or "hello, john: " multi-nicks auto complete, use space split, so when you press tab check the space if it's multi-nicks or not
 
 (require racket/tcp)
 (require racket/gui)
@@ -50,7 +51,7 @@
 		   (system "/home/john/lab2/notifier.rkt \" Fail to Connect Freenode, Restart after 3 minutes\" &")
 		   ;;;if network is down, wait for 3 minutes then restart
 		  (sleep 30)
-		  (system "/home/john/lab2/irchat.rkt &")
+		  (system "/bin/racket /home/john/lab2/irchat3.rkt &")
 		  (exit))))
   
   (set!-values (read-port write-port)
@@ -83,7 +84,7 @@
     ;;; another case, server send eof to client when client don't send exit signal, so don't detect eof as client's quit, detect the input keys of "/quit"
     (if (or (not got-string) (eof-object? got-string))
 	(begin
-	  (system "/home/john/lab2/irchat.rkt &")
+	  (system "/bin/racket /home/john/lab2/irchat3.rkt &")
 	  (system "/home/john/lab2/notifier.rkt \" Disconnect from Freenode, Restart\" &")
 	  (exit))
 	(begin 
@@ -143,7 +144,6 @@
              (define ed (get-editor))
 	     (define kbd-input (get-value))
 	     (define compare-result #f)
-	     ;;; like this "john: joe: " or "hello, john: " multi-nicks auto complete, use space split, so when you press tab check the space if it's multi-nicks or not 
 	     (if (find-string " " kbd-input)
 		 (begin 
 		   (set! compare-result (compare-index-with-nick-list (car (reverse (split-string kbd-input " "))) current-channel-nick-list))
