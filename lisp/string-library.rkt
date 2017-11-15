@@ -9,8 +9,8 @@
 
 ;;;(find-string string-a string-b) 在string-b中找string-a并返回string-a的首字符在string-b中的位置，第一个元素的位置是1,如果没找到返回#f,如果2个参数中有一个是#f,直接返回#f
 ;;;(find-list list-a list-b) 在list-b中寻找list-a的所有元素并返回list-a的第一个元素在list-b中的位置,第一个元素的位置是1,如果没找到返回#f
-;;;(rest-string string-a string-b) 返回string-b中string-a后面的所有字符串 如果没在string-b中找到string-a返回 #f
-;;;(rest-list list-a list-b) 返回list-b中list-a的所有元素之后的所有元素 如果没在list-b中找到list-a的所有元素返回 #f
+;;;(rest-string string-a string-b) 返回string-b中string-a后面的所有字符串 如果没在string-b中找到string-a返回 ""
+;;;(rest-list list-a list-b) 返回list-b中list-a的所有元素之后的所有元素 如果没在list-b中找到list-a的所有元素返回#f
 ;;;(front-n-list n list-a) 返回list-a中前n个元素, 如果n大于list-a的长度 返回 #f
 ;;;(front-string string-a string-b) 返回string-b中string-a之前的字符串 如果没在string-b中找到string-a 返回 #f
 ;;;(front-list list-a list-b) 返回list-b中list-a的前面元素，如果没在list-b中找到list-a就返回 #f
@@ -152,10 +152,10 @@
 						  (string->list string-b)))
     (if return-value
 	(list->string return-value)
-	#f)))
+	"")))
 
 (define rest-string get-rest-string-from-string)
-;;;(rest-string string-a string-b) 返回string-b中string-a后面的所有字符串 如果没在string-b中找到string-a返回 #f
+;;;(rest-string string-a string-b) 返回string-b中string-a后面的所有字符串 如果没在string-b中找到string-a返回 ""
 (define rest-list get-rest-list-from-list)
 ;;;(rest-list list-a list-b) 返回list-b中list-a的所有元素之后的所有元素 如果没在list-b中找到list-a的所有元素返回 #f
 
