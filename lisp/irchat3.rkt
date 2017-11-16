@@ -35,13 +35,14 @@
 (define current-channel-nick-list '())
 (define-values (read-port write-port) (values 0 0))
 
-(define (delete atm lis)
- (cond
-  ((null? lis) lis)
-  ((eq? atm (car lis)) (delete atm (cdr lis)))
-  ((list? (car lis)) (cons (delete atm (car lis)) (delete atm (cdr lis))))
-  (else (cons (car lis) (delete atm (cdr lis))))))
+(define (remove-atom alist blist atom)
+  (if (eq? '() alist)
+      blist
+      (if (eq? atom (car alist))
+	  (remove-atom (cdr alist) blist atom)
+	  (remove-atom (cdr alist) (cons (car alist) blist) atom))))
 
+(define-syntax delete (syntax-rules () ((delete atom alist) (remove-atom alist '() atom))))
 (define-syntax pop (syntax-rules () ((pop atom alist) (set! alist (delete atom alist)))))
 (define-syntax push (syntax-rules () ((push atom alist) (set! alist (cons atom alist)))))
 
@@ -98,8 +99,13 @@
 	  (if (find-string " QUIT :" got-string)
 	      (pop (rest-string ":" (front-string "!" got-string)) current-channel-nick-list)
 	      '())
-	  (if (find-string " PART " got-string)
+	  (if (find-string " PART #" got-string)
 	      (pop (rest-string ":" (front-string "!" got-string)) current-channel-nick-list)
+	      '())
+	  (if (find-string " NICK :" got-string)
+	      (begin
+		(pop (rest-string ":" (front-string "!" got-string)) current-channel-nick-list)
+		(push (front-string "\r" (rest-string " NICK :" got-string)) current-channel-nick-list))
 	      '())
 	  (if (find-string "PING :" (n-to-m-string got-string 1 6))
 	      (begin
