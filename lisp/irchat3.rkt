@@ -42,8 +42,7 @@
 	  (remove-atom (cdr alist) blist atom)
 	  (remove-atom (cdr alist) (cons (car alist) blist) atom))))
 
-(define-syntax delete (syntax-rules () ((delete atom alist) (remove-atom alist '() atom))))
-(define-syntax pop (syntax-rules () ((pop atom alist) (set! alist (delete atom alist)))))
+(define-syntax pop (syntax-rules () ((pop atom alist) (set! alist (remove-atom alist '()  atom)))))
 (define-syntax push (syntax-rules () ((push atom alist) (set! alist (cons atom alist)))))
 
 ;;;use exception to catch connecting failed
@@ -89,9 +88,9 @@
 	  (system "/home/john/lab2/notifier.rkt \" Disconnect from Freenode, Restart\" &")
 	  (exit))
 	(begin 
-	  ;;; it has three type messages, PING, PRIVMSG, others
+	  ;;; it has three type messages, PING, PRIVMSG, others, 353 get all nick of channel, split string with space and turn to a nick list, filter new-line character
 	  (if (find-string " 353 " got-string)
-	      (set! current-channel-nick-list (merge-list (split-string got-string " ") current-channel-nick-list))
+	      (set! current-channel-nick-list (merge-list (map (lambda (x) (replace-string "\r" "" x)) (split-string got-string " ")) current-channel-nick-list))
 	      '())
 	  (if (find-string " JOIN #" got-string)
 	      (push (rest-string ":" (front-string "!" got-string)) current-channel-nick-list)
@@ -130,13 +129,18 @@
 		      (sync/timeout 200
 				    (read-line-evt read-port)))))
 
-(define (compare-index-with-nick-list index-string nick-list)
-  (if (empty? nick-list) #f
+(define (compare-index-with-nick-list index-string nick-list collect-list)
+  (if (empty? nick-list) collect-list
       (if (find-string index-string (n-to-m-string (car nick-list) 1 (string-length index-string)))
-;      (if (find-string index-string (car nick-list))
-	  (car nick-list)
-	  (compare-index-with-nick-list index-string (cdr nick-list)))))
+	  (compare-index-with-nick-list index-string (cdr nick-list) (cons (car nick-list) collect-list))
+	  (compare-index-with-nick-list index-string (cdr nick-list) collect-list))))
 
+(define tab-key-count 0)
+;;; press enter, set tab-key-count 0, press tab tab-key-count +1,
+;;; if tab-key-count is more than list length then - list lenght
+(define compare-result-list '())
+(define last-kbd-input "")
+(define last-complete-result "")
 (define my-text-field%
   (class text-field%
     (inherit get-editor)
@@ -150,23 +154,47 @@
              (define ed (get-editor))
 	     (define kbd-input (get-value))
 	     (define compare-result #f)
+	     (set! tab-key-count (+ 1 tab-key-count))
+	     (if (> tab-key-count 1) (if (find-string kbd-input last-complete-result) (set! kbd-input last-kbd-input) (set! tab-key-count 1)) '())
+;	     (if (> tab-key-count 1) (if (find-string kbd-input last-complete-result) (set! kbd-input last-kbd-input) '()) '())
+	     
+;	     (if (eq? kbd-input last-complete-result)
+;		 (set! kbd-input last-kbd-input)
+;		 (set! tab-key-count 1))
+;;;;;;	     (if (eq? tab-key-count 1)
+;;;		 (set! last-kbd-input kbd-input)
+;;;		 (if (find-string last-kbd-input (n-to-m-string 1 (string-length last-kbd-input) kbd-input))
+;;;		     (set! kbd-input last-kbd-input)
+;;;		     (set! tab-key-count 1)))
 	     (if (find-string " " kbd-input)
-		 (begin 
-		   (set! compare-result (compare-index-with-nick-list (car (reverse (split-string kbd-input " "))) current-channel-nick-list))
+		 (begin
+		   (set! compare-result-list (compare-index-with-nick-list (car (reverse (split-string kbd-input " "))) current-channel-nick-list '()))
+		   (if (> tab-key-count (length compare-result-list))
+		       (set! tab-key-count (- tab-key-count (length compare-result-list)))
+		       '())
+		   (set! compare-result (get-nth-element-from-list tab-key-count compare-result-list))
 		   (if compare-result
 		       (begin
 			 (send ed begin-edit-sequence)
 			 (send ed erase)
-			 (send ed insert (merge-string (replace-string (car (reverse (split-string kbd-input " "))) compare-result kbd-input) ": "))
+			 (set! last-complete-result (merge-string (replace-string (car (reverse (split-string kbd-input " "))) compare-result kbd-input) ": "))
+			 (set! last-kbd-input kbd-input)
+			 (send ed insert last-complete-result)
 			 (send ed end-edit-sequence))
 		       '()))
-		 (begin 
-		   (set! compare-result (compare-index-with-nick-list kbd-input current-channel-nick-list))
+		 (begin
+		   (set! compare-result-list (compare-index-with-nick-list kbd-input current-channel-nick-list '()))
+		   (if (> tab-key-count (length compare-result-list))
+		       (set! tab-key-count (- tab-key-count (length compare-result-list)))
+		       '())
+		   (set! compare-result (get-nth-element-from-list tab-key-count compare-result-list))
 		   (if compare-result
 		       (begin
 			 (send ed begin-edit-sequence)
-			 (send ed erase)
-			 (send ed insert (merge-string compare-result ": "))
+ 			 (send ed erase)
+			 (set! last-complete-result (merge-string compare-result ": "))
+			 (set! last-kbd-input kbd-input)
+			 (send ed insert last-complete-result)
 			 (send ed end-edit-sequence))
 		       '())))]
             [else (super on-subwindow-char receiver key-event)]))))
@@ -180,6 +208,7 @@
       (define event-type (send e get-event-type))
       (if (eq? event-type 'text-field-enter)
 	  (begin
+	    (set! tab-key-count 0)
 	    (set! kbd-input (send t get-value))
 	    ;;; the input message have two type, commands and normal messages, command start with "/"
 	    (if (find-string (n-to-m-string kbd-input 1 1)
