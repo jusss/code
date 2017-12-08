@@ -10,7 +10,7 @@
 
 (define notify-window
   (new frame%
-       (label "Notifier")
+       (label (car cmd-line-parameter-list))
        (x 1136)
        (y 10)
        (width 300)
@@ -18,16 +18,16 @@
 
 (define receive-string (new text% (auto-wrap #t)))
 (define print-message
-    (new editor-canvas% (parent notify-window) (style '(auto-vscroll auto-hscroll)) (editor receive-string)))
+    (new editor-canvas% (parent notify-window) (style '(no-focus no-vscroll auto-hscroll)) (editor receive-string)))
 
-(define click-button
-  (new button%
-       (parent notify-window)
-       (label "ok")
-       ;;;callback捕捉按钮事件
-       (callback
-	(lambda (button event)
-	  (send notify-window show #f)))))
+;;;(define click-button
+;;;  (new button%
+;;;       (parent notify-window)
+;;;       (label "ok")
+;;;       ;;;callback button event
+;;;       (callback
+;;;	(lambda (button event)
+;;;        (send notify-window show #f)))))
 
 (define send-message
   (lambda (editor message)
@@ -36,6 +36,4 @@
 	  message)
     (send notify-window show #t)))
 
-(send-message receive-string (car cmd-line-parameter-list))
-
-
+(send-message receive-string (cadr cmd-line-parameter-list))
