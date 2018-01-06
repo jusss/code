@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 import os, sys, socket, threading
 
-### usage: ./dns-proxy-client.py  proxy-server-ip  proxy-server-port
-
-local_addr = ('127.0.0.1',53)
+### usage: ./dns-proxy-client.py  proxy-server-ip  proxy-server-port local-ip local-port
+# it can work with dnsmasq, let dnsmasq listen on udp 53, and set it as the upstream of dnsmasq
+# or just use it, and set it as 192.168.2.210 instead of 127.0.0.1 for other devices
+#local_addr = ('127.0.0.1',53)
+local_addr = (sys.argv[3],int(sys.argv[4]))
 server_addr = (sys.argv[1],int(sys.argv[2]))
 recv_send_size = 102400
 query_addr_ID = []
