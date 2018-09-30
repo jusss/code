@@ -87,6 +87,7 @@ def network_connect(rname,*args,**kwargs):
         while True:
             if name['exit_signal']:
                 return "end"
+
             try:
                 y=lambda: name['sock'].recv(102400)
                 f=lambda a_str,procedure: a_str if a_str.endswith('\r\n') else f(a_str + procedure(), procedure)
@@ -121,9 +122,9 @@ def network_connect(rname,*args,**kwargs):
     def recv_from_keyboard(event=None):
         msg=my_msg.get()
         my_msg.set("")
-        if msg is "/quit":
+        if msg.startswith("/quit"):
             name['exit_signal'] = True
-
+            name['sock'].send(('QUIT' + "\r\n").encode('utf-8'))
         elif msg.startswith('/j '):
             name['channel']=msg.split(' ')[1]
             names_dict[name['channel']] = []
@@ -215,8 +216,8 @@ def network_connect(rname,*args,**kwargs):
 
         if channel_list and nick_list:
             name['channel'] = channel_list[0]
-            msg_len = ' '.join(msg_list[:-1]) + ' ' + proper_index(nick_list,tab_key_counter[0]) +': '
-
+            #msg_len = ' '.join(msg_list[:-1]) + ' ' + proper_index(nick_list,tab_key_counter[0]) +': '
+            msg_len = ' '.join(msg_list[:-1]) + proper_index(nick_list,tab_key_counter[0]) +': '
             #my_msg.set(msg_len)
             input_area.delete(0,END)
             input_area.insert(0,msg_len)
