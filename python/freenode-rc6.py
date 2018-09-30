@@ -29,7 +29,7 @@ def network_connect(rname,*args,**kwargs):
             if hash_tag:
                 words = a_str.split(':',2)[2]
                 nick = a_str.split('!')[0][1:]
-                return hash_tag[0] + ' <' + nick + '>: ' + words
+                return hash_tag[0] + ' <' + nick + '> ' + words
             else:
                 return a_str
         else: 
@@ -66,7 +66,9 @@ def network_connect(rname,*args,**kwargs):
             new_nick=a_str.split(':')[2]
             old_nick=a_str.split('!')[0][1:]
             for k,v in names_dict.items():
-                names_dict[k] = [new_nick if i == old_nick else i for i in v]    
+                names_dict[k] = [new_nick if i == old_nick else i for i in v]
+            if old_nick == name['nick']:
+                name['nick'] = new_nick
         
         if " QUIT :" in a_str:
             quit_nick = a_str.split('!')[0][1:]
@@ -134,7 +136,7 @@ def network_connect(rname,*args,**kwargs):
         elif msg.startswith('/part '):
             if msg[6:] in names_dict:
                 del names_dict[msg[6:]]
-                del active_channel[msg[6:]]
+                del active_channel[active_channel.index(msg[6:])]
                 if active_channel:
                     name['channel'] = active_channel[-1]
                 else:
@@ -217,7 +219,11 @@ def network_connect(rname,*args,**kwargs):
         if channel_list and nick_list:
             name['channel'] = channel_list[0]
             #msg_len = ' '.join(msg_list[:-1]) + ' ' + proper_index(nick_list,tab_key_counter[0]) +': '
-            msg_len = ' '.join(msg_list[:-1]) + proper_index(nick_list,tab_key_counter[0]) +': '
+            #msg_len = ' '.join(msg_list[:-1]) + proper_index(nick_list,tab_key_counter[0]) +': '
+            if msg_list[0].startswith('/p') or msg_list[0].startswith('/n'):
+                msg_len = (' '.join(msg_list[:-1]) + ' ' + proper_index(nick_list,tab_key_counter[0]) +' ')
+            else:
+                msg_len = (' '.join(msg_list[:-1]) + ' ' + proper_index(nick_list,tab_key_counter[0]) +': ') if msg_list[:-1] else (proper_index(nick_list,tab_key_counter[0]) +': ')
             #my_msg.set(msg_len)
             input_area.delete(0,END)
             input_area.insert(0,msg_len)
