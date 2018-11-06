@@ -10,6 +10,6 @@ iptables -A FORWARD -i tun+ -j ACCEPT
 iptables -A INPUT -i tap+ -j ACCEPT
 iptables -A FORWARD -i tap+ -j ACCEPT
 # login with ssh over stunnel only
-iptables -A INPUT -p tcp -s localhost --dport 'your-ssh-port' -j ACCEPT
+iptables -A INPUT -p tcp -s 'your-server-ip-dont-use-localhost' --dport 'your-ssh-port' -j ACCEPT
 iptables -A INPUT -p tcp --dport 'your-ssh-port' -j DROP
 
