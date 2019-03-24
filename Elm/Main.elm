@@ -8,13 +8,13 @@ type alias Model = Int
 type Msg
   = Inc
   | Dec
-  | GetHello Int                               --Three, parameter function's signature
+  | GetHello Int                               --Three, Msg is a type constructor, Inc or Dec or GetHello all are value constructor, Inc and Dec don't have a parameter, GetHello has one parameter Int, GetHello 3's type is Msg, but GetHello "what" type is not Msg
 
 model : Model
 model = 0
 
 port sayHello : String -> Cmd msg             -- 1, send function's signature
-port jsHello : (Int -> msg)  -> Sub msg        --One, receive function jsHello's signature
+port jsHello : (Int -> msg)  -> Sub msg        --One, receive function jsHello's signature, value constructor can be used as function, and it can do match pattern
 
 init : flags -> ( Model, Cmd Msg )
 init dataFromJSwhenInit = (model, Cmd.none)
@@ -26,7 +26,7 @@ update msg x =
       (x + 1, sayHello "i")
     Dec ->
       (x - 1, sayHello "d")
-    GetHello y ->                             --Four, parameter function's definition
+    GetHello y ->                             --Four, value constructor is used for match pattern, msg's type is Msg
      (x + y, sayHello "from JS")
 
 
@@ -39,7 +39,7 @@ view x =
     ]
 
 subscriptions : Model -> Sub Msg
-subscriptions x = jsHello GetHello     --Two, specify the receive function's name
+subscriptions x = jsHello GetHello     --Two, specify the value constructor, when jsHello get message from outside JS
 
 
 main : Program () Model Msg
