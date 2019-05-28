@@ -1,40 +1,75 @@
 class Maybe:
     def __init__(self,value):
-        self.value = value
-        
+        self.value=value
+
     def of(self,value):
         return Maybe(value)
 
     def isNone(self):
-        return True if self.value == None else False
+        return True if self.value==None else False
 
     def map(self,f):
         if self.isNone():
             return self.of(None)
         return self.of(f(self.value))
+
     def join(self):
         return self.value
 
-if __name__ == '__main__':
+    def isNone2(self,v):
+         if self.value == None:
+             return self.of(None)
+         if v ==None:
+             return self.of(None)
+         else:
+             return self.of([self.value,v])
     """
-            if a!=None:
-                if b!=None:
-                    if c!=None:
-                        doSometing
+    def isNone2(self,v):
+        self.map
     """
+    def id(self,a):
+        return a
+    
 
-    a=None
-    b=None
-    c=None
-    id =lambda x: x
+id = lambda x: x
 
-    isNone=lambda x: lambda y: None if x==None or y==None else [y]+[x]
 
-    z=Maybe(a).map(isNone(b)).map(isNone(c)).map(lambda x: x-1)
-    print(z.join())
+"""
+if a!=None:
+  if b!=None:
+   if c!=None:
+     doSomething
+"""
+z=Maybe(3).isNone2("ok").isNone2(1).map(id)
+print(z.join())
 
-    z=Maybe(3).map(isNone(2)).map(isNone(1)).map(lambda x: x)
-    print(z.join())
+"""
+if a!=None:
+  if f(a)!=None:
+    if g(f(a))!=None:
+      doSomething
+"""
+z= Maybe(None).map(id).map(id)
+print(z.join())
 
-    z=Maybe(3).map(isNone(2)).map(isNone(None)).map(lambda x: x-1)
-    print(z.join())
+z= Maybe(3).map(id).map(id)
+print(z.join())
+
+"""
+if a!=None:
+    if b!=None:
+        return 1
+    else:
+        return 2
+        if c!=None:
+            return 3
+        else:
+            return 4
+else:
+    return 5
+"""
+"""
+this is just a maybe type, not a maybe monad, 
+because there's no implement for fmap <*> and bind
+not implement the pattern that match monad
+"""
