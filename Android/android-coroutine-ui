@@ -1,0 +1,53 @@
+update UI in coroutine
+
+GlobalScope.launch{ ... withContext(Dispatchers.Main){ update-UI-here
+        }}
+
+fun updateUI(view: View){
+        GlobalScope.launch {
+            val showTextView = findViewById<TextView>(R.id.text1)
+            val sock = Socket("192.168.31.204", 50007)
+            sock.use {
+                it.outputStream.write(
+                    "aha, it's from kotlin".toByteArray(
+                        Charsets.UTF_8
+                    )
+                )
+                it.outputStream.flush()
+                var aob = ByteArray(1024)
+                it.inputStream.read(aob)
+                withContext(Dispatchers.Main){
+                    showTextView.text=aob.toString(Charsets.UTF_8)
+                }
+            }
+        }
+    }
+
+Dispatchers.Main is for UI, Dispatchers.IO is for IO, there're also Default and Unconfined
+https://stackoverflow.com/questions/54671817/update-ui-async-call-with-coroutines
+
+in build.gradle
+ implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.0.1'
+ implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.0.1"
+
+
+class MainActivity : AppCompatActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+
+    }
+
+    fun test(view: View) {
+        GlobalScope.launch {
+            withContext(Dispatchers.Main) {
+                val im = findViewById<TextView>(R.id.text1)
+                im.text = "what".toString()
+
+            }
+
+        }
+    }
+}
