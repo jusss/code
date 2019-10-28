@@ -47,3 +47,11 @@ lengthList alist = f alist 0
 -- splitListWithList [1,2,3] [5]  will be  []
 -- splitListWithList [1,2,3] [3]  will be  [[1,2],[]]
 -- splitListWithList [1,2,3] [1]  will be  [[],[2,3]]
+-- {-# LANGUAGE OverloadedStrings #-}
+-- import SplitAlistWithAlist
+-- import Data.ByteString
+--
+-- o = unpack ":nick!~... PRIVMSG #channel: "
+-- a = unpack " PRIVMSG #"
+--
+-- main = print $ fmap (\i -> pack i) $ splitListWithList o a
