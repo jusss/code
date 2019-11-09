@@ -22,6 +22,7 @@ import Network.Socket.ByteString (recv, sendAll)
 import qualified Data.ByteString as D
 import qualified Data.Text.Encoding as En
 import Control.Concurrent.Async
+import Data.Text.Encoding.Error
 
 -- telegram-api for haskell https://github.com/klappvisor/haskell-telegram-api
 -- howItWorks :: yourTelegramAccount -> TelegramBot -> IRC2Telegram -> IRC
@@ -40,6 +41,13 @@ import Control.Concurrent.Async
 -- /prefix nick
 -- message
 -- after you use `/prefix #channel' then you can send message directly
+
+filterUtf8Exception :: Either UnicodeException Text -> Text
+filterUtf8Exception x =
+    case x of
+        Right v -> v
+        Left e -> "Non UTF8 character"
+
 
 getResult :: [Update] -> [Maybe Text]
 getResult  x = fmap (g . f) x
@@ -69,7 +77,7 @@ sendMsg chatId inputMsg token manager = do
 -- recv msg from telegram bot then send it to irc
 recvMsg token manager upId prevResult chatId socket defaultPrefix = do
   -- sleep 3
-  resultEither <- getUpdates token upId (Just 100) (Just 30) manager
+  resultEither <- getUpdates token upId (Just 100) (Just 0) manager
   case resultEither of
         Right Response { result = m }  -> do
             -- putStrLn "recv msg:"
@@ -133,8 +141,8 @@ _server = "irc.freenode.net"
 _port = "6665"
 _nick = "nick"
 -- telegram 
--- _token = "bot1"
-_token = "bot9"
+_token = "bot1"
+--_token = "bot9"
 _chatId = 7
 
 --------------------------------------------------------------------
@@ -187,7 +195,7 @@ main = runTCPClient _server _port $ \socket -> do
              True -> sendAll socket $ D.map (\i -> if (i == 73) then 79 else i) msg -- PING PONG
              False ->
                    case (parseMsg msg == "hide") of -- filter QUIT JOIN PART messages
-                        False -> sendMsg chatId (En.decodeUtf8 $ parseMsg msg) token manager -- send msg from irc to telegram
+                        False -> sendMsg chatId (filterUtf8Exception $ En.decodeUtf8' $ parseMsg msg) token manager -- send msg from irc to telegram
                         -- True -> putStrLn $ C.unpack msg
                         True -> return $ filterMsg msg)
                         
