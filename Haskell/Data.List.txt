@@ -1,0 +1,236 @@
+common functions
+https://www.jianshu.com/p/9ba09fe14208
+
+zipWith (,) "abc" "123" = [('a','1'),('b','2'),('c','3')]
+liftA2 (,) "abc" "123" = [('a','1'),('a','2'),('a','3'),('b','1'),('b','2'),('b','3'),('c','1'),('c','2'),('c','3')]
+(,) <$> "abc" <*> "123" = [('a','1'),('a','2'),('a','3'),('b','1'),('b','2'),('b','3'),('c','1'),('c','2'),('c','3')]
+head [1,2] = 1
+tail [1,2] = [2]
+take 1 [1,2] = [1]
+drop 1 [1,2] = [2]
+last [1,2] = 2
+init [1,2,3] = [1, 2]
+reverse [1,2,3] = [3,2,1]
+length [1,2] = 2
+lines "1\n2" = ["1","2"]  -- split with "\n" but not "\r\n"
+unlines ["1","2"] = "1\n2\n"
+filter (/= '\r') "1\r2" = "12"
+lines . filter (/= '\r') $ "1\r\n2\r\n" = ["1","2"]
+show 1234 = "1234"
+break (> 3) [1,2,3,4,1,2,3,4] == ([1,2,3],[4,1,2,3,4])
+all odd [1,3,5] = True
+any odd [1,2,3] = True
+isPrefixOf [2] [2,4] = True
+isSuffixOf "24" "23t3" = False
+isInfixOf "24" "23243" = True
+zip [1,2,3] [4,5] = [(1,4),(2,5)]
+words "1 2 3" = ["1","2","3"]
+unwords ["1", "2"] = "1 2"
+map toUpper "abc" = "ABC"
+map (dropWhile isSpace) [" a","f"," e"] = ["a","f","e"]
+zip3 "foo" "bar" "quux" = [('f','b','q'),('o','a','u'),('o','r','u')]
+concat 
+elem 'f' ['a'..'z'] = True
+find (== 'f') "gasd" = Nothing
+find (== 'f') "gasdf" = Just 'f'
+elemIndex 1 [1,2,3] = Just 0
+elemIndices 1 [1,2,3,1] = [0,3]
+findIndices (=='f') "gasdgfdf" = [5,7]
+-- find a string index in another string
+findIndices ("ab"`isPrefixOf`) (tails "casabwefabwe") = [3,8]
+inits [1,2,3] = [[],[1],[1,2],[1,2,3]]
+tails [1,2,3] = [[1,2,3],[2,3],[3],[]]
+
+nub [1,2,1] = [1,2] -- remove the duplicate elements, but not itself, use length . group . sort to get the unique elements list
+
+tails "fas" = ["fas","as","s",""]
+init . tails $ "fas" = ["fas","as","s"]
+inits . tails $ "fas" = [[],["fas"],["fas","as"],["fas","as","s"],["fas","as","s",""]]
+
+reduce = foldl -- but foldl need a init value, reduce doesn't.
+foldl (+) 0 [1,2,3] = 6
+foldr (*) 3 [1,2,3] = 18
+-- scanl is like foldl, but it records every step.
+scanl (+) 0 [1,1,2,3,5] = [0,1,2,4,7,12] 
+scanr (+) 0 [1,1,2,3,5] = [12,11,10,8,5,0]
+
+
+isControl, isSpace, isLower, isUpper, isAlpha, isAlphaNum
+, isPrint, isDigit, isOctDigit, isHexDigit isLetter, isNumber
+, isPunctuation, isSymbol, isAscii, generalCategory
+digitToInt 'f' = 15
+intToDigit 15 = 'f'
+ord '%' = 37
+chr 97 = 'a'
+
+encode shift msg = map chr . map (+ shift) . map ord $ msg
+encode 1 "abc" = "bcd"
+encode (-1) "bcd" = "abc"
+encode 13 "abcz" = "nop\135"
+encode (-13) "nop\135" = "abcz"
+
+rot13Map = zip [1..26] ['a'..'z']
+indexT n (x,y) = if (n == x) then y else '_'
+filter (/= '_') . fmap (indexT 3) $ rot13Map = "c"
+
+Data.Map.lookup ! and !? get value by key in Map k v
+fromList :: [(k,a)] -> Map k a
+lookup 3 . fromList . zip [1..26] $ ['a'..'z'] = Just 'c'
+(fromList . zip [1..26] $ ['a'..'z']) !? 3 = Just 'c'
+(fromList . zip [1..26] $ ['a'..'z']) ! 3 = 'c'
+insert 5 'x' (fromList [(5,'a'), (3,'b')]) == fromList [(3, 'b'), (5, 'x')]
+Data.Map.null (empty)           == True
+singleton 1 'a'        == fromList [(1, 'a')]
+Data.Map.insert 5 'x' $ Data.Map.singleton 1 'a' = fromList [(1,'a'),(5,'x')]
+
+am = fromList [(2,4),(3,3),(4,2),(5,4),(6,4)]
+Data.Map.lookup 2 am = Just 4
+Data.Map.member 2 am = True
+Data.Map.map (*100) am = fromList [(2,400),(3,300),(4,200),(5,400),(6,400)]
+Data.Map.map (>0) am = fromList [(2,True),(3,True),(4,True),(5,True),(6,True)]
+Data.Map.filter (>3) am = fromList [(2,4),(5,4),(6,4)]
+Data.Map.fromListWith max [(2,3),(2,4),(2,1)] = fromList [(2,4)]
+Data.Set is similiar with Data.Map
+
+compare 2 3 = LT
+compare True False = GT
+compare :: Ord a => a -> a -> Ordering
+GT :: Ordering
+data Ordering = LT | EQ | GT
+
+data Week = Monday | Tuesday | Wedsday deriving(Enum, Show)
+succ Monday = Tuesday
+pred Tuesday = Monday
+
+max 3 2 = 3
+div 4 2 = 2
+mod 4 3 = 1
+negate 2 = -2
+abs (-2) = 2
+replicate 3 'f' = "fff"
+[0,1,2] !! 1 = 1
+"abc" !! 2 = 'c' -- index
+concat [[1,2,3], [5,7]] = [1,2,3,5,7]
+concat ["abc", "efg"] = "abcefg"
+sum [0..100] = 5050
+fst (1,2) = 1
+snd (1,2) = 2
+transpose [[1,2], [3,4], [5,6]] = [[1,3,5],[2,4,6]]
+transpose ["ab", "cd", "ef"] = ["ace","bdf"]
+transpose [[0,3,5,9],[10,0,0,9],[8,5,1,-1]] = [[0,10,8],[3,0,5],[5,0,1],[9,9,-1]]
+splitAt 3 "01234567" = ("012","34567")
+splitAt 3 "abcdefg" = ("abc","defg")
+takeWhile (>3) [6,5,4,3,2,1,2,3,4,5,4,3,2,1] = [6,5,4]
+
+get the greatest and unique number in a list
+maximum . concat . filter ((== 1) . length) . group . sort $ [1,2,3,77,22,77,21,5] = 22 
+listToMaybe . maximum . filter (null . drop 1) . group $ [1,2,3,77,22,77,21,5]
+
+takeWhile (>3) [6,5,4,2,1] = [6,5,4]
+filter (>3) [6,5,4,2,1] = [6,5,4]
+partition (>3) [6,5,4,3,2,1] = ([6,5,4],[3,2,1])
+span (/= 'i') "this" = ("th","is")
+break (== 'i') "this" = ("th","is")
+sort [14,3,2,14] = [2,3,14,14]
+reverse $ sort [14,3,2,14] = [14,14,3,2]
+group ["1","1","3"] = [["1","1"],["3"]] -- group the same element when they're near
+group [1,1,3] = [[1,1],[3]]
+group [1,3,1] = [[1],[3],[1]]
+zip [1,2,5] [3,4] = [(1,3),(2,4)]
+partition (`elem` "AB") "BOBsidneyMORGANeddy" = ("BBA","OsidneyMORGNeddy") -- filter characters from a string
+-- split a string with another string
+splitOn "CD" "ABCDEFGHIJCDKL" = ["AB","EFGHIJ","KL"]
+
+zipWith (+) [1,2,3] [4,5,2,2] = [5,7,5]
+
+nub [1,3,2,4,3,2,1,2,3,4,3,2,1] = [1,3,2,4]
+nub "Lots of words and stuff" = "Lots fwrdanu"
+delete 'h' "hey there ghang!" = "ey there ghang!"
+
+-- remove a string from a string
+concat $ splitOn "he" "hey there" = "y tre"
+-- just remove the first one matched string
+stripPrefix "he" "hey there" = Just "y there"
+
+-- delete the smae elements in the first list, but only delete once
+[2,3,4] \\ [1,2] = [3,4]
+[2,2,3,4] \\ [1,2] = [2,3,4]
+[2,2,3,4,1] \\ [1,2] = [2,3,4]
+
+union [1,2,3] [1,2,3] = [1,2,3]
+union [1,2,3] [1,5] = [1,2,3,5]
+[1,2,3] `intersect` [2,3,4] = [2,3]
+[1,2,3] `intersect` [5] = []
+
+insert 2 [1,2,3] = [1,2,2,3]
+insert 2 [3] = [2,3]
+insert 2 [1] = [1,2]
+
+groupBy (/=) [1,1,2] = [[1],[1,2]] -- group the elements they're near and different
+groupBy (/=) [1,1,2,1,2] = [[1],[1,2],[1,2]]
+
+-- group the elements they're near and equal
+groupBy (==) [1,1,2,1,2] = [[1,1],[2],[1],[2]]
+
+groupBy (\x y -> if (x+y) > 3 then True else False) [1,1,2,3,3]
+= [[1],[1],[2,3,3]]
+
+-- group only group same and near elements
+group [1,1,2] = [[1,1],[2]]
+groupBy (==) [1,1,2] = [[1,1],[2]]
+group [1,1,1,2] = [[1,1,1],[2]]
+group = groupBy (==)
+
+let sortGT a b = if a< b then GT else LT
+sortBy sortGT [2,-1,4,7,3,3] = [7,4,3,3,2,-1]
+sortBy compare [2,-1,4,7,3,3] = [-1,2,3,3,4,7]
+sort = sortBy compare
+
+<mniip> an isomorphism f : X -> Y is a morphism that has an inverse: some
+        morphism g : Y -> X such that g.f = id and f.g = id
+<a1c`> mniip: what's Curry-Howard isomorphism?
+<mniip> it's called Curry-Howard correspondence                      
+<mniip> calling it an isomorphism is a bit of a terminology abuse
+`Reader r a` and `r -> a` are isomorphic.
+<a1c`> mniip: runReader . Reader = id?
+<mniip> a1c`, runReader is the inverse of Reader
+<mniip> 'Reader r a' is isomorphic with 'r -> a'
+<Ailrun[m]> by `Reader` and `runReader`         
+<Ailrun[m]> a1c`: it is `id`
+<a1c`> Ailrun[m]:  runReader and Reader are isomorphic?
+<Ailrun[m]> a1c`: no, as mniip said, they are the inverse of each other.
+
+mniip: let splt xs ys | Just zs <- stripPrefix ys xs = []:splt zs ys; splt (x:xs) ys = case splt xs ys of { (rs:rss) -> (x:rs):rss }; splt [] ys = [[]]
+splt "hey there" "he" = ["","y t","re"]
+
+there is a twisted version of mine, 
+https://github.com/jusss/code/blob/bla2/Haskell/SplitList.hs
+https://github.com/jusss/code/blob/bla2/lisp/string-library.rkt
+
+partition (`elem` "AB") "BOBsidneyMORGANeddy" = ("BBA","OsidneyMORGNeddy")
+<oats> a1c`: in infix notation, the argument on the right side is the second
+       argument of the function, not the first.
+<a1c`> `f` a = \b -> b `f` a
+<a1c`> oats: it filters A and B character from this string              [10:46]
+<a1c`> partition put 'B' from "BOB..." to `elem` "AB" to check if it's true,
+       if it's true then put in the left, then 'O', then 'B'...
+<a1c`> true, put into the left, false, put into the right
+<oats> > foldl (\(l,r) c -> if elem c "AB" then (c:l,r) else (l,c:r)) ("","")
+       "ABCABCD"                                                        [10:55]
+
+split a string with a string
+<oats> > splitOn "CD" "ABCDEFGHIJCDKL"                                  [11:03]
+<lambdabot>  ["AB","EFGHIJ","KL"]
+
+<dmwit> > findIndices ("ab"`isPrefixOf`) (tails "casabwefabwe")
+<lambdabot>  [3,8]
+<MarcelineVQ> > tails [1,2,3]
+<lambdabot>  [[1,2,3],[2,3],[3],[]]
+<iqubic> > inits [1,2,3]                                                [12:08]
+<lambdabot>  [[],[1],[1,2],[1,2,3]]
+
+<a1c`> all those powerful functions are from Data.List and Prelude? any other modules? 
+<dmwit> a1c`: Given the questions I've seen so far, you might want to check out a parser combinator library.
+<dmwit> megaparsec or regex-applicative are fairly non-controversial ones, if you don't know where to start.
+<a1c`> dmwit: like?
+* dmwit predicts the future
