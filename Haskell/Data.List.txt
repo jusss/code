@@ -1,5 +1,61 @@
-common functions
+common functions Prelude Data.List Data.Map Data.Char Data.Set
 https://www.jianshu.com/p/9ba09fe14208
+
+mconcat = foldl1 <>
+
+a = zip [0..] "test!" == [(0,'t'),(1,'e'),(2,'s'),(3,'t'),(4,'!')]
+partition (odd . fst) a == ([(1,'e'),(3,'t')],[(0,'t'),(2,'s'),(4,'!')])
+chunksOf 2 [1..6] == [[1,2],[3,4],[5,6]]
+(foldl1 (<>) . transpose . chunksOf 2) [1..6] == [1,3,5,2,4,6]
+
+map (map snd) . groupBy ((==) `on` fst) . zip (cycle "aabb") $ [1..6] == [[1,2],[3,4],[5,6]]
+(map . map) snd . groupBy ((==) `on` ((`div` 2) . fst)) . zip [0..] $ [1..6] == [[1,2],[3,4],[5,6]]
+replicate 3 =<< [0..] == [0,0,0,1,1,1,2,2,2,3,3,3,4,4...
+(:[]) <$> [1..6] == [[1],[2],[3],[4],[5],[6]]
+[0..] >>= replicate 3 == [0,0,0,1,1,1,2,2,2,3,3,3,4,4,4,5,5,...
+takeWhile (not.null) . map (take 2) . iterate (drop 2) $ [1..6] == [[1,2],[3,4],[5,6]]
+map (map snd) . groupBy (==) . zip (cycle [False, False, True, True]) $ [1..6] == [[1],[2],[3],[4],[5],[6]]
+ensure p x = x <$ guard (p x)
+unfoldr (traverse (ensure (not . null)) . splitAt 2) [1..6] == [[1,2],[3,4]]
+(zip`ap`tail) [2..10] == [(2,3),(3,4),(4,5),(5,6),(6,7),(7,8),(8,9),(9,10)]
+unfoldr (\xs -> let (b,e) = splitAt 2 xs in (b,e) <$ guard (not (null b))) [1..6] == [[1,2],[3,4],[5,6]]
+
+-- filter empty list 
+-- a = splitOn "   " "a b c   "
+-- fmap words a == [["a","b","c"],[]]
+-- filterEmptyList $ fmap words a == [["a","b","c"]]
+filterEmptyList x = filter (not . Data.List.null) x
+
+-- remove spaces length > 3
+foldl1 (<>) (filter (\a -> not ((length a) > 3 && (" " `isInfixOf` a))) (group "a b    d ef")) == "a bd ef"
+
+-- turn spaces length > 3 to 3 spaces
+filterSpaces x = if (" " `isInfixOf` x) && (length x > 3) then "    " else x == "   "
+
+-- turn spaces more than 3 to 3 spaces in string
+(foldl1 (<>) . (fmap filterSpaces). group) "a b   c    d f" == "a b   c   d f"
+
+liftA2 (,) "abc" "123" == (,) <$> "abc" <*> "123"
+liftA2 f a b = f <$> a <*> b
+
+-- liftA2 will make all the elements in listA to elements in listB
+-- like ('a','1') ('a','2') ('a','3') ...
+-- sometimes you just need ("abc",'1') ("abc",'2') then use fmap
+
+(,) "abc" <$> "123" == [("abc",'1'),("abc",'2'),("abc",'3')]
+
+'1' `elemIndex` "ab21" == Just 3
+sortOn fst [(2, "world"), (4, "!"), (1, "Hello")] == [(1,"Hello"),(2,"world"),(4,"!")]
+
+show 32 == "32" -- turn Int to String
+read "32" == 32 -- turn String to Int
+binToDec x = readInt 2 (`elem` "01") digitToInt x
+binToDec "10" == [(2,"")]
+
+toUpper 'a' == 'A'
+
+[1,2,3] !! 0 == 1 -- get value by index
+[1] <> [2] == [1,2]
 
 zipWith (,) "abc" "123" = [('a','1'),('b','2'),('c','3')]
 liftA2 (,) "abc" "123" = [('a','1'),('a','2'),('a','3'),('b','1'),('b','2'),('b','3'),('c','1'),('c','2'),('c','3')]
@@ -47,13 +103,13 @@ tails "fas" = ["fas","as","s",""]
 init . tails $ "fas" = ["fas","as","s"]
 inits . tails $ "fas" = [[],["fas"],["fas","as"],["fas","as","s"],["fas","as","s",""]]
 
-reduce = foldl -- but foldl need a init value, reduce doesn't.
+reduce = foldl1 -- but foldl need a init value, reduce doesn't.
+foldl1 f x:xs = foldl f x xs
 foldl (+) 0 [1,2,3] = 6
 foldr (*) 3 [1,2,3] = 18
 -- scanl is like foldl, but it records every step.
 scanl (+) 0 [1,1,2,3,5] = [0,1,2,4,7,12] 
 scanr (+) 0 [1,1,2,3,5] = [12,11,10,8,5,0]
-
 
 isControl, isSpace, isLower, isUpper, isAlpha, isAlphaNum
 , isPrint, isDigit, isOctDigit, isHexDigit isLetter, isNumber
@@ -119,7 +175,7 @@ transpose [[1,2], [3,4], [5,6]] = [[1,3,5],[2,4,6]]
 transpose ["ab", "cd", "ef"] = ["ace","bdf"]
 transpose [[0,3,5,9],[10,0,0,9],[8,5,1,-1]] = [[0,10,8],[3,0,5],[5,0,1],[9,9,-1]]
 splitAt 3 "01234567" = ("012","34567")
-splitAt 3 "abcdefg" = ("abc","defg")
+splitAt 3 "abcdefg" = ("abc","defg") -- splitAt return a tuple (a,b) not a set, (a,b) is an instance of typeclass Control.Arrow
 takeWhile (>3) [6,5,4,3,2,1,2,3,4,5,4,3,2,1] = [6,5,4]
 
 get the greatest and unique number in a list
