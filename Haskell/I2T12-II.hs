@@ -49,6 +49,7 @@ import qualified Data.Text.Encoding as En
 -- /to #channel nick1 nick2  -- then you all next messages will send to this nick, this will set your prefix #channel
 -- /clear -- remove nick preifx, and also you can do /prefix #channel to get the same effect
 -- /to and /clear is useless, 'cause /prefix #channel nick and /prefix #channel will do the same
+-- now this version, disable #channel prefix, use /whois nick to get which channel the people is from
 
 -----------------------------------------------------------------
 
@@ -57,11 +58,12 @@ import qualified Data.Text.Encoding as En
 
 server = "irc.freenode.net"
 port = "6665"
-nick = "a"
+nick = "w"
 autoJoinChannel = "#l"
 -- telegram 
-_token = "bot9"
+_token = "bot1"
 _chatId = 7
+
 --------------------------------------------------------------------
 
 headMaybe :: [a] -> Maybe a
@@ -161,9 +163,8 @@ recvMsg token manager upId prevResult chatId socket defaultPrefix alistMap = do
                     if (not (Just latestId == upId)) then do
                         result <- return $ (getResult m) L.\\ prevResult  -- remove the same element in result
                         -- result :: [Maybe Text]
-                        putStr "recv from Telegram: "
+                        putStr "recv: "
                         sequenceA_ (fmap print result)
-                        -- putStrLn . foldl1 (<>) .fmap (<> "\r\n") . catMaybes $ result
                         -- putStr "[1]"
                         -- print latestId
                         -- sendMsg chatId (T.reverse $ takeIt $ head result) token manager
@@ -224,9 +225,13 @@ isContained :: [Text] -> Text -> Bool
 isContained xs msg = reduce (&&) . fmap (`T.isInfixOf` msg) $ xs
 
 -- parsePRIVMSG ":nick!~user@addr PRIVMSG #channel :words" == Just "#channel nick :words"
-parsePRIVMSG :: Text -> Maybe Text
-parsePRIVMSG x = if isContained ["!","@"," PRIVMSG "] x then
-                 (getElem 2 . T.words $ x) -- channel
+parsePRIVMSG :: Text -> Text -> Maybe Text
+parsePRIVMSG nick x = if isContained ["!","@"," PRIVMSG #"] x then -- public message
+                 -- (getElem 2 . T.words $ x) -- channel
+                 (Just . T.replace ":" " " . L.head . T.splitOn "!" $ x) -- nick
+                 <> (Just " ") <> (Just . T.unwords . L.drop 3 . T.words $ x) -- words
+                 else if isContained ["!","@"," PRIVMSG " <> nick] x then -- private msg
+                 Just "private " <> (getElem 2 . T.words $ x) -- nick
                  <> (Just . T.replace ":" " " . L.head . T.splitOn "!" $ x) -- nick
                  <> (Just " ") <> (Just . T.unwords . L.drop 3 . T.words $ x) -- words
                  else Just x
@@ -234,9 +239,9 @@ parsePRIVMSG x = if isContained ["!","@"," PRIVMSG "] x then
 -- filter prefix messages PRIVMSG QUIT JOIN PART
 parseMsg :: Text -> Text -> Maybe Text
 parseMsg nick x = 
-    if | isContained ["!", "@", " PRIVMSG #"] x -> if | T.isInfixOf nick x -> Just "\128994" <> (parsePRIVMSG x)
-                                                      | otherwise -> parsePRIVMSG x
-       | isContained ["!", "@", " PRIVMSG "] x -> Just "\128994" <>  ((T.unwords . L.tail . T.words) <$> (parsePRIVMSG x)) -- in case raw cmd help "PRIVMSG JOIN..."
+    if | isContained ["!", "@", " PRIVMSG #"] x -> if | T.isInfixOf nick x -> Just "\128994" <> (parsePRIVMSG nick x)
+                                                      | otherwise -> parsePRIVMSG nick x
+       | isContained ["!", "@", " PRIVMSG "] x -> Just "\128994" <>  (parsePRIVMSG nick x) -- in case raw cmd help "PRIVMSG JOIN..."
        | T.isPrefixOf "PING " x -> Nothing
        | isContained ["!", "@", " QUIT"] x -> Nothing
        | isContained ["!", "@", " JOIN #"] x -> Nothing
@@ -263,13 +268,11 @@ relayIRC2Tele token manager chatId socket threadId nick = do
             let parsedList = catMaybes . fmap (parseMsg nick) $ msgList
             if | L.null parsedList -> relayIRC2Tele token manager chatId socket threadId nick -- only contain PING or PART or JOIN sort of messages
                | not . L.any (T.isPrefixOf "newNick:") $ parsedList -> do -- do not contain new nick
-                            -- sequenceA_ (fmap (\msg -> sendMsg chatId (msg <> "\r\n") token manager) parsedList)
                             sendMsg chatId (foldl1 (<>) . fmap (<> "\r\n") $ parsedList) token manager
                             relayIRC2Tele token manager chatId socket threadId nick
                | L.all (T.isPrefixOf "newNick:") parsedList -> -- only contain new nick
                             relayIRC2Tele token manager chatId socket threadId (T.drop 8 . L.head $ parsedList)
                | otherwise -> do -- contain new nick and other messages
-                            -- sequenceA_ (fmap (\msg -> sendMsg chatId (msg <> "\r\n") token manager) (L.filter (not . T.isPrefixOf "newNick:") parsedList))
                             sendMsg chatId (foldl1 (<>) . fmap (<> "\r\n") . L.filter (not . T.isPrefixOf "newNick:") $ parsedList) token manager
                             relayIRC2Tele token manager chatId socket threadId (T.drop 8 . L.head . L.filter (T.isPrefixOf "newNick:") $ parsedList)
 
