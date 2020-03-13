@@ -1,8 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
 
--- https://github.com/klappvisor/haskell-telegram-api
--- create a robot from BotFather on telegram, and get the token, also your telegram's chatId
-
 import Network.HTTP.Client      (newManager)
 import Network.HTTP.Client.TLS  (tlsManagerSettings)
 import Web.Telegram.API.Bot 
@@ -18,26 +15,23 @@ import Data.Foldable (sequenceA_)
 import Control.Monad
 import Control.Concurrent
 import Data.List 
+import Data.Maybe
+
+-- ./reverseBot hello
 
 main :: IO ()
 main = do
-  -- hSetBuffering stdout NoBuffering
   l <- getArgs
-  -- s <- D.getLine
-  -- message <- return $ T.pack $ head l  -- T.pack $ head l is a value, so use return to make it as a IO action, then get the value from the action and bind it to message
-  -- eqaul to `let message = T.pack $ head l'
-  -- inputMsg :: Text
   let inputMsg = pack $ head l
   manager <- newManager tlsManagerSettings
-  token <- return $ Token "bot9-write-your-token-here"
-  chatId <- return $ ChatId 7 -- your telegram chatId, get it from @chatid_echo_bot
+  token <- return $ Token "bot9"
+  chatId <- return $ ChatId 7
   sendMsg chatId inputMsg token manager
-  recvMsg token manager Nothing [] chatId
+  recvMsg token manager Nothing chatId
 
 getResult :: [Update] -> [Maybe Text]
-getResult  x = fmap (g . f) x
+getResult  x = fmap (g . message) x
 g = \(Just x) -> text x
-f = \i -> message i
 
 getUpdateId :: [Update] -> [Int]
 getUpdateId x = fmap (\i -> update_id i) x
@@ -59,43 +53,59 @@ sendMsg chatId inputMsg token manager = do
       putStrLn $ (show $ message_id m) ++ " " ++ (show $ text m)
 
 -- recv msg
-recvMsg token manager upId prevResult chatId = do
+recvMsg token manager upId chatId = do
   -- sleep 3
   resultEither <- getUpdates token upId (Just 100) (Just 30) manager
   case resultEither of
         Right Response { result = m }  -> do
-            -- putStrLn "recv msg:"
-            -- jm <- return $ message (head m)
-            -- result <- return $ (\(Just i) -> i) jm
-            -- print $ text result
+            if Data.List.null m then do
+                sleep 2
+                recvMsg token manager upId chatId
+            else do
+            putStrLn "recv msg:"
+            jm <- return $ message (head m)
+            result <- return $ (\(Just i) -> i) jm
+            print $ text result
             let updateId = getUpdateId m
-            case (tail updateId) of
-                [] -> do
-                    latestId <- return $ head updateId
-                    if (not (Just latestId == upId)) then do
-                        result <- return $ (getResult m) \\ prevResult  -- remove the same element in result
-                        -- result :: [Maybe Text]
-                        putStr "recv: "
-                        sequenceA_ (fmap print result)
-                        -- putStr "[1]"
-                        -- print latestId
-                        sendMsg chatId (T.reverse $ takeIt $ head result) token manager
-                        recvMsg token manager (Just latestId) result chatId
-                    else do
-                        sleep 1
-                        recvMsg token manager (Just latestId) prevResult chatId
-                x:[] -> do
-                    if (not (Just x == upId)) then do
-                        result <- return $ (getResult m) \\ prevResult
-                        putStr "recv: "
-                        sequenceA_ (fmap print result)
-                        -- putStr "[1,2]"
-                        -- print x
-                        sendMsg chatId (T.reverse $ takeIt $ head result) token manager
-                        recvMsg token manager (Just x) result chatId
-                    else do
-                        sleep 1
-                        recvMsg token manager (Just x) prevResult chatId
+            putStrLn "updateId is "
+            print updateId
+            let latestId = last updateId
+            if (Just latestId == upId) then do
+                sleep 2
+                recvMsg token manager upId chatId
+            else do
+                putStr "latestId is "
+                print latestId
+                sendMsg chatId (T.reverse . fromJust . last . getResult $ m) token manager
+                recvMsg token manager (Just latestId) chatId
+                
+--            if Data.List.null (tail updateId) then do
+--                    latestId <- return $ head updateId
+--                    if (not (Just latestId == upId)) then do
+--                        result <- return $ (getResult m) \\ prevResult  -- remove the same element in result
+--                        -- result :: [Maybe Text]
+--                        putStr "recv: "
+--                        sequenceA_ (fmap print result)
+--                        -- putStr "[1]"
+--                        -- print latestId
+--                        sendMsg chatId (T.reverse $ takeIt $ head result) token manager
+--                        recvMsg token manager (Just latestId) result chatId
+--                    else do
+--                        sleep 1
+--                        recvMsg token manager (Just latestId) prevResult chatId
+--            else do 
+--                    let x = head . tail $ updateId
+--                    if (not (Just x == upId)) then do
+--                        result <- return $ (getResult m) \\ prevResult
+--                        putStr "recv: "
+--                        sequenceA_ (fmap print result)
+--                        -- putStr "[1,2]"
+--                        -- print x
+--                        sendMsg chatId (T.reverse $ takeIt $ head result) token manager
+--                        recvMsg token manager (Just x) result chatId
+--                    else do
+--                        sleep 1
+--                        recvMsg token manager (Just x) prevResult chatId
                     
         Left e -> do
             putStr "error:"
