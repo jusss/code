@@ -190,6 +190,7 @@ recvMsg token manager upId chatId socket defaultPrefix alistMap = do
         Left e -> do
             putStr "recvMsg error:"
             print e
+            exitWith $ ExitFailure 22 -- main can be IO () or IO a
 
 findAlias :: Map Text Text -> Text -> Text
 findAlias alistMap x = if Data.Map.Strict.empty == alistMap then x else if x `notMember` alistMap then x else (alistMap ! x)
@@ -244,15 +245,15 @@ parseMsg nick x =
        | T.isInfixOf ":*.net*.split" x -> Nothing
        | isContained ["!", "@", " NICK :", nick] x -> Just "newNick" <> (getElem 2 . T.words $ x) -- Just "newNick:nick"
        | T.isInfixOf nick x -> Just $ "\128994" <> x
+       | (L.length . T.words $ x) == 4 -> if | (L.head . L.tail . T.words $ x) == "PONG" -> Nothing
+                                             | otherwise -> Just x
        | otherwise -> Just x
 
-relayIRC2Tele :: Token -> Manager -> ChatId -> Socket -> ThreadId -> Text -> IO a
-relayIRC2Tele token manager chatId socket threadId nick = do
+relayIRC2Tele :: Token -> Manager -> ChatId -> Socket ->  Text -> IO a
+relayIRC2Tele token manager chatId socket nick = do
     msg <- recv socket 1024  -- msg :: ByteString
     if | D.length msg == 0 -> do           --  irc disconnected
-                        print "IRC Disconnected, Re-connecting"
-                        killThread threadId      
-                        sleep 15
+                        print "Remote Disconnected without Exit Signal"
                         -- main
                         exitWith $ ExitFailure 22 -- main can be IO () or IO a
        | otherwise -> do
@@ -261,15 +262,15 @@ relayIRC2Tele token manager chatId socket threadId nick = do
                             sendAll socket (En.encodeUtf8 ("PO" <> (T.drop 2 . L.head . L.filter (T.isPrefixOf "PING") $ msgList) <> "\r\n"))
                | otherwise -> return ()
             let parsedList = catMaybes . fmap (parseMsg nick) $ msgList
-            if | L.null parsedList -> relayIRC2Tele token manager chatId socket threadId nick -- only contain PING or PART or JOIN sort of messages
+            if | L.null parsedList -> relayIRC2Tele token manager chatId socket nick -- only contain PING or PART or JOIN sort of messages
                | not . L.any (T.isPrefixOf "newNick:") $ parsedList -> do -- do not contain new nick
                             sendMsg chatId (foldl1 (<>) . fmap (<> "\r\n") $ parsedList) token manager
-                            relayIRC2Tele token manager chatId socket threadId nick
+                            relayIRC2Tele token manager chatId socket nick
                | L.all (T.isPrefixOf "newNick:") parsedList -> -- only contain new nick
-                            relayIRC2Tele token manager chatId socket threadId (T.drop 8 . L.head $ parsedList)
+                            relayIRC2Tele token manager chatId socket (T.drop 8 . L.head $ parsedList)
                | otherwise -> do -- contain new nick and other messages
                             sendMsg chatId (foldl1 (<>) . fmap (<> "\r\n") . L.filter (not . T.isPrefixOf "newNick:") $ parsedList) token manager
-                            relayIRC2Tele token manager chatId socket threadId (T.drop 8 . L.head . L.filter (T.isPrefixOf "newNick:") $ parsedList)
+                            relayIRC2Tele token manager chatId socket (T.drop 8 . L.head . L.filter (T.isPrefixOf "newNick:") $ parsedList)
 
 -- from the "network-run" package.
 runTCPClient :: HostName -> ServiceName -> (Socket -> IO a) -> IO a
@@ -285,6 +286,31 @@ runTCPClient host port client = withSocketsDo $ do
         connect sock $ addrAddress addr
         return sock
 
+-- timer to detect if remote disconnect
+detectDisconnected :: Socket -> IO ()
+detectDisconnected socket = do
+    r <- E.try (sendAll socket . En.encodeUtf8 $ "PING " <> (pack server) <> "\r\n") :: IO (Either E.SomeException ())
+    case r of
+        Left ex -> do
+                        print "Remote Disconnected Without A Signal"
+                        -- killThread threadId      
+                        -- sleep 15
+                        -- main
+                        exitWith $ ExitFailure 22 -- main can be IO () or IO a
+        Right value -> do
+            sleep 60
+            detectDisconnected socket
+
+-- checkException :: Async a -> Async a -> Async a -> IO ()
+checkException a1 a2 a3 = do
+    r1 <- poll a1
+    r2 <- poll a2
+    r3 <- poll a3
+    case [r1,r2,r3] of
+        [Nothing,Nothing,Nothing] -> do
+            sleep 60
+            checkException a1 a2 a3
+        [Just x, Just y, Just z] -> exitWith $ ExitFailure 22
 
 
 nickCmd = "NICK " <> nick <> "\r\n"
@@ -300,5 +326,8 @@ main = runTCPClient server port $ \socket -> do
     sendAll socket $ En.encodeUtf8 userCmd
     sendAll socket $ En.encodeUtf8 autoJoinChannelCmd
 
-    threadId <- forkIO (recvMsg token manager Nothing chatId socket nick Data.Map.Strict.empty)  -- Telegram to IRC
-    relayIRC2Tele token manager chatId socket threadId nick -- IRC to Telegram
+    t2IRC <- async (recvMsg token manager Nothing chatId socket nick Data.Map.Strict.empty)  -- Telegram to IRC
+    pingMsg <- async (detectDisconnected socket) -- send PING per minute
+    irc2T <- async (relayIRC2Tele token manager chatId socket nick) -- IRC to Telegram
+
+    checkException t2IRC pingMsg irc2T
