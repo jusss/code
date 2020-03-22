@@ -25,6 +25,7 @@ import qualified Data.Text as T
 import Data.List as L
 import qualified Data.ByteString as D
 import qualified Data.Text.Encoding as En
+import Control.Applicative
 
 -- telegram-api for haskell https://github.com/klappvisor/haskell-telegram-api
 -- howItWorks :: yourTelegramAccount -> TelegramBot -> IRC2Telegram -> IRC
@@ -245,7 +246,7 @@ relayIRC2Tele token manager chatId socket nick = do
     msg <- recv socket 1024  -- msg :: ByteString
     if | D.length msg == 0 -> do           --  irc disconnected
                         print "IRC Disconnected, Re-connecting"
-                        sleep 15
+                        -- sleep 15
                         -- main
                         exitWith $ ExitFailure 22 -- main can be IO () or IO a
        | otherwise -> do
@@ -297,16 +298,17 @@ detectDisconnected socket = do
             sleep 60
             detectDisconnected socket
 
--- checkException :: Async a -> Async a -> Async a -> IO ()
-checkException a1 a2 a3 = do
-    r1 <- poll a1
-    r2 <- poll a2
-    r3 <- poll a3
-    case [r1,r2,r3] of
-        [Nothing,Nothing,Nothing] -> do
+checkException :: [Async a] -> IO ()
+checkException alist = do
+    currentState <- sequenceA (fmap poll alist) -- sequenceA will do natural transform, turn [IO (Maybe (Either SomeException a))] to IO [Maybe (Either SomeException a)]
+    -- poll :: Async a -> IO (Maybe (Either SomeException a))
+    -- if Async is running, return Nothing, exit with successful, return Just (Right value), exit with exception, return Just (Left exception)
+    -- if L.null $ catMaybes currentState then do
+    if isNothing $ foldl1 (<|>) currentState then do
             sleep 60
-            checkException a1 a2 a3
-        [Just x, Just y, Just z] -> exitWith $ ExitFailure 22
+            checkException alist
+    else
+       exitWith $ ExitFailure 22
 
 nickCmd = "NICK " <> nick <> "\r\n"
 userCmd = "USER xxx 8 * :xxx\r\n"
@@ -325,5 +327,5 @@ main = runTCPClient server port $ \socket -> do
     pingMsg <- async (detectDisconnected socket) -- send PING per minute
     irc2T <- async (relayIRC2Tele token manager chatId socket nick) -- IRC to Telegram
 
-    checkException t2IRC pingMsg irc2T
+    checkException [t2IRC, pingMsg, irc2T]
     
