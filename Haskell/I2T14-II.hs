@@ -293,13 +293,13 @@ detectDisconnected socket = do
     r <- E.try (sendAll socket . En.encodeUtf8 $ "PING " <> (pack server) <> "\r\n") :: IO (Either E.SomeException ())
     case r of
         Left ex -> do
-                        print "Remote Disconnected Without A Signal"
+                        print "Ping TimeOut, Remote Disconnected Without A Signal"
                         -- killThread threadId      
                         -- sleep 15
                         -- main
                         exitWith $ ExitFailure 22 -- main can be IO () or IO a
         Right value -> do
-            sleep 60
+            sleep 300
             detectDisconnected socket
 
 checkException :: [Async a] -> IO ()
