@@ -14,9 +14,15 @@ main = do
         print "it needs a file name"
     else do
         context <- DTI.readFile $ L.head fileName
-        let config = M.fromList . fmap list2Tuple . fmap (T.splitOn "=") . T.lines . T.filter (/= ' ') $ context
+        print context
+        -- print . L.filter (/= "") . T.splitOn "\n" $ context
+        let config = M.fromList . fmap list2Tuple . fmap (T.splitOn "=") . L.filter (/= "") . T.splitOn "\n" . T.replace "\r" "\n" . T.filter (/= ' ') $ context
+
         print config
         print $ config M.! "server"
+
+-- another way is Try using openFile explicitly, so that you can hSetNewlineMode hdl universalNewlineMode before using hGetContents
+-- (considering that this is the implementation of readFile https://hackage.haskell.org/package/text-1.2.4.0/docs/src/Data.Text.IO.html#readFile )
 
 -- ./parseConf a.conf
 -- a.conf
