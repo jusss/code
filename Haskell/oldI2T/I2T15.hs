@@ -27,6 +27,9 @@ import qualified Data.ByteString as D
 import qualified Data.Text.Encoding as En
 import Control.Applicative
 import qualified Data.ByteString.UTF8 as DBU
+import System.Environment
+import qualified Data.Text.IO as DTI
+import Data.Int
 
 -- telegram-api for haskell https://github.com/klappvisor/haskell-telegram-api
 -- howItWorks :: yourTelegramAccount -> TelegramBot -> IRC2Telegram -> IRC
@@ -51,19 +54,6 @@ import qualified Data.ByteString.UTF8 as DBU
 
 -----------------------------------------------------------------
 
--- change info here
--- irc        
-
-server = "irc.freenode.net" :: String
-port = "6665" :: String
-nick = "w" :: Text
-autoJoinChannel = "#l" :: Text
--- telegram 
-_token = "bot9" 
-_chatId = 7
--------------------------------------------------------------------
-nickList :: [Text]
-nickList = fmap T.pack . L.permutations . T.unpack $ nick
 
 headMaybe :: [a] -> Maybe a
 headMaybe [] = Nothing
@@ -244,8 +234,8 @@ parseMsg nick x =
                                              | otherwise -> Just x
        | otherwise -> Just x
 
-relayIRC2Tele :: Token -> Manager -> ChatId -> Socket ->  Text -> [Text] -> IO a
-relayIRC2Tele token manager chatId socket nick nickList = do
+relayIRC2Tele :: Token -> Manager -> ChatId -> Socket ->  Text -> [Text] -> Text -> Text -> IO a
+relayIRC2Tele token manager chatId socket nick nickList userCmd autoJoinChannelCmd = do
     msg <- recv socket 1024  -- msg :: ByteString
     if | D.length msg == 0 -> do           --  irc disconnected
                         print "IRC Disconnected, Re-connecting"
@@ -262,21 +252,21 @@ relayIRC2Tele token manager chatId socket nick nickList = do
                             sendAll socket $ En.encodeUtf8 ("NICK " <> (L.head nickList) <> "\r\n")
                             sendAll socket $ En.encodeUtf8 userCmd
                             sendAll socket $ En.encodeUtf8 autoJoinChannelCmd
-                            relayIRC2Tele token manager chatId socket (L.head nickList) (L.tail nickList)
+                            relayIRC2Tele token manager chatId socket (L.head nickList) (L.tail nickList) userCmd autoJoinChannelCmd 
                | otherwise -> return ()
 
             let parsedList = catMaybes . fmap (parseMsg nick) $ msgList
-            if | L.null parsedList -> relayIRC2Tele token manager chatId socket nick nickList-- only contain PING or PART or JOIN sort of messages
+            if | L.null parsedList -> relayIRC2Tele token manager chatId socket nick nickList userCmd autoJoinChannelCmd -- only contain PING or PART or JOIN sort of messages
                | not . L.any (T.isPrefixOf "newNick:") $ parsedList -> do -- do not contain new nick
                             -- sequenceA_ (fmap (\msg -> sendMsg chatId (msg <> "\r\n") token manager) parsedList)
                             sendMsg chatId (foldl1 (<>) . fmap (<> "\r\n") $ parsedList) token manager
-                            relayIRC2Tele token manager chatId socket nick nickList
+                            relayIRC2Tele token manager chatId socket nick nickList userCmd autoJoinChannelCmd
                | L.all (T.isPrefixOf "newNick:") parsedList -> -- only contain new nick
-                            relayIRC2Tele token manager chatId socket (T.drop 8 . L.head $ parsedList) nickList
+                            relayIRC2Tele token manager chatId socket (T.drop 8 . L.head $ parsedList) nickList userCmd autoJoinChannelCmd
                | otherwise -> do -- contain new nick and other messages
                             -- sequenceA_ (fmap (\msg -> sendMsg chatId (msg <> "\r\n") token manager) (L.filter (not . T.isPrefixOf "newNick:") parsedList))
                             sendMsg chatId (foldl1 (<>) . fmap (<> "\r\n") . L.filter (not . T.isPrefixOf "newNick:") $ parsedList) token manager
-                            relayIRC2Tele token manager chatId socket (T.drop 8 . L.head . L.filter (T.isPrefixOf "newNick:") $ parsedList) nickList
+                            relayIRC2Tele token manager chatId socket (T.drop 8 . L.head . L.filter (T.isPrefixOf "newNick:") $ parsedList) nickList userCmd autoJoinChannelCmd
 
 -- from the "network-run" package.
 runTCPClient :: HostName -> ServiceName -> (Socket -> IO a) -> IO a
@@ -295,8 +285,8 @@ runTCPClient host port client = withSocketsDo $ do
 sleep = threadDelay . ceiling . (*1000000)
 
 -- timer to detect if remote disconnect
-detectDisconnected :: Socket -> IO ()
-detectDisconnected socket = do
+detectDisconnected :: Socket -> String -> IO ()
+detectDisconnected socket server = do
     r <- E.try (sendAll socket . En.encodeUtf8 $ "PING " <> (pack server) <> "\r\n") :: IO (Either E.SomeException ())
     case r of
         Left ex -> do
@@ -307,7 +297,7 @@ detectDisconnected socket = do
                         exitWith $ ExitFailure 22 -- main can be IO () or IO a
         Right value -> do
             sleep 300
-            detectDisconnected socket
+            detectDisconnected socket server
 
 checkException :: [Async a] -> IO ()
 checkException alist = do
@@ -321,22 +311,43 @@ checkException alist = do
     else
        exitWith $ ExitFailure 22
 
-nickCmd = "NICK " <> nick <> "\r\n"
-userCmd = "USER xxx 8 * :xxx\r\n"
-autoJoinChannelCmd = "JOIN " <> autoJoinChannel <> "\r\n"
 
-main :: IO ()
-main = runTCPClient server port $ \socket -> do
-    manager <- newManager tlsManagerSettings
-    token <- return $ Token _token
-    chatId <- return $ ChatId _chatId
-    sendAll socket $ En.encodeUtf8 nickCmd
-    sendAll socket $ En.encodeUtf8 userCmd
-    sendAll socket $ En.encodeUtf8 autoJoinChannelCmd
 
-    t2IRC <- async (recvMsg token manager Nothing chatId socket nick Data.Map.Strict.empty)  -- Telegram to IRC
-    pingMsg <- async (detectDisconnected socket) -- send PING per minute
-    irc2T <- async (relayIRC2Tele token manager chatId socket nick nickList) -- IRC to Telegram
+list2Tuple [a,b] = (a,b)
 
-    checkException [t2IRC, pingMsg, irc2T]
+main = do
+    fileName <- getArgs
+    if (L.null fileName) then
+        print "it needs a file name"
+    else do
+        context <- DTI.readFile $ L.head fileName
+        -- another way is Try using openFile explicitly, so that you can hSetNewlineMode hdl universalNewlineMode before using hGetContents
+        -- (considering that this is the implementation of readFile https://hackage.haskell.org/package/text-1.2.4.0/docs/src/Data.Text.IO.html#readFile )
+        -- config :: Map Text Text
+        -- filter spaces, replace \r to \n, split with \n, filter empty strings, turn it to Map
+        let config = fromList . fmap list2Tuple . fmap (T.splitOn "=") . L.filter (/= "") . T.splitOn "\n" . T.replace "\r" "\n" . T.filter (/= ' ') $ context
+        print config
+        let server = T.unpack (config ! "server")
+        let    port = T.unpack (config ! "port")
+        let    nick = config ! "nick"
+        let    autoJoinChannel = config ! "channel"
+        let    _token = config ! "token"
+        let    _chatId = (read $ T.unpack (config ! "chatId" )) :: Int64
+        let    nickCmd = "NICK " <> nick <> "\r\n" :: Text
+        let    userCmd = "USER xxx 8 * :xxx\r\n" :: Text
+        let  autoJoinChannelCmd = "JOIN " <> autoJoinChannel <> "\r\n" :: Text
+        let  nickList = fmap T.pack . L.permutations . T.unpack $ nick --nickList :: [Text]
+        runTCPClient server port $ \socket -> do
+        manager <- newManager tlsManagerSettings
+        token <- return $ Token _token
+        chatId <- return $ ChatId _chatId
+        sendAll socket $ En.encodeUtf8 nickCmd
+        sendAll socket $ En.encodeUtf8 userCmd
+        sendAll socket $ En.encodeUtf8 autoJoinChannelCmd
+
+        t2IRC <- async (recvMsg token manager Nothing chatId socket nick Data.Map.Strict.empty)  -- Telegram to IRC
+        pingMsg <- async (detectDisconnected socket server) -- send PING per minute
+        irc2T <- async (relayIRC2Tele token manager chatId socket nick nickList userCmd autoJoinChannelCmd) -- IRC to Telegram
+
+        checkException [t2IRC, pingMsg, irc2T]
     

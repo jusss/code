@@ -4,7 +4,7 @@ while :
 do
 	echo $count >> ./re-run-times
 	date >> ./re-run-times
-	./I2T15
+	./I2T15 I2T15.config
 	sleep 3
 	count=$((count+1))
 done
