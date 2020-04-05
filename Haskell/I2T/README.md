@@ -2,7 +2,8 @@ this is a tool for bridge IRC channels to Telegram
 telegram-api for haskell https://github.com/klappvisor/haskell-telegram-api
 howItWorks :: yourTelegramAccount -> TelegramBot -> IRC2Telegram -> IRC
 
-in your telegram account conversation with your telegram bot, send messages to irc syntax: #channel msg
+in your telegram account conversation with your telegram bot, 
+send messages to irc syntax: #channel msg
 send irc commands syntax: /COMMAND PARAMETERS
 
 usage: 
