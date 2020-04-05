@@ -1,21 +1,19 @@
--- this is a tool for bridge IRC channels to Telegram
+this is a tool for bridge IRC channels to Telegram
+telegram-api for haskell https://github.com/klappvisor/haskell-telegram-api
+howItWorks :: yourTelegramAccount -> TelegramBot -> IRC2Telegram -> IRC
 
--- telegram-api for haskell https://github.com/klappvisor/haskell-telegram-api
--- howItWorks :: yourTelegramAccount -> TelegramBot -> IRC2Telegram -> IRC
+in your telegram account conversation with your telegram bot, send messages to irc syntax: #channel msg
+send irc commands syntax: /COMMAND PARAMETERS
 
--- in your telegram account conversation with your telegram bot, send messages to irc syntax: #channel msg
--- send irc commands syntax: /COMMAND PARAMETERS
-
--- usage: 
--- #channel message
--- /time      -- just other valid irc commands, start them with /
--- /prefix #channel
--- /prefix nick    -- it's equal to /msg or /query
--- /prefix #channel nick or /prefix #channel nick1 nick2
--- message  -- after you use `/prefix #channel' then you can send message directly
-
--- /set a #channel nick1 nick2  -- then 'a messgaes' replace 'a' with '#channel nick'
---- /unset  -- clear all the alias, 'a messages' will be send as it is
+usage: 
+#channel message
+/time      -- just other valid irc commands, start them with /
+/prefix #channel
+/prefix nick    -- it's equal to /msg or /query
+/prefix #channel nick or /prefix #channel nick1 nick2
+message  -- after you use `/prefix #channel' then you can send message directly
+/set a #channel nick1 nick2  -- then 'a messgaes' replace 'a' with '#channel nick'
+/unset  -- clear all the alias, 'a messages' will be send as it is
 
 1. compile code to native code
     git clone haskell https://github.com/klappvisor/haskell-telegram-api.git 
