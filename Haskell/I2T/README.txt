@@ -32,7 +32,7 @@ message  -- after you use `/prefix #channel` then you can send messages directly
 
 ############    How to use it?     ######################
 
-# Download the binary release file I2T.tar.xz, linux-amd64 only
+# Download the binary release file I2T.tar.xz from above, it's for linux on amd64 only
 
 1. tar -xvJf I2T.tar.xz
 
