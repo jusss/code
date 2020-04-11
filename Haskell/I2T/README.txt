@@ -28,6 +28,14 @@ message  -- after you use `/prefix #channel' then you can send message directly
 
 /unset  -- clear all the alias, 'a messages' will be send as it is
 
+# Download the binary release file I2T.tar.xz
+
+1. tar -xvJf I2T.tar.xz
+2. cd I2T; vim I2T16.config  # change your info
+3. bash I2T16.sh
+
+or
+# Build from Source
 
 1. compile code to native code
 
