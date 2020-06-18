@@ -1,4 +1,17 @@
 import Control.Monad.Trans.Reader
+
+g = do
+    x <- (+1)
+    y <- (*2)
+    return (x + y)  -- return is a function, not a syntax, so it must have () here
+main = print $ g 9
+
+-- so we could use record syntax work with Reader
+data P a1 a2 a3 = P {runA1 :: a1, runA2 :: a2, runA3 :: a3}
+
+(do  x <- runA1; y <- runA2; z <- runA3; return (x,y,z)) (P 1 "1" 2) == (1,"1",2)
+
+
 f :: (Show a) => a -> IO ()
 -- f x = return x
 -- newtype ReaderT r m a = ReaderT { runReaderT :: r -> m a }
@@ -10,9 +23,9 @@ f x = print x
 --main = runReaderT (ReaderT print) "3"
 
 --main = runReaderT (ReaderT \x -> do ... ) "3"
-main = flip runReaderT "3" $ ReaderT (\x -> do
- print x
- print (x <> "2"))
+--main = flip runReaderT "3" $ ReaderT (\x -> do
+-- print x
+-- print (x <> "2"))
 
 
 
@@ -25,8 +38,8 @@ runReaderT $ ReaderT f = f
 
 ask :: ReaderT r m r
 asks :: (r->a) -> ReaderT r m a
-<- ask will get r from ReaderT r m a
-<- asks f will get (f r)
+-- <- ask will get r from ReaderT r m a
+-- <- asks f will get (f r)
 
 data Environment = Env
   { firstName :: String
