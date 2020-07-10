@@ -1,3 +1,398 @@
+
+27. Sum of Intervals
+https://www.codewars.com/kata/52b7ed099cdc285c300001cd/haskell
+
+sumOfIntervals([(1, 5), (10, 15), (-1, 3)]) -- => 11
+
+sumOfIntervals([(1, 5)]) -- => 4 
+
+
+module SumOfIntervals (sumOfIntervals) where
+import Data.List hiding (groupBy)
+import Control.Applicative
+import Data.Tuple
+
+tuple2List (x,y) = [x..y]
+
+groupBy :: (a -> a -> Bool) -> [a] -> [[a]]
+groupBy _ [] = []
+groupBy p' (x':xs') = (x' : ys') : zs'
+  where
+    (ys',zs') = go p' x' xs'
+    go p z (x:xs)
+      | p z x = (x : ys, zs)
+      | otherwise = ([], (x : ys) : zs)
+      where (ys,zs) = go p x xs
+    go _ _ [] = ([], [])
+    
+    
+sumOfIntervals :: [(Int, Int)] -> Int
+sumOfIntervals _intervals = 
+    let intervals = nub _intervals  -- remove duplicate elements
+        s = sort . nub $ (concat $ fmap (\(x,y) -> [x..y]) intervals)
+    in
+        if (length intervals) == 1 then snd (head intervals) - (fst (head intervals))  -- [(1,5)]
+        else
+        -- [(1,5),(6,10)]
+        if [minimum s..maximum s] == s
+        then if (all (==[]) $ applyOnTwoElem intersect $ fmap (\(x,y) -> [x..y]) intervals)
+              then       
+                sum $ fmap (\(x,y) -> y - x) intervals
+              else maximum s - minimum s
+        else 
+            let r2 = fmap concat $ groupBy (\x y -> (last x) - (head y) == -1) $ groupBy (\a b -> (b-a) == 1) s
+            in  sum . fmap (\l -> last l - head l) $ r2 
+
+applyOnTwoElem f l = f3 f l l
+f3 f [l,r] y = [f l r]
+f3 f x y = (fmap (\z -> f (head x) z) (tail y)) ++ (f3 f (tail x) (tail y))
+-----------------------------------------------------------
+26. 3kyu Rail Fence Cipher: Encoding and Decoding 
+
+Create two functions to encode and then decode a string using the Rail Fence Cipher. This cipher is used to encode a string by placing each character successively in a diagonal along a set of "rails". First start off moving diagonally and down. When you reach the bottom, reverse direction and move diagonally and up until you reach the top rail. Continue until you reach the end of the string. Each "rail" is then read left to right to derive the encoded string.
+
+For example, the string "WEAREDISCOVEREDFLEEATONCE" could be represented in a three rail system as follows:
+
+W       E       C       R       L       T       E
+  E   R   D   S   O   E   E   F   E   A   O   C  
+    A       I       V       D       E       N    
+
+The encoded string would be:
+
+WECRLTEERDSOEEFEAOCAIVDEN
+
+Write a function/method that takes 2 arguments, a string and the number of rails, and returns the ENCODED string.
+
+Write a second function/method that takes 2 arguments, an encoded string and the number of rails, and returns the DECODED string.
+
+For both encoding and decoding, assume number of rails >= 2 and that passing an empty string will return an empty string.
+
+Note that the example above excludes the punctuation and spaces just for simplicity. There are, however, tests that include punctuation. Don't filter out punctuation as they are a part of the string.
+
+
+module RailFenceCipher.Kata (encode,decode) where
+import Data.List
+import Data.Semigroup
+
+s n = [1..n]
+g n = (tail . reverse $ s n) <> (tail $ s n)
+f n = (s n) <> cycle (g n)
+
+encode :: [a] -> Int -> [a]
+encode str n = map fst . sortOn snd . zipWith (,) str $ (f n)
+
+sortByFst :: [Int] -> [a] -> [a]
+sortByFst index = fmap snd  . sortOn fst . zip index
+
+decode :: [a] -> Int -> [a]
+decode str n = sortByFst index str
+  where index = encode [1.. length str] n
+-----------------------------------------------------
+25. 4kyu Multiplying numbers as strings
+
+This is the first part. You can solve the second part here when you are done with this. Multiply two numbers! Simple!
+
+    The arguments are passed as strings.
+    The numbers may be way very large
+    Answer should be returned as a string
+    The returned "number" should not start with zeros e.g. 0123 is invalid
+
+Note: 100 randomly generated tests!
+
+module MultNumAsStrings where
+
+import Data.Char (intToDigit, digitToInt)
+
+-- | mulitply two numbers as strings
+multiply :: String -> String -> String
+multiply xs ys = show $ (read xs::Integer)*(read ys::Integer)
+
+------------------------------------------------------------
+24. 5kyu Weight for weight
+My friend John and I are members of the "Fat to Fit Club (FFC)". John is worried because each month a list with the weights of members is published and each month he is the last on the list which means he is the heaviest.
+
+I am the one who establishes the list so I told him: "Don't worry any more, I will modify the order of the list". It was decided to attribute a "weight" to numbers. The weight of a number will be from now on the sum of its digits.
+
+For example 99 will have "weight" 18, 100 will have "weight" 1 so in the list 100 will come before 99. Given a string with the weights of FFC members in normal order can you give this string ordered by "weights" of these numbers?
+
+Example:
+"56 65 74 100 99 68 86 180 90" ordered by numbers weights becomes: "100 180 90 56 65 74 68 86 99"
+
+When two numbers have the same "weight", let us class them as if they were strings (alphabetical ordering) and not numbers: 100 is before 180 because its "weight" (1) is less than the one of 180 (9) and 180 is before 90 since, having the same "weight" (9), it comes before as a string.
+
+All numbers in the list are positive numbers and the list can be empty.
+
+Notes
+it may happen that the input string have leading, trailing whitespaces and more than a unique whitespace between two consecutive numbers
+Don't modify the input
+For C: The result is freed.
+
+module Codewars.G964.WeightSort where
+import Data.List
+import Data.Semigroup
+import Data.Map
+
+orderWeight :: [Char] -> [Char]
+-- orderWeight string =   unwords (int2Str (mconcat (fmap innerSort (sortBySum (sortBy sortLT (str2Int (words string)))))))
+orderWeight string =   (unwords . int2Str . mconcat . fmap innerSort . sortBySum . sortBy sortLT . str2Int . words) string
+
+
+
+sortLT a b = if (foldl1 (+) a) < (foldl1 (+) b) then LT else GT
+
+table = fromList (zip ['0'..'9'] [0..9])
+str2Int l = fmap (fmap (\x -> table ! x)) l
+-- l2 = str2Int $ words "56 65 74 100 99 68 86 180 90"
+-- == [[5,6],[6,5],[7,4],[1,0,0],[9,9],[6,8],[8,6],[1,8,0],[9,0]]
+
+-- l3 = sortBy sortLT l2
+-- == [[1,0,0],[9,0],[1,8,0],[7,4],[6,5],[5,6],[8,6],[6,8],[9,9]]
+-- groupBy (\a b -> if (foldl1 (+) a) == (foldl1 (+) b) then True else False) l3
+sortBySum l3 =  groupBy (\a b -> if (foldl1 (+) a) == (foldl1 (+) b) then True else False) l3
+-- == [[[1,0,0]],[[9,0],[1,8,0]],[[7,4],[6,5],[5,6]],[[8,6],[6,8]],[[9,9]]]
+
+innerSort x = if length x == 1 then x else sort x
+-- fmap innerSort [[[1,0,0]],[[9,0],[1,8,0]],[[7,4],[6,5],[5,6]],[[8,6],[6,8]],[[9,9]]]
+-- l4 = [[[1,0,0]],[[1,8,0],[9,0]],[[5,6],[6,5],[7,4]],[[6,8],[8,6]],[[9,9]]]
+-- l5 = mconcat l4 == [[1,0,0],[1,8,0],[9,0],[5,6],[6,5],[7,4],[6,8],[8,6],[9,9]]
+
+reverseTable = fromList (zip [0..9] ['0'..'9'])
+int2Str l = fmap (fmap (\x -> reverseTable ! x)) l
+-- int2Str l5 == ["100","180","90","56","65","74","68","86","99"]
+-- unwords $ int2Str l5 == "100 180 90 56 65 74 68 86 99"
+
+---------------------------------------------------------------
+
+23. 5kyu smallest unsolved!
+
+https://www.codewars.com/kata/find-the-smallest
+
+You have a positive number n consisting of digits. You can do at most one operation: Choosing the index of a digit in the number, remove this digit at that index and insert it back to another or at the same place in the number in order to find the smallest number you can get.
+
+#Task: Return an array or a tuple or a string depending on the language (see "Sample Tests") with
+
+1) the smallest number you got
+2) the index i of the digit d you took, i as small as possible
+3) the index j (as small as possible) where you insert this digit d to have the smallest number.
+Example:
+
+smallest(261235) --> [126235, 2, 0] or (126235, 2, 0) or "126235, 2, 0"
+126235 is the smallest number gotten by taking 1 at index 2 and putting it at index 0
+
+smallest(209917) --> [29917, 0, 1] or ...
+
+[29917, 1, 0] could be a solution too but index `i` in [29917, 1, 0] is greater than 
+index `i` in [29917, 0, 1].
+29917 is the smallest number gotten by taking 2 at index 0 and putting it at index 1 which gave 029917 which is the number 29917.
+
+smallest(1000000) --> [1, 0, 6] or ...
+Note
+Have a look at "Sample Tests" to see the input and output in each language
+
+module Codewars.G964.Tosmallest where
+import Data.List
+import Data.Maybe
+import Data.Semigroup
+
+smallest :: Integer -> (Integer, Int, Int)
+smallest n = let x = sm (fromInteger n) in extend (toInteger x) (p1 (f4 (fromInteger n)) (f4 x))
+
+-- 1243 1234
+-- 4231 1423 get the smallest element, move it to head, if the smallest is already first then the second smallest to head
+-- check if all digits are sequenced by small to big, if not, ^, work on without 0, work on two digits before 0
+
+-- 1 digit before 0, group 0, move the head to behind 0 part, use the first solution again
+
+-- another method
+-- it needs a function get all the permutations of every element may be the first
+-- then sort, work on without 0, 2 digits before 0
+
+deleteByIndex n xs = take (n) xs ++ drop (n + 1) xs
+
+-- without 0 or 0 is at position 2
+-- -- this will insert x into a list that list removed x itself, then insert it for sort
+
+s x = let l = f4 x in let l2 = zip [0..] l in f2 (sort (fmap (\x -> insert (snd x) (deleteByIndex (fst x) l)) l2) !! 0)
+
+
+-- 0 at position 1
+sm x = let l = f4 x in 
+    let gl = group l in
+    if (l !! 1) == 0 then f2 (insert (head (head gl)) (mconcat (drop 2 gl)))
+    else s x
+
+-- f3 123 = [3,2,1]
+
+f3 x = if (div x 10) == 0 then [x]
+    else
+        x - (div x 10) * 10 : [] <> f3 (div x 10)
+
+-- f4 123 = [1,2,3]
+f4 x = reverse $ f3 x
+
+-- l = [(0,1),(1,2),(2,3)]
+-- l = (sortOn snd . zip [0..]) (f4 n)
+
+-- f [1,2,3] 0 == 123
+f :: [Int] -> Int -> Int
+f [] _ = 0
+f x n = (last x) * (10 ^ n) + f (init x) (n + 1)
+
+f2 x = f x 0  
+
+extend :: a -> (b, c) -> (a, b, c)
+extend a (b, c) = (a, b, c)
+
+-- get the index offset number
+-- p1 [3,0,0,1,9] [1,3,9] == (0,3)
+-- 
+p1 l1 l2 = p (zip [0..] l1) (zip [0..] l2) l1 l2
+p l1 l2 ol1 ol2 = 
+    if (length l1) == (length l2) then
+      if ol1 == ol2 then (0,0) else
+        -- no 0
+        if (snd (head l1)) /= (snd (head l2)) then
+          if (snd (head l1)) == (snd (head (tail l2))) then 
+            ( (fromJust (elemIndex (snd (head l2)) (drop ((length ol1) - (length l1)) ol1) )) + (length ol1) - (length l1)  , fromJust (elemIndex (snd (head l2)) ol2))
+          else (0, (fromJust (elemIndex (snd (head l1)) ol2)))
+        else p (tail l1) (tail l2) ol1 ol2
+    else
+        if (length l1) - (length l2) == 1 then
+          -- one 0
+          if (ol1 !! 1 /= 0) then
+             if (snd (head l1)) /= (snd (head l2)) then (fst (head l1), 0) else p (tail l1) (tail l2) ol1 ol2
+          else
+            if (snd (head l1)) /= (snd (head l2)) then ( 0, fst (head l1)) else p (tail l1) (tail l2) ol1 ol2
+         
+        else
+        -- more 0 than 1
+        (0, fromJust ((snd (head l1)) `elemIndex` ol2) + (length l1) - (length l2))
+
+----------------------------------------------------
+
+22. 5kyu rot13
+ROT13 is a simple letter substitution cipher that replaces a letter with the letter 13 letters after it in the alphabet. ROT13 is an example of the Caesar cipher.
+
+Create a function that takes a string and returns the string ciphered with Rot13. If there are numbers or special characters included in the string, they should be returned as they are. Only letters from the latin/english alphabet should be shifted, like in the original Rot13 "implementation".
+
+module Rot13 where
+
+import Data.Char
+import Data.Map
+import Data.Semigroup
+
+rot13 :: String -> String
+rot13 xs = flip fmap xs (\x -> if (notMember x table) then x else (table ! x))
+  
+  
+t1 = zip ['a'..'m'] ['n'..'z']
+t2 = zip ['n'..'z'] ['a'..'m']
+t3 = zip ['A'..'M'] ['N'..'Z']
+t4 = zip ['N'..'Z'] ['A'..'M']
+table = fromList (t1 <> t2 <> t3 <> t4)
+
+----------------------------------------------------------------
+21. 5kyu Josephus Survivor
+
+In this kata you have to correctly return who is the "survivor", ie: the last element of a Josephus permutation.
+
+Basically you have to assume that n people are put into a circle and that they are eliminated in steps of k elements, like this:
+
+josephus_survivor(7,3) => means 7 people in a circle;
+one every 3 is eliminated until one remains
+[1,2,3,4,5,6,7] - initial sequence
+[1,2,4,5,6,7] => 3 is counted out
+[1,2,4,5,7] => 6 is counted out
+[1,4,5,7] => 2 is counted out
+[1,4,5] => 7 is counted out
+[1,4] => 5 is counted out
+[4] => 1 counted out, 4 is the last element - the survivor!
+The above link about the "base" kata description will give you a more thorough insight about the origin of this kind of permutation, but basically that's all that there is to know to solve this kata.
+
+Notes and tips: using the solution to the other kata to check your function may be helpful, but as much larger numbers will be used, using an array/list to compute the number of the survivor may be too slow; you may assume that both n and k will always be >=1.
+
+module Codewars.G964.Josephus where
+import Data.List
+import Data.Semigroup
+josephusSurvivor :: Int -> Int -> Int
+-- josephusSurvivor n k = g k k [1..n]
+josephusSurvivor n k = [1..n] !! (f n k)
+
+-- l = [1,2,3,4,5,6,7]
+-- splitAt 3 l == ([1,2,3],[4,5,6,7])
+
+-- concatL $ splitAt 3 l == [4,5,6,7,1,2]
+-- concatL (xs, []) = xs !! 1
+concatL ([], xs) = init xs
+concatL (xs, ys) = ys <> (init xs)
+
+-- concatL $ splitAt k [1..n]
+-- l = [1..n]
+-- f n k l = if (length l) == k then l !! (mod n k) else f n k (concatL (splitAt k  l))
+
+g ok k l
+ | (Data.List.null (init l)) = head l
+ | (k < (length l)) = g ok ok (concatL (splitAt k  l)) 
+ -- | otherwise = g ok (k - (length l)) l
+ | otherwise = g ok (mod k (length l)) l
+ 
+f 1 _ = 0
+f n m = ((f (n-1) m) + m) `mod` n
+
+main = print $ josephusSurvivor 7 3
+
+-- https://en.wikipedia.org/wiki/Josephus_problem
+-- http://www.360doc.com/content/19/0212/18/32116899_814506447.shtml
+-- https://maskray.me/blog/2013-08-27-josephus-problem-two-log-n-solutions
+-- int s = 0; for (int i = 2; i <= n; i++) {s = (s + m) % i;}
+
+---------------------------------------------------------
+20. 4 kyu Range Extraction
+
+A format for expressing an ordered list of integers is to use a comma separated list of either
+
+individual integers
+or a range of integers denoted by the starting integer separated from the end integer in the range by a dash, '-'. The range includes all integers in the interval including both endpoints. It is not considered a range unless it spans at least 3 numbers. For example ("12, 13, 15-17")
+Complete the solution so that it takes a list of integers in increasing order and returns a correctly formatted string in the range format.
+
+Example:
+
+solution([-6, -3, -2, -1, 0, 1, 3, 4, 5, 7, 8, 9, 10, 11, 14, 15, 17, 18, 19, 20]);
+// returns "-6,-3-1,3-5,7-11,14,15,17-20"
+
+module RangeExtractor.JorgeVS.Kata where
+-- import Data.List.GroupBy
+import Data.List
+import Data.Semigroup
+
+solution :: [Int] -> String
+solution myList = f5 (f (groupBy' (\x y -> if (x - y) == -1 then True else False) myList))
+
+-- f [[0,1,2],[5,6]] == ["0-2", "5,6"]
+f l = fmap (\x -> if (length x) < 3  then f3 x else f4 x) l 
+
+-- f3 [0,1,3,4] == "0,1,3,4"
+f2 l = mconcat (fmap (++ ",") (init (fmap show l)))
+f3 l = (f2 l) <> (show (last l))
+
+-- f4 [0,1,2,3] == "0-3"
+f4 l = (show (head l)) <> "-" <> (show (last l))
+
+-- f5 ["0-2", "5,6"] == "0-2,5,6"
+f5 l = mconcat (fmap (<> ",") (init l)) <> (last l)
+
+groupBy' :: (a -> a -> Bool) -> [a] -> [[a]]
+groupBy' _ [] = []
+groupBy' p' (x':xs') = (x' : ys') : zs'
+  where
+    (ys',zs') = go p' x' xs'
+    go p z (x:xs)
+      | p z x = (x : ys, zs)
+      | otherwise = ([], (x : ys) : zs)
+      where (ys,zs) = go p x xs
+    go _ _ [] = ([], [])
+------------------------------------------------------------
+
 19. 5 kyu Longest Common Subsequence
 Write a function called LCS that accepts two sequences and returns the longest subsequence common to the passed in sequences.
 
@@ -480,6 +875,10 @@ isIsogram str = if (maximum . fmap length . group . sort . fmap toUpper $ str) >
 2. output 26^6 squences of a to z from "aaaaaa" to "zzzzzz"
 
 foldl1 (liftA2 (<>)) $ replicate 6 $ (:[]) <$> ['a'..'z']
+
+get all the permutations of 3 characters
+foldl1 (liftA2 (<>)) $ replicate 3 $ (:[]) <$> ">=<!@$*"
+replicateM 3 ">=<!@$*"
 
 --------------------------------------------------------------------------
 1. get the greatest and unique number from a list

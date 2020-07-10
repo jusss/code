@@ -1,6 +1,190 @@
+
+https://hackage.haskell.org/package/groupBy-0.1.0.0/docs/Data-List-GroupBy.html
+Data.List.groupBy (<=) [1,2,2,3,1,2,0,4,5,2]
+[[1,2,2,3,1,2],[0,4,5,2]]
+should be
+Data.List.GroupBy.groupBy (<=) [1,2,2,3,1,2,0,4,5,2]
+[[1,2,2,3],[1,2],[0,4,5],[2]]
+
+groupBy :: (a -> a -> Bool) -> [a] -> [[a]]
+groupBy _ [] = []
+groupBy p' (x':xs') = (x' : ys') : zs'
+  where
+    (ys',zs') = go p' x' xs'
+    go p z (x:xs)
+      | p z x = (x : ys, zs)
+      | otherwise = ([], (x : ys) : zs)
+      where (ys,zs) = go p x xs
+    go _ _ [] = ([], [])
+
+
+f3 :: (a -> a -> c) -> [a] -> [a] -> [c]
+
+f3 f [l,r] y = [f l r]
+f3 f x y = (fmap (\z -> f (head x) z) (tail y)) <> (f3 f (tail x) (tail y))
+
+applyOnTwoElem f l = f3 f l l
+
+-- [1,1,2,3,9,2] -> [(1,[0,1]),(1,[0,1]),(2,[2,5]),(3,[3]),(9,[4]),(2,[2,5])]
+getAllIndexOfElem :: Eq a => [a] -> [a] -> [(a, [Int])]
+getAllIndexOfElem [x] y = [(x, (elemIndices x y))]
+getAllIndexOfElem (x:xs) y = [(x, elemIndices x y)] <> (getAllIndexOfElem xs y)
+
+-- [1,1,2,3,9,2] -> [(1,[0,1]),(2,[2,5]),(3,[3]),(9,[4])]
+getElemIndexes l = nub $ getAllIndexOfElem l l
+
+-- [1,1,2,3,9,2] -> [(1,2),(2,2),(3,1),(9,1)]
+getElemTimes l = fmap (fmap length) $ getElemIndexes l
+
+-- [1,1,2,3,9,2] -> [[1,1],[2,2],[3],[9]]
+gatherSameElem l = fmap (\(x,y) -> replicate y x) . sortOn fst . getElemTimes $ l
+
+-- [0,1,2,3] to [(0,1),(0,2),(0,3),(1,2),(1,3),(2,3)]
+f :: [Int] -> [Int] -> [(Int, Int)]
+f x y = 
+    if (length x == 2) then [(head x, last x)]
+    else (fmap (\z -> (head x,z)) (tail y)) <> (f (tail x) (tail y))
+
+--main = print $ f [0,1,2,3] [0,1,2,3]
+
+-- [0,1,3,7,9] to [0+1, 0+3, 0+7, 0+9, 1+3, 1+7, 1+9, 3+7...]
+f2 :: [Int] -> [Int] -> [Int]
+f2 x y = 
+    if (length x == 2) then [head x + last x]
+    else (fmap (\z -> (head x + z)) (tail y)) <> (f2 (tail x) (tail y))
+
+-- main = print $ f2 [0,1,3,7,9] [0,1,3,7,9]
+
+
+
+[0,1,2,3] 0 to 1 then 1 to 2 then 2 to 3, not 0 to 1 then 0 to 2 then 0 to 3
+reduce (\x y -> if x > y then x else y) [0,1,2,3]
+foldl1 == reduce
+
+max alist = foldl1 (\x y -> if x > y then x else y) alist
+
+
+-- [1,2,3] [4,5]  to  [(1,4),(1,5),(2,4),(2,5),(3,4),(3,5)]
+f l1 l2 = [(x,y) | x <- l1, y <- l2];  f [1,2,3] [4,5] == liftA2 (,) [1,2,3] [4,5]
+
+
+
 common functions Prelude Data.List Data.Map Data.Char Data.Set
 https://www.jianshu.com/p/9ba09fe14208
 
+
+REMEMBER FILTER EMPTY STRINGS AFTER SPLITON
+
+f' = const f
+f = fix (const f)
+
+filter (/= "") . splitOn "\r\n" $ str
+
+reduce f (x:xs) = L.foldl f x xs
+isContained :: [Text] -> Text -> Bool
+isContained xs msg = reduce (&&) . fmap (`T.isInfixOf` msg) $ xs
+
+getElem :: Int -> [a] -> Maybe a
+getElem n = fmap fst . L.uncons . L.drop n
+
+catMaybes :: [Maybe a] -> a
+better than filter (/= Nothing) [Maybe a]
+
+null . filter is Data.List.any
+see Data.List.all too
+
+toText = En.decodeUtf8With lenientDecode
+reduce f (x:xs) = L.foldl f x xs
+
+Data.ByteString
+splitOn = tokenise
+tokenise x y = h : if null t then [] else tokenise x (drop (length x) t)
+    where (h,t) = breakSubstring x y
+
+haskell's list isn't array, vector is array, Data.Vector
+python's list is array, array can do slice quickly
+[1,2,3,5,7] : [2:3]  == take 2 . drop 3 == Data.Vector.slice 3 2 $ fromList [1,2,3,57]
+
+Haskell's list is a singly-linked list in regular parlance.
+haskell's record like C's structure
+
+drop an element of a list with specific index? like drop 1 ['a','b','c','d] == ['a','c','d']
+take n xs ++ drop (n + 1) xs
+
+deleteByIndex :: Int -> [a] -> [a]
+deleteByIndex n xs = take n xs ++ drop (n + 1) xs
+deleteByIndex 2 [1,2,3,5,7,8] == [1,2,5,7,8]
+
+
+
+l = [1,2,8,7,2,5,5,9,0,2,0,3]
+l2 = zip [0..] l
+l2 == [(0,1),(1,2),(2,8),(3,7),(4,2),(5,5),(6,5),(7,9),(8,0),(9,2),(10,0),(11,3)]
+
+-- this will insert x into a list that list removed x itself, then insert it for sort
+fmap (\x -> insert (snd x) (deleteByIndex (fst x) l)) l2
+== [[1,2,8,7,2,5,5,9,0,2,0,3],[1,2,8,7,2,5,5,9,0,2,0,3]...]
+
+
+
+fmap insert [x, xs without x]
+
+fmap work on changing function and changing list
+
+
+zip [0..] ['a'..'z']
+
+
+
+
+
+deleteByElementOnce = Data.List.delete
+deleteByElementOnce 2 [1,2,2,3] == [1,2,3]
+
+deleteAllElements x xs = filter (`notElem` [x]) xs
+deleteAllElements 2 [1,2,2,3] == [1,3]
+
+fmap (\x -> insert x (deleteByIndex xs
+
+
+----------------------------------------
+4kyu permutations
+
+[1,2,3] has 3x2x1 ways to permutation, O(n!)
+
+--------------------------------------------------------
+4kyu
+
+[0,1,2,3] 0 to 1, then 0 to 2, then 0 to 3, then 1 to 2 , 1 to 3, 2 to 3
+
+-----------------------------------------------------------
+4kyu groupBy
+
+[0,1,2,3] 0 to 1 then 1 to 2 then 2 to 3, not 0 to 1 then 0 to 2 then 0 to 3
+
+f l1 l2 = [(x,y) | x <- l1, y <- l2];  f [1,2,3] [4,5] == liftA2 (,) [1,2,3] [4,5]
+
+zip xs ys = [(xs !! i, ys !! i), i <- [0 .. min (length xs) (length ys)]]
+
+let xs = [0, 1, 2, 3, 5, 7] in zip3 xs (drop 1 xs) (drop 2 xs) == [(0,1,2),(1,2,3),(2,3,5),(3,5,7)]
+
+l = zip [0,1,2,3,5,7] (tail [0,1,2,3,5,7]) == [(0,1),(1,2),(2,3),(3,5),(5,7)]
+f (x,y) = if (x - y) == (-1) then True else False
+l2 = fmap f l == [True,True,True,False,False]
+l3 = zip l2 l == [(True,(0,1)),(True,(1,2)),(True,(2,3)),(False,(3,5)),(False,(5,7))]
+l4 =  (filter fst l3) : [(filter (not . fst) l3)] == [[(True,(0,1)),(True,(1,2)),(True,(2,3))],[(False,(3,5)),(False,(5,7))]]
+l5 = (fmap (fst . snd) (l4 !! 0)) <> [(snd . snd . last) (l4 !! 0)] == [0,1,2,3]
+l6 =  fmap (snd . snd) (l4 !! 1) == [5,7]
+l7 = fmap (:[]) l6 == [[5],[7]]
+result = [l5, l7]
+
+-- this groupBy only check 0 to 1, the 0 to 2, then 0 to 3...
+Data.List.groupBy (\x y -> if (x - y) == (-1) then True else False) [0,1,2,3,5,6] == [[0,1],[2,3],[5,6]]
+
+-- this groupBy would check 0 to 1, then 1 to 2, then 2 to 3
+Data.List.GroupBy.groupBy (\x y -> if (x - y) == (-1) then True else False) [0,1,2,3,5,6] == [[0,1,2,3],[5,6]]
+
+--------------------------------------------------------------------------------------------------
 mconcat = foldl1 <>
 
 a = zip [0..] "test!" == [(0,'t'),(1,'e'),(2,'s'),(3,'t'),(4,'!')]
@@ -27,6 +211,11 @@ unfoldr (\xs -> let (b,e) = splitAt 2 xs in (b,e) <$ guard (not (null b))) [1..6
 filterEmptyList x = filter (not . Data.List.null) x
 
 -- remove spaces length > 3
+
+
+
+
+
 foldl1 (<>) (filter (\a -> not ((length a) > 3 && (" " `isInfixOf` a))) (group "a b    d ef")) == "a bd ef"
 
 -- turn spaces length > 3 to 3 spaces
