@@ -1,4 +1,12 @@
 
+forever, replicate and cycle
+
+replicate 3 9 == [9,9,9]
+cycle [3] == [3,3,3,3,3...]
+replicateM 3 (print 3) -- will call 3 times `print 3` and return a result [(),(),()]
+forever (print 3) -- will `print 3` forever
+
+
 https://hackage.haskell.org/package/groupBy-0.1.0.0/docs/Data-List-GroupBy.html
 Data.List.groupBy (<=) [1,2,2,3,1,2,0,4,5,2]
 [[1,2,2,3,1,2],[0,4,5,2]]
