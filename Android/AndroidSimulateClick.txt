@@ -1,0 +1,29 @@
+https://blog.csdn.net/icyfirekiss/article/details/86657775
+
+0, it needs root privilege, so magisk or supersu to granted your app
+0.5, it needs "package names viewer" to get apk's name
+0.7, it needs adb shell getevent to get button's position where you want to click
+
+1. open an app, adb shell; getevent
+2. click that buttons in app; now get message from adb
+3. find 0035 and 0036 lines, get the followed hex number
+4. change hex number to decimal, then `input tap x y` that number 
+
+tried to get button's position with view.getX or event.getX, not luck
+
+ws.setOnTouchListener(object : View.OnTouchListener {
+            override fun onTouch(v: View?, event: MotionEvent?): Boolean {
+                when (event?.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        val x = event.getX().toString()
+                        val y = event.getY().toString()
+                        val vx = ws.left.toString()
+                        val vy = ws.right.toString()
+                        val p = vx + " and " + vy
+                        println(p)
+                    }
+
+
+use "Package Names Viewer" app to get all apk's enter name and activity
+
+
