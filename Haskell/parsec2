@@ -1,0 +1,384 @@
+
+
+consume all on input
+only consume the begin on input
+not consume on input
+
+when parser1 is consumed, then parser2 will consumed the rest, not from the beginning, only when use <|> , parser1 failed, parser2 will from beginning
+
+-----------------------------------
+repeat 4 times
+parse (count 4 letter) "ahoythere" == Right "ahoy"
+
+a till b
+parse (manyTill letter digit) "hello12345" == Right "hello"
+
+choice [parse]
+parse (choice [string "ab", string "ac"]) "" "ac"
+choice is very like <|>, apply all parses on input, until one of them success
+but it has the same issue with <|>, if the parser only consume the beginning of
+input, then it will fail, not to try others
+
+should use 
+
+parse (try (string "ab") <|> (string "ac")) "" "ac" == Right "ac"
+
+parseLetterDigit = do
+  x <- many (try (letter <|> digit))
+  return x
+
+
+letterDigit = do
+  x <- many letter
+  spaces
+  y <- many digit
+  return (x,y)
+
+letterDigit = (,) <$> (many letter <* spaces) <*> (many digit)
+letterDigit = (,) <$> (many letter) <*> (spaces *> (many digit))
+letterDigit = liftA2 (,) (many letter) (spaces *> many digit)
+
+parse ((,) <$> char 'a' <*> char 'b') "ab" == Right ('a','b')
+it seems parse make (,) work on char 'a''s result and char 'b' result
+
+when parser1 is consumed, then parser2 will consumed the rest, not from the beginning, only when use <|> , parser1 failed, parser2 will from beginning
+
+parse (char 'a' *> char 'b') "" "ab" == Right 'b'
+parse (char 'a' <* char 'b') "" "ab" == Right 'a'
+
+a $> b, if parser a is consumed sucessfully, return with b
+
+parse (char 'a' $> "h") "" "ab" == Right "h"
+parse ('h' <$ char 'a') "" "ab" == Right 'h'
+
+parseTest parser input, it will output IO (), not Right a
+
+parseTest (string "ab") "abc" :: IO ()
+parseTest (spaces) " c" :: IO ()
+but it will only return IO (), so it can't use for code
+
+https://www.cnblogs.com/ncore/p/6892500.html
+
+-------------------------------------------
+<?> create your own error message
+
+parse (Parsec.string "hello" <?> "a common greeting") "wrongstring"
+Left "(source)" (line 1, column 1):
+unexpected "w"
+expecting a common greeting
+
+not consume
+ghci> -- this fails without consuming any input:
+ghci> parse (Parsec.string "apple" <|> Parsec.string "bat" <?> "boom!") "cat"
+Left "(source)" (line 1, column 1):
+unexpected "c"
+expecting boom!
+
+consume a part
+ghci> -- this consumes input before failing:
+ghci> parse (Parsec.string "apple" <|> Parsec.string "bat" <?> "boom!") "aunty"
+Left "(source)" (line 1, column 1):
+unexpected "u"
+expecting "apple"
+
+https://www.cnblogs.com/ncore/p/6892500.html
+
+---------------------------------------------------------------------
+Alternative require to implement <|>, and Either a is not an instance of Alternative
+
+
+<iqubic> Why is there no Alternative instance for (Either a)? Like, why is
+         that not a thing?                                              [10:51]
+<pavonia> (Left <$> string "abc") <|> (Right <$> spaces)
+<siraben> Weird, Either a is a monad just like Maybe
+<koz_> iqubic: What would 'empty' be?
+<iqubic> That doesn't work, for the reasons outlined.
+<siraben> In fact Maybe a ~ Either () a
+<iqubic> koz_: IDK.
+<koz_> That's why. :P                                                   [10:52]
+-----------------------------------------------------------
+
+<guest1221> littleme_: 加try会把<|>两条的path都走一遍然后返回right way,
+                                                                        [12:06]
+<guest1221> 不加当匹配left那条way时只要开头匹配上了就只会完全去匹配，匹配失败
+            直接返回
+<guest1221> littleme_: <|>在megaparsec会全部匹配，在parsec就不会，除非加try
+                                                                        [12:07]
+<guest1221> parsec坑爹呀，
+<guest1221> 我一开始还以为是我类型写的不对导致<|>不能用
+
+parsec坑爹呀，a <|> b只要a开头匹配上了就只完全匹配a，一旦失败直接失败返回根本不再去匹配b，
+但我们需要的是如果a匹配失败去匹配b呀，人家megaparsec就能会把a和b都匹配了返回正确的那个，
+parsec需要加try才会a匹配失败去匹配b
+
+最好不要在两个parse里面使用相同的前缀，否则会永远匹配前面那个，或者加上try在parsec,在megaparsec不用加try
+<pavonia> guest1221: e.g. parse (string "ab" <|> string "ac") "" "ac" will
+          fail, because the "a" of "ab" already matches but then "b" fails
+
+<pavonia> parse (try (string "ab") <|> string "ac") "" "ac" will work, though
+
+http://blog.ezyang.com/2014/05/parsec-try-a-or-b-considered-harmful/
+-----------------------------------------------------------
+parse (spaces <|> string "ab") "" " ab"  won't work
+<|> need the same type, <|> :: f a -> f a -> f a
+
+parse spaces on input would get Right () :: Either _ ()
+parse string "ab" on input would get Right "ab" :: Either _ String
+
+Either _ () <|> Either _ String is not ok
+
+(parse (string "ab") "" "ab") :: Either ParseError String
+(parse spaces "" " s") :: Either ParseError ()
+
+so 
+
+parse ((Left <$> spaces) <|> (Right <$> string "ab")) "" " ab"
+
+Right () and Right "ab" don't the same type
+so it has to be Left () and Right "ab"
+Left () :: Either () String
+Right "ab" :: Either () String
+
+<guest1221> pavonia: why it can't be Right <$> string "abc"?            [11:03]
+<pavonia> It can, but then spaces has to be Left                        [11:05]
+<guest1221> pavonia: why?                                               [11:06]
+<pavonia> (<|>) expects two parsers of the same type, but string "abc" and
+          spaces apparently doesn't have the same type
+
+<pavonia> so you have to wrape some datatype around to make them equal
+<pavonia> With Left/Right then both have type Parser (Either String ()) or
+          whatever parser type it is exactly
+
+---------------------------------------------------------------
+
+<|> in parsec and megaparsec has different behaviors
+
+in parsec
+parse (string "ab" <|> string "ac") "" "ac" 
+will fail, because the "a" of "ab" already matches but then "b" fails
+
+parse (try (string "ab") <|> string "ac") "" "ac" will work, though
+<pavonia> guest1221: This is how Parsec works. Once a path looks correct (the
+          first part matches), Parsec will never give up on this path. So
+          either the rest also parses successfully or it will fail. With "try"
+          you can tell it to give up this path, even if some character already
+          have been parsed successfully, and try another alternative if there
+          is one
+
+but in megaparsec
+
+parse (string "ab" <|> string "ac") "" "ac"  will work
+
+
+<guest1221> pavonia: wow, but should people expect that parse (string "ab" <|>
+            string "ac") "" "ac" == Right "ac"?
+<glguy> no, not in parsec                                               [11:49]
+<glguy> yes in megaparsec
+<guest1221> pavonia: when it fails, I expect it would be Left a, then parse
+            the right one, get Right a, then Left a <|> Right a, get Right a
+                                                                        [11:50]
+<glguy> yes in attoparsec (for a different reason)
+<glguy> guest1221, you can't use parsec based on assumptions, it intends for
+        you to refactor your grammar in a particular way
+<guest1221> glguy: I should try megaparsec I think
+<glguy> megaparsec will still require you to understand it, it just happens
+        that string *in particular* matches all or nothing
+<guest1221> glguy: attoparsec come with ghc?                            [11:51]
+<glguy> attoparsec doesn't have the optimization that consuming input aborts
+        alternatives
+<glguy> only parsec does
+<glguy> there are plenty of good reasons to switch from parsec to megaparsec,
+        but you'll need to learn it just the same                       [11:52]
+
+-------------------------------------------------------------------------------------
+
+<guest1221> parse (string "abc" <|> spaces) "" "abc" won't work, because
+            string "abc" and spaces don't have the same type?
+<guest1221> <|> asks same type, is there a function doesn't ask same type and
+            do same work like <|>?                                      [10:31]
+
+<guest1221> Left "a" <|> Right "a" won't work, because Left "a" :: Either
+            String _, Right "a" :: Either _ String?
+<iqubic> Actually, Left "a" <|> Right "a" will work, and the result will have
+         type "Either String String"                                    [10:46]
+
+<siraben> indeed
+
+<guest1221> no                                                          [10:50]
+<siraben> guest1221: sure Left "a" has type Either String a for any a, and
+          likewise for Right "a", but the type of (<|>) is Alternative f => f
+          a -> f a -> f a
+<siraben> Oops the alternative is failing, iqubic 
+<siraben> no instance for Alternative (Either String)
+<guest1221> (Left "b" :: Either String String) <|> (Right "a" :: Either String
+            String)  No instance for (Alternative (Either String)) arising
+            from a use        of ‘<|>’
+<iqubic> Right. I see.
+<siraben> I was thinking of Maybe, heh
+<iqubic> Why is there no Alternative instance for (Either a)? Like, why is
+         that not a thing?                                              [10:51]
+<pavonia> (Left <$> string "abc") <|> (Right <$> spaces)
+<siraben> Weird, Either a is a monad just like Maybe
+<koz_> iqubic: What would 'empty' be?
+<iqubic> That doesn't work, for the reasons outlined.
+<siraben> In fact Maybe a ~ Either () a
+<iqubic> koz_: IDK.
+<koz_> That's why. :P                                                   [10:52]
+<siraben> koz_: ah, right
+<MarcelineVQ> alternatively   void (string "abc") <|> spaces   so the question
+              could be, what does it mean for <|> to do 'the same work' for
+              these two parsers?
+<koz_> It _can_ be an instance of Alt, in several different ways.
+<koz_> (the semigroupoids Alt)
+<guest1221> machinedgod: parse string "abc" on input will get Right "abc" or
+            Left, parse spaces would get Right ()                       [10:53]
+<koz_> Alternatively (heh) you could define (Monoid a) => Alternative (Either
+       a)                                                               [10:54]
+<guest1221> Right () <|> Right "abc" is ok?
+<guest1221> machinedgod: sorry,                                         [10:55]
+<guest1221> MarcelineVQ: 
+
+<pavonia> guest1221: Is that for a Parsec parser?
+
+<guest1221> pavonia: yes
+<pavonia> Then you cannot use Either diractly, you have to use something like
+          (Left <$> string "abc") <|> (Right <$> spaces)                [10:56]
+<Vulfe> yeah you just want to lift the Either constructors to Parser    [10:57]
+<guest1221> Prelude RIO>  (Left "b" :: Either String String) <|> (Right "a" ::
+            Either String String) ==  Right "a"
+<guest1221> https://hackage.haskell.org/package/rio
+<guest1221> pavonia: you mean parse (Left <$> string "abc" <|> (Right <$>
+            spaces) "" "abc"?                                           [10:59]
+<guest1221> I thought parse (string "abc") "" "abc" will get Right a    [11:00]
+<guest1221> and parse spaces "" "abc" will get Left a
+<pavonia> Ther are ( ) missing, but yes
+<guest1221> parse spaces "" " abc" will get Right ()
+<pavonia> What I pasted should give Right (Left "abc") and Right (Right
+          ()). respectively                                             [11:01]
+<guest1221> pavonia: why it can't be Right <$> string "abc"?            [11:03]
+<pavonia> It can, but then spaces has to be Left                        [11:05]
+<guest1221> pavonia: why?                                               [11:06]
+<pavonia> (<|>) expects two parsers of the same type, but string "abc" and
+          spaces apparently doesn't have the same type
+
+<pavonia> so you have to wrape some datatype around to make them equal
+<pavonia> With Left/Right then both have type Parser (Either String ()) or
+          whatever parser type it is exactly                            [11:07]
+<guest1221> pavonia: right, string "ab" would be Either _ String, spaces would
+            be Either _ ()
+<pavonia> No                                                            [11:08]
+<pavonia> In Either a b, Left has type a, Right has type b
+
+<guest1221> (parse (string "ab") "" "ab") :: Either ParseError String   [11:09]
+<guest1221> (parse space "" " s") :: Either ParseError Char
+<Vulfe> right, which you want to change to Either ParseError (Either String
+        ())
+<guest1221> (parse spaces "" " s") :: Either ParseError ()
+<pavonia> Note that parse adds an extra layer of Either                 [11:10]
+<Vulfe> so you want to construct two parsers of type Parser (Either String ())
+        or whatever the library uses
+<Vulfe> so the return type of parse will be Either ParseError (Either String
+        ())                                                             [11:11]
+
+<Vulfe> Left for instance has type a -> Either a b, so fmapping it on Parser
+        gives you something of type Parser a -> Parser (Either a b)
+<guest1221> you lift the result on Either ParseError?
+<Vulfe> so if you do this on both sides with the two constructors like pavonia
+        was describing you get two parsers of the same type             [11:12]
+<Vulfe> you're not doing anything with the result per se, you're just using
+        functoriality of Parser
+<guest1221> the actual question https://paste.ubuntu.com/p/cYMKqdVQtT/  [11:13]
+
+<guest1221> parser a can parse on input1, parser b can parse input2, then
+            parse (a <|> b) "" input1 would work, but parse (a <|>b) "" input2
+            won't                                                       [11:14]
+<guest1221> it's because parser a and b don't have the same type?
+<pavonia> There both alternatives do have the same type Parser (Stirng,
+          String)                                                       [11:15]
+<pavonia> Do you actually get a compiler error?
+
+<guest1221> pavonia: Left (line 1, column 3):unexpected "l" expecting space or
+            "print"                                                     [11:16]
+
+<pavonia> Both parsers start parsing spaces, so alway parsePrint is chosen
+          which then fails at "let"                                     [11:18]
+<guest1221> pavonia: when a.bc is 10 print "ok", it would be Right
+            ("print","ok")
+<guest1221> work on "10 let a = 1" it will be Left (line 1, column
+            4):unexpected "l"expecting space or "print"                 [11:19]
+<pavonia> You need backtracking here (or to rewrite your parsers
+          completely). Have a look at the "try" function of Parsec
+<pavonia> Also read
+          http://blog.ezyang.com/2014/05/parsec-try-a-or-b-considered-harmful/
+
+
+<guest1221> pavonia: very very weird, I just add `try` on that parserLet and
+            parserPrint, it both works now, no other code changed       [11:36]
+<guest1221> I don't understand
+<guest1221> https://paste.ubuntu.com/p/cYMKqdVQtT/                      [11:37]
+<guest1221> https://paste.ubuntu.com/p/cYMKqdVQtT/                      [11:38]
+<guest1221> those parser are same, only the after ones have `try` before `do`,
+            and the second parse successfully, what's the magic???      [11:39]
+<glguy> You shouldn't start your parsers with 'spaces', you should be ending
+        your parsers with that                                          [11:40]
+<glguy> and then parsePrint and parseLet overlap at the start with their
+        lineNum stuff                                                   [11:41]
+<dmj`> peak haskell is scanl' on the job
+
+<glguy> guest1221, ideally you'd factor factor that common prefix out of the
+        two parsers                                                     [11:43]
+<pavonia> guest1221: This is how Parsec works. Once a path looks correct (the
+          first part matches), Parsec will never give up on this path. So
+          either the rest also parses successfully or it will fail. With "try"
+          you can tell it to give up this path, even if some character already
+          have been parsed successfully, and try another alternative if there
+          is one                                                        [11:45]
+<pavonia> guest1221: e.g. parse (string "ab" <|> string "ac") "" "ac" will
+          fail, because the "a" of "ab" already matches but then "b" fails
+                                                                        [11:46]
+<pavonia> parse (try (string "ab") <|> string "ac") "" "ac" will work, though
+
+<guest1221> pavonia: wow, but should people expect that parse (string "ab" <|>
+            string "ac") "" "ac" == Right "ac"?
+<glguy> no, not in parsec                                               [11:49]
+<glguy> yes in megaparsec
+<guest1221> pavonia: when it fails, I expect it would be Left a, then parse
+            the right one, get Right a, then Left a <|> Right a, get Right a
+                                                                        [11:50]
+<glguy> yes in attoparsec (for a different reason)
+<glguy> guest1221, you can't use parsec based on assumptions, it intends for
+        you to refactor your grammar in a particular way
+<guest1221> glguy: I should try megaparsec I think
+<glguy> megaparsec will still require you to understand it, it just happens
+        that string *in particular* matches all or nothing
+<guest1221> glguy: attoparsec come with ghc?                            [11:51]
+<glguy> attoparsec doesn't have the optimization that consuming input aborts
+        alternatives
+<glguy> only parsec does
+<glguy> there are plenty of good reasons to switch from parsec to megaparsec,
+        but you'll need to learn it just the same                       [11:52]
+
+<guest1221> ok
+                                                                        [11:58]
+<iqubic> If you approach learning how to use a libriary with the mindset of
+         "It makes the most sense for it to work in this way, so I'll just
+         assume it works in this fashion." You're only setting yourself up for
+         failure when you find out that it doesn't actually work in the way
+         you find most sensible.                                        [11:59]
+
+
+<nshepperd2> string doesn't match all or nothing in parsec? how unfortunate
+
+<glguy> nshepperd2, I think since it's often not enough to try just the string
+        part that it's not that bad that parsec is like that            [12:29]
+<glguy> it's too easy for string "abc" to match the prefix of "abcd"
+<glguy> and have that not be what you wanted
+<glguy> the try would usually go further outside than a single string
+<glguy> I think parsec is just convenient enough that it gives the illusion
+        that it's simple to use :)                                      [12:31]
+<nshepperd2> i suppose so                                               [12:32]
+<nshepperd2> try (string "keyword" *> wordBoundary) <?> "keyword"       [12:33]
+<glguy> for keywords I think it's more likely that you'd do something like:
+        identifier <- parseId; and then test which one you got          [12:35]
+
+<glguy> using parsec for anything serious is work
