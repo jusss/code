@@ -57,7 +57,24 @@ parseTest (string "ab") "abc" :: IO ()
 parseTest (spaces) " c" :: IO ()
 but it will only return IO (), so it can't use for code
 
+runParser
+
 https://www.cnblogs.com/ncore/p/6892500.html
+
+--------------------------------------------
+
+1, use many to instead of endBy or sepBy, many parser need to consume spaces at the end of input
+2, use try in parser to instead of in many
+3, parseTest has IO (), it's only used to test, use parse to code
+
+parser1 = try $ do ...
+parser2 = try $ do ...
+many (parser1 <|> parser2)
+
+instead of
+
+many (try parser1 <|> parser2)
+        
 
 -------------------------------------------
 <?> create your own error message
