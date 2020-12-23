@@ -1,0 +1,8 @@
+1. Android Studio, install plugin, GsonOrXmlFormat, restart Android Studio
+2. cd into your project, create a java class file named JTM, right click "Generate" -> "GsonOrXmlFormat" -> 
+  paste your json string,
+3. it will generate a class JTM, then in your code
+ val gson = GsonBuilder().create()
+ val object1 = gson.fromJson(jsonMsg, JTM::class.java)
+ object1.fileStatuses.fileStatus.map { println(it.pathSuffix) }
+ this fileStatuses is key in your jsonMsg
