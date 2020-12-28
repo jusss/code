@@ -1,0 +1,41 @@
+
+1.0.1 may init Dispatchers.Main failed, so use 1.1.0
+
+implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.1.0'
+implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.1.0"
+
+private var viewModelJob = Job()
+private val uiScope = CoroutineScope(Dispatchers.Main + viewModelJob)
+
+uiScope.launch {
+            withContext(Dispatchers.IO) {
+                //Do background tasks...
+                withContext(Dispatchers.Main){
+                    //Update UI
+                }
+            }
+        }
+
+
+don't use two different Dispatchers in one launch
+-- this is wrong
+uiScope.launch {
+ withContext(Dispatchers.IO) {...}
+ withContext(Dispatchers.Main) {...}
+} 
+
+-- this is right
+uiScope.launch {
+ withContext(Dispatchers.IO) {
+   ...
+   withContext(Dispatchers.Main) {...}
+ }
+}
+
+-- or 
+uiScope.launch {
+ withContext(Dispatchers.IO) {...}
+ withContext(Dispatchers.IO) {...}
+} 
+
+https://stackoverflow.com/questions/53079234/how-to-update-ui-in-coroutines-in-kotlin-1-3
