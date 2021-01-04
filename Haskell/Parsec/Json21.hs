@@ -1,5 +1,7 @@
 import Text.Parsec hiding (try)
 import Text.ParserCombinators.Parsec
+import Text.Parser.Token
+-- cabal install parsers
 
 -- 1. raw string " {"a":{"b":"c"}, "d":["e","f", {"h":"i"}]} "
 -- because Java's type, so {"a":"b", "c":[3]} is not ok
@@ -8,7 +10,7 @@ import Text.ParserCombinators.Parsec
 -- 4. parseT and parsers within it are calling each other, mutual-recursion
 
 data Json = String String 
-            | Int Int
+            | Int Integer
             | List [Json]
             | Map String Json deriving Show
 
@@ -23,10 +25,15 @@ main = do
 
 parseT = parseInt <|> parseString <|> parseList <|> parseMap <|> parseUnit <|> parseUnits
 
+-- parseInt :: Parser Json
+-- parseInt = try $ do
+--     l <- many1 digit -- weird, many digit won't work, it cause Prelude.read: no parse, but many1 digit works
+--     return $ Int (read l)
+
 parseInt :: Parser Json
 parseInt = try $ do
-    v <- many1 digit
-    return $ Int (read v)
+    l <- decimal
+    return $ Int l
                                    
 parseString :: Parser Json         
 parseString = try $ do             

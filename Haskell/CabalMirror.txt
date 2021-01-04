@@ -1,0 +1,20 @@
+https://mirrors.tuna.tsinghua.edu.cn/help/hackage/
+vim ~/.cabal/config
+
+repository mirrors.tuna.tsinghua.edu.cn
+  url: http://mirrors.tuna.tsinghua.edu.cn/hackage
+
+and comment the official repo
+
+also that stack won't work even use `proxychains stack update` 
+because stack put something on AWS and raw.githubusercontent.com is blocked
+
+cd ~/Parsec
+cabal update
+cabal init -- and call project Parsec, and executable, not library
+cabal install parsers
+
+vim Parsec.cabal -- append parsers to build-depends
+cabal configure
+cabal build
+./dist/build/Parsec/Parsec
