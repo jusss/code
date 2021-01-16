@@ -1,0 +1,160 @@
+// upload file with percent show in proress bar
+
+    suspend fun uploadFile(addr: String, uri: Uri, updateUi: UpdateUploadUi) {
+        val output = httpClient.put<HttpResponse>(addr)
+        println("this is upload test ${output.headers["Location"]}")
+        val realUrl = output.headers["Location"]?:""
+        val readInputStream = updateUi.getInputStream(uri)?:File("").inputStream()
+        val count = updateUi.length(uri)
+	// ByteWriteChannel is type or response body, not request, to send request body use client.put<ResponseType>(url) {body = ... }
+        val result = httpClient.put<ByteWriteChannel>(realUrl) {
+            body = StreamContent(readInputStream, count, updateUi)
+        }
+    }
+
+
+class StreamContent(private val inputStream: InputStream, val total: Long, val updateUi: UpdateUploadUi): OutgoingContent.WriteChannelContent() {
+    override suspend fun writeTo(channel: ByteWriteChannel) {
+        val readChannel = inputStream
+        var copiedBytes: Long
+        var count : Long = 0
+        var percent = 0.00
+        do {
+            copiedBytes = readChannel.copyTo(channel, 1024)
+            count =  count + copiedBytes
+            percent = (count.toDouble() / total.toDouble()) * 100
+            updateUi.updateProgress(percent.toInt())
+            println("reading files now! count is $count")
+            println("count is $count, total is $total, percent is $percent")
+        } while (copiedBytes > 0)
+
+        readChannel.close()
+        channel.flush()
+        channel.close()
+    }
+    override val contentLength: Long = total
+}
+
+-----------------------------------------------------
+// upload file stream
+
+    suspend fun uploadFile(addr: String, uri: Uri, updateUi: UpdateUi) {
+        val client = HttpClient(CIO) {
+            followRedirects = false
+        }
+        val output = client.put<HttpResponse>(addr)
+        println("this is upload test ${output.headers["Location"]}")
+        val realUrl = output.headers["Location"] ?: ""
+        val filePath = Environment.getExternalStorageDirectory().path + "/wnyphone/" + "sd.jpg"
+        println(File(filePath).inputStream().read().toString())
+        val result = client.put<ByteWriteChannel>(realUrl) {
+            body = StreamContent(File(filePath))
+        }
+    }
+
+
+class StreamContent(private val pdfFile:File): OutgoingContent.WriteChannelContent() {
+    override suspend fun writeTo(channel: ByteWriteChannel) {
+        val readChannel = pdfFile.inputStream().channel
+        var copiedBytes: Long
+        var count : Long = 0
+        do {
+            copiedBytes = readChannel.copyTo(channel, 1024)
+            count =  count + copiedBytes
+            println("reading files now! count is $count")
+        } while (copiedBytes > 0)
+    }
+    override val contentType = ContentType.Application.Pdf
+    override val contentLength: Long = pdfFile.length()
+}
+
+
+---------------------------------
+
+//get file stream
+
+    suspend fun getFile(name: String, addr: String, invalid_count: Int, updateDownloadUi: UpdateDownloadUi) {
+        println("before 1")
+        val filePath = Environment.getExternalStorageDirectory().path + "/wnyphone/" + name
+        val checkDir = Environment.getExternalStorageDirectory().path + "/wnyphone/"
+        if (!File(checkDir).exists()) {
+            File(checkDir).mkdir()
+        }
+        if (File(filePath).exists()) {
+            File(filePath).delete()
+        }
+
+        val file = File(filePath)
+        val fos = FileOutputStream(file)
+
+        val client = HttpClient(CIO) {
+            followRedirects = false
+        }
+        val _result = client.get<HttpResponse>(addr)
+//        val readInputStream = client.get<InputStream>(_result.headers["LOCATION"]?:"")
+        client.get<HttpStatement>(_result.headers["LOCATION"]
+                ?: "").execute { response: HttpResponse ->
+            // Response is not downloaded here.  this won't read whole file bytes 
+            val channel = response.receive<ByteReadChannel>()
+            val count = response.headers["Content-Length"]?.toInt()?:1
+            println("this is the length $count")
+            val readInputStream = channel.toInputStream()
+            val buffer = ByteArray(1024)
+            var len: Int
+            var total = 0
+            var percent = 0.00
+            while (((readInputStream.read(buffer)).also { len = it }) != -1) {
+                percent = (total.toDouble() / count.toDouble()) * 100
+                updateDownloadUi.updateProgress(percent.toInt())
+                fos.write(buffer, 0, len)
+                total += len
+                println("this is total $total , this is count $count , this is percent $percent")
+            }
+            fos.close()
+            readInputStream.close()
+            updateDownloadUi.activityFinish()
+        }
+    }
+
+
+-----------------------------------------------------------------
+https://stackoverflow.com/questions/56706485/in-ktor-how-can-i-stream-an-inputstream-into-a-httpclient-requests-body
+
+
+
+One way to achieve that is to create a subclass of OutgoingContent.WriteChannelContent, and set it to the body of your post request.
+
+An example could look like this:
+
+class StreamContent(private val pdfFile:File): OutgoingContent.WriteChannelContent() {
+    override suspend fun writeTo(channel: ByteWriteChannel) {
+        val readChannel = pdfFile.inputStream().channel
+        var copiedBytes: Long
+        do {
+            copiedBytes = readChannel.copyTo(channel, 1024)
+        } while (copiedBytes > 0)
+    }
+    override val contentType = ContentType.Application.Pdf
+    override val contentLength: Long = pdfFile.length()
+}
+
+
+// in suspend function
+val pdfFile = File("c:\\tmp\\foo.pdf")
+val client = HttpClient()
+val result = client.post<HttpResponse>("http://upload.url") {
+    body = StreamContent(pdfFile)
+}
+------------------------------------------------------------------
+get file size by uri
+
+    fun length(context: Context, uri: Uri): Long =
+            when (uri.scheme) {
+                ContentResolver.SCHEME_FILE -> File(uri.path).length()
+                ContentResolver.SCHEME_CONTENT -> try {
+                    context.contentResolver.openFileDescriptor(uri, "r")?.statSize ?: 0
+                } catch (e: Exception) {
+                    0L
+                }
+                else -> 0L
+            }

@@ -1,0 +1,150 @@
+why take a HttpResponse from a download link would take a long time?
+  val client = HttpClient(CIO) {
+        followRedirects = false
+    }
+        val _result = client.get<HttpResponse>(addr)
+        val readInputStream = client.get<InputStream>(_result.headers["LOCATION"]?:"")
+//        val count = client.get<HttpResponse>(_result.headers["LOCATION"]?:"")
+the comment line would take a long time
+
+
+-----------------------------------------------------
+disable redirect, take two steps to get two HttpResponse,
+this _result.header["LOCATION"] is a download link 
+read a http respone from this link would take a long time
+
+  val client = HttpClient(CIO) {
+        followRedirects = false
+    }
+        val _result = client.get<HttpResponse>(addr)
+        val readInputStream = client.get<InputStream>(_result.headers["LOCATION"]?:"")
+//        val count = client.get<HttpResponse>(_result.headers["LOCATION"]?:"")
+        val co = count.headers["Content-Length"]?.toInt()
+this comment line take a huge time
+
+
+------------------------------------------------------
+ktor client and ktor server,
+ktor server is like web frame SpringBoot Django whatever,
+ktor client is like HttpUrlConnection OkHttp Requests whatever,
+
+redirect for GET request is default 
+POST/PUT are not default to redirect
+
+// disable on request level
+val client = HttpClient(CIO) {
+install(HttpRedirect) {
+   checkHttpMethod = false
+}}
+
+// disable redirect
+val client = HttpClient(CIO) {
+        followRedirects = false
+    }
+
+
+for redirect you can use HttpResponse to get 
+
+ val output = client.put<HttpResponse>(addr)
+        println("this is upload test ${output.headers["Location"]}")
+
+you can't just request headers, but you can receive whole response and get headers from it
+
+io.ktor.client.call.NoTransformationFoundException: No transformation found: class io.ktor.utils.io.ByteBufferChannel (Kotlin reflection is not available) -> class java.io.OutputStream (Kotlin reflection is not available)
+
+it just says that there is no way to get OutputStream directly from request, and what is the reason for this? you cannot write anything there anyway
+
+you probably want to write to request, not receive it
+
+write file to url Requests
+  client.put<ByteArray>(realUrl){
+            body = "aha".toByteArray()
+        }
+
+it's weird, I didn't find what I need install
+https://ktor.io/docs/requests.html#post-put-and-patch
+but I find it 
+https://ktor.io/docs/examples.html#example-json
+
+
+
+I just copycat that POST usage and use it for PUT, and it just worked!
+this doc about Ktor server, not ktor client,
+
+It also mentioned in client doc about request itself:
+https://ktor.io/docs/request.html#specifying-a-body-for-Requests
+Also you original issue mentioned here:
+https://ktor.io/docs/response-validation.html#expect-success
+but way to fix it a bit different, just disable whole feature, not only disable it on request level
+
+
+
+upload to redirect link
+
+ val client = HttpClient(CIO) {
+        followRedirects = false
+    }
+    suspend fun uploadFile(addr: String, uri: Uri, updateUi: UpdateUi) {
+        val output = client.put<HttpResponse>(addr)
+        println("this is upload test ${output.headers["Location"]}")
+        val realUrl = output.headers["Location"]?:""
+        client.put<ByteArray>(realUrl){
+            body = "aha".toByteArray()
+        }
+
+
+download from redirect link
+
+ suspend fun getFile(name: String, addr: String) {
+        val filePath = Environment.getExternalStorageDirectory().path + "/wnyphone/" + name
+        val checkDir = Environment.getExternalStorageDirectory().path + "/wnyphone/"
+        if (!File(checkDir).exists()) {
+            File(checkDir).mkdir()
+        }
+        if (File(filePath).exists()) {
+            File(filePath).delete()
+        }
+        val file = File(filePath)
+        val fos = FileOutputStream(file)
+        val result = httpClient.get<HttpResponse>(addr)
+
+//        val readChannel = result.receive<ByteReadChannel>()
+        val readInputStream = result.receive<InputStream>()
+        val buffer = ByteArray(1024)
+        var len: Int
+        var total = 0
+        while (((readInputStream.read(buffer)).also { len = it }) != -1) {
+            fos.write(buffer, 0, len)
+            total += len
+        }
+        fos.close()
+    }
+
+
+
+https://ktor.io/docs/response-validation.html#expect-success
+val client = HttpClient() {
+    expectSuccess = false
+}
+
+this can disable 300 Temp redirect exception
+
+
+https://ktor.io/docs/request.html#specifying-a-body-for-Requests
+this can use the body for Requests
+
+client.post<Unit> {
+    url("http://127.0.0.1:8080/")
+    body = // ...
+}
+
+
+
+ val message = client.post<HelloWorld> {
+            url("http://127.0.0.1:8080/")
+            contentType(ContentType.Application.Json)
+            body = HelloWorld(hello = "world")
+        }
+
+
+

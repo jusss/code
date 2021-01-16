@@ -1,0 +1,256 @@
+ktor client upload 
+val client = HttpClient(CIO) {
+        followRedirects = false
+    }
+suspend fun uploadFile(addr: String, uri: Uri, updateUi: UpdateUi) {
+        val output = client.put<HttpResponse>(addr)
+        println("this is upload test ${output.headers["Location"]}")
+        val realUrl = output.headers["Location"]?:""
+//        val re = client.put<HttpResponse>(realUrl){
+//            body = "aha"
+//        }
+        client.put<ByteArray>(realUrl){
+            body = "aha".toByteArray()
+        }
+-----------------------------------
+ktor-client redirect download file
+    suspend fun getFile(name: String, addr: String) {
+        val filePath = Environment.getExternalStorageDirectory().path + "/" + name
+        if (File(filePath).exists()) {
+            File(filePath).delete()
+        }
+        val file = File(filePath)
+        val fos = FileOutputStream(file)
+        val result = httpClient.get<HttpResponse>(addr)
+
+//        val readChannel = result.receive<ByteReadChannel>()
+        val readInputStream = result.receive<InputStream>()
+        val buffer = ByteArray(1024)
+        var len : Int
+        var total = 0
+        while (((readInputStream.read(buffer)).also { len = it }) != -1) {
+            fos.write(buffer, 0, len)
+            total += len
+        }
+        fos.close()
+    }
+
+//  val result = httpClient.get<HttpHeaders>(addr)
+//  println("this is http result $result")
+// would cause io.ktor.client.call.NoTransformationFoundException: No transformation found: class io.ktor.utils.io.ByteBufferChannel (Kotlin reflection is not available) -> class io.ktor.http.HttpHeaders (Kotlin reflection is not available
+// because you're trying to convert the response to HttpHeaders doesn't make sense.
+
+// or try this
+// client.get<HttpResponse>(imageUrl) {
+//     header("foo","bar")
+// }.let { res ->
+//     when {
+//         res.status == HttpStatusCode.OK ->
+//             saveFile(imageFile, res.receive<ByteArray>())
+//         else ->
+//             println("get failed. ${res.status} $imageUrl")
+//     }
+// }
+
+// https://ktor.io/docs/response.html#receive
+
+
+-----------------------------------------------------
+After Android Oreo 8.0, notify messages on status bar is hard,
+https://stackoverflow.com/questions/43093260/notification-not-showing-in-Oreo
+https://stackoverflow.com/questions/16045722/android-notification-is-not-showing
+https://www.codeleading.com/article/28952273553/
+https://www.jianshu.com/p/6da52149a551
+https://stackoverflow.com/questions/1871515/progress-bar-in-notification-bar-when-uploading-image
+just show download upload status in your own app's activity
+
+---------------------------------------------
+startActivity() in MainActivity to jump on another activity
+in that activity, this.finish() will return to MainActivity
+
+right click create new empty , name DownloadActivity
+in MainActivity
+        startActivity(Intent(this,DownloadActivity::class.java))
+this will jump on DownloadActivity
+in DownloadActivity will use another layout xml 
+use this.finish in DownloadActivity to exit and jump back to MainActivity
+-----------------------------------------------------
+don't run dynamic permissions on android 6.0,
+on 6.0, grant storage permission manully
+
+    fun askPermissions(){
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val strings = arrayOfNulls<String>(12)
+            strings[0] = Manifest.permission.WRITE_EXTERNAL_STORAGE
+            strings[1] = Manifest.permission.READ_EXTERNAL_STORAGE
+//            strings[2] = Manifest.permission.ACCESS_NETWORK_STATE
+//            strings[3] = Manifest.permission.ACCESS_WIFI_STATE
+//            strings[4] = Manifest.permission.READ_PHONE_STATE
+//            strings[5] = Manifest.permission.INTERNET
+//            strings[6] = Manifest.permission.CAMERA
+//            strings[7] = Manifest.permission.WRITE_APN_SETTINGS
+//            strings[8] = Manifest.permission.ACCESS_COARSE_LOCATION
+//            strings[9] = Manifest.permission.ACCESS_FINE_LOCATION
+            strings[2] = Manifest.permission.RECORD_AUDIO
+//            strings[11] = Manifest.permission.SYSTEM_ALERT_WINDOW
+            ActivityCompat.requestPermissions(this, strings, 100)
+        }
+    }
+
+    fun onRequestPermissionResult(requestCode: Int, permissions: List<String>, grantResults: List<Int>) {
+        if (requestCode == 100) {
+            if (grantResults.map { it == 0 }.contains(false)) this.finish()
+        }
+    }
+
+
+      override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        askPermissions()
+
+
+
+--------------------------------------------------
+R.drawable.ic_launcher  to R.mipmap.ic_launcher
+----------------------------------------------------------
+
+large file Manifest
+https://stackoverflow.com/questions/32244851/androidjava-lang-outofmemoryerror-failed-to-allocate-a-23970828-byte-allocatio
+  android:hardwareAccelerated="false"
+  android:largeHeap="true"
+
+---------------------------------------
+Android change app name, res/values/strings.xml 
+Change app icon, put dir5.jpg to res/drawable/
+then in AndroidManifest.xml
+change android:icon="@mipmap/ic_launcher"
+to         android:icon="@drawable/dir5"
+also roundIcon
+
+--------------------------------------------
+back key 
+  // same with onCreate
+  override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_BACK && event?.getRepeatCount() == 0) {
+            if (pathList.size > 2) {
+                pathList.removeAt(pathList.size - 1)
+            }
+            refreshUI(baseUrl + currentDirectory() + listOp)
+        }
+            return false
+    }
+
+--------------------------------------------------------
+android input dialog
+https://www.cnblogs.com/gzdaijie/p/5222191.html
+ private void showInputDialog() {
+        /*@setView 装入一个EditView
+         */
+        final EditText editText = new EditText(MainActivity.this);
+        AlertDialog.Builder inputDialog =
+                new AlertDialog.Builder(MainActivity.this);
+        inputDialog.setTitle("请输入要创建的目录名称").setView(editText);
+        inputDialog.setPositiveButton("确定",
+                new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        Toast.makeText(MainActivity.this,
+                                editText.getText().toString(),
+                                Toast.LENGTH_SHORT).show();
+                    }
+                }).show();
+    }
+
+  findViewById<Button>(R.id.createDirecotry).setOnClickListener {
+            var newDir = ""
+            val editText = EditText(this@MainActivity)
+            val inputDialog = AlertDialog.Builder(this@MainActivity)
+            inputDialog.setTitle("请输入要创建的目录名称").setView(editText)
+            inputDialog.setPositiveButton("确定") { dialog, which ->
+                newDir =  editText.text.toString()
+                updateUIScope.launch {
+                    withContext(Dispatchers.IO) {
+                        println("you input $newDir for dir")
+                        rl.createDirecotry(baseUrl + currentDirectory() + newDir + createDirOp)
+                        refreshUI(baseUrl + currentDirectory() + listOp)
+                    }
+                }
+            }.show()
+        }
+----------------------------------------
+kotlin android debug
+
+val checkeditems = listView.checkedItemPositions
+println("this is checkeditems $checkeditems")
+
+logcat search "checkeditems"
+-----------------------------------------------------
+Android 10 change it storage stratege
+
+https://zhuanlan.zhihu.com/p/89355975
+
+1. targetSDK = 29, 默认开启 Scoped Storage, 但可通过在 manifest 里添加 requestLegacyExternalStorage = true 关闭
+
+2. targetSDK < 29, 默认不开启 Scoped Storage, 但可通过在 manifest 里添加requestLegacyExternalStorage = false 打开
+build.gradle
+  targetSdkVersion 29
+
+in AndroidManifest.xml
+  <application 
+      android:requestLegacyExternalStorage="true"
+ 
+  </application>
+-----------------------------------------------
+Java的static变量对应的就是python的类变量
+单例就是一个类只有一个实例，不能被初始化，但可以直接修改属性
+Kotlin的伴生对象，和类初始化之后是两个完全不同的实例，
+伴生对象不是类的内部类，无法直接访问类的属性，但可以
+在类初始化时访问伴生对象，并修改伴生对象的属性,
+
+伴生对象无法访问类的属性，但是可以类初始化时访问伴生对象的属性
+
+
+python类变量, Java public static变量, Kotlin伴生对象
+如果伴生对象有名字就用 ClassName.CompanionName.attr去访问
+没有名字就直接ClassName.attr去访问
+
+------------------------------------------------------
+
+1. 在MainActivity里修改其它类的类变量
+2. 在其它类获取MainActivity的属性
+3. 以接口的方式把MainAcitivity实例传给其它类，来获取MainActivity的属性
+
+0. 在main_activity.xml里用RelativeLayout创建个容器，在MainActivity获取容器的id然后addView添加用类写的View
+1. 在MainActivity里实例化该类，并把MainActivity的参数传递给该类
+2. Java用constructor创建类并接受参数
+public class A {
+ public String val;
+ public A(String x){
+  this.val = x
+ }
+}
+
+
+-----------------------------------------
+
+
+android 10  android:requestLegacyExternalStorage="true"
+android 9   android:usesCleartextTraffic="true"
+
+adb run application, get apk's packages ID by "package name viewer" apk
+
+kona:/ $ am start -n com.termux/com.termux.app.TermuxActivity
+Starting: Intent { cmp=com.termux/.app.TermuxActivity }
+kona:/ $ am start -n com.aidlux/com.aidlux.app.AidluxActivity
+Starting: Intent { cmp=com.aidlux/.app.AidluxActivity }
+
+https://github.com/GitLqr/LQRRecordProgress
+
+1. import module from that files
+2. Project Structure -> Dependencies -> click 'app' then All depencdencies '+' -> Module dependency -> choose that files -> apply
+3. copy layout from github to your project's layout and code in MainActivity.kt, choose '...' view if in layout not reference shows up
+
+circle progress bar, https://www.jianshu.com/p/045aacf29891
+copy AppGlobals.java CircleProgressBar.java PixUtils.java activity_main.xml and colors.xml from CircleProgressBar to your project
