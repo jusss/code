@@ -1,3 +1,11 @@
+stream and channel are likely
+InputStream and OutputStream are sync
+ByteReadChannel and ByteWriteChannel are async
+they can transform each other
+File(uri).inputStream.channel
+File(uri).inputStream.buffered.use { it } this will take whole file 
+
+----------------------------
 why take a HttpResponse from a download link would take a long time?
   val client = HttpClient(CIO) {
         followRedirects = false
