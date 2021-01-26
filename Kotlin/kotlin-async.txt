@@ -1,0 +1,6 @@
+Global.launch { }  not return value
+
+val r = async { }
+r.wait()  has return value, but only call in coroutine
+
+runBlocking { } block main thread, coroutine insider
