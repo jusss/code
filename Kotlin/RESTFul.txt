@@ -1,0 +1,46 @@
+python-requests, kotlin fuel, retrofit, ktor, httpurlconnection, okhttp
+
+python request, data  equal body in ktor, upload whole binaries of a file,  
+requests.post(url, data=open('a.txt','rb))
+request, files = json, like requests.post(url,files={'file': open('a.txt','rb')})
+files equal to curl -F, it's a form, name and value
+
+implementation 'com.github.kittinunf.fuel:fuel:2.3.1'
+
+DON'T USE ByteArray.toString(), USE String(ByteArray)
+
+val msg : ByteArray = File(file).inputStream().buffered().use { it?.readBytes()}
+
+upload file with form-data
+
+curl -i -XPOST "url" -F "file=@/home/john/a.jpg"
+
+python
+import requests
+
+data = open("your_image.png", "rb").read()
+response = requests.post(
+    url="",
+    files={"file": data}
+)
+result = response.json()
+print(result)
+
+kotlin fuel
+ fun postData (addr: String, path: String){
+        val file = FileDataPart.from(path, name = "file")
+        Fuel.upload(addr)
+            .add(file)
+                .response {
+                    result ->
+                        result.fold(
+                                success = {
+                                    data -> println(String(data))
+                                },
+                                failure = {error ->
+                                    println(error.message)
+
+                                }
+                        )
+
+                }
