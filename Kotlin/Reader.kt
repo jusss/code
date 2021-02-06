@@ -1,34 +1,53 @@
-class Reader<D, out A>(val run: (D) -> A) {
+ReaderT Config (EitherT Error IO) ()
+ReaderT Config -> EitherT Error IO ()  is a type notation, has above type
 
-    inline fun <B> map(crossinline  fa: (A) -> B): Reader<D, B> = Reader {
-        d -> fa(run(d))
-    }
+EitherT Error IO is m here, because IO need IO ()
+EitherT Error IO () is whole
 
-    inline fun <B> flatMap(crossinline  fa: (A) -> Reader<D, B>): Reader<D, B> = Reader {
-        d -> fa(run(d)).run(d)
-    }
+Reader r a, r is input type, a is result type 
+
+r = ReaderT Config -> EitherT Error IO ()
+runReaderT r Config -- this return EitherT IO (Either Error ())
+
+------------------------------------
+newtype ReaderT r m a = ReaderT { runReaderT :: r -> m a }
+
+ask :: ReaderT r m r
+<- ask will get r from ReaderT r m a
+
+f :: a -> a
+f = do
+    x <- (+1)
+    y <- (+2)
+    return (x+y)
+
+f :: Reader a a
+f = do
+    x <- return (+1)
+    y <- return (+2)
+    return (x+y)
+
+here, m ~ ((->) a)
+
+same thing as Reader but without newtype wrappers
+
+Reader's benefits just same as functions, but it's even less convenient than functions
+in most cases
+ReaderT doesn't solve any problem, it's just style and convenience
 
 
-    companion object Factory {
-        fun <D, A> just(a: A): Reader<D, A> = Reader { _ -> a }
+f :: Reader a a
+f = do
+    x <- return (+1) -- return (+1) fit Reader a a, and it works on parameter
+    y <- return (+2) -- return (+1) fit Reader a a, and it works on parameter, not x
+    return (x+y)
 
-        fun <D> ask(): Reader<D, D> = Reader { it }
-    }
-}
+every line in do notation, it works on one same parameter,
+unless it declares to use previous results
 
-fun main () {
-    val add1 = {x: Int -> x+1}
-    val mul3 = {x: Int -> x*3}
-    val reader = Reader(add1).map(mul3)
-    println(reader.run(3))
-    val y = Reader.ask<M>().map {it.x + 2
-    }
-    println(y.run(M(9)))  // it's just define f(obj: M) then handle obj.x inside f, and then call f(M(newX))
+it's 
+return a >>= \a -> return $ (+1) a
+        >>= \x -> return $ (+2) a
+        >>= \y -> return (x+y)
 
-
-
-}
-
-data class M(val x: Int =3)
-
-// https://jorgecastillo.dev/kotlin-dependency-injection-with-the-reader-monad
+    
