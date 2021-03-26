@@ -1,0 +1,92 @@
+1. json 
+{
+  "responseHeader":{
+    "status":0,
+    "QTime":5,
+    "params":{
+      "q":"file_suffix:jpg OR (file_suffix:png) OR (file_suffix:jpeg)",
+      "rows":"1"}},
+  "response":{"numFound":267,"start":0,"numFoundExact":true,"docs":[
+      {
+        "id":"/uploadImages/1615515295374.jpeg",
+        "file_name":"1615515295374.jpeg",
+        "file_size":54854,
+        "download_link":"/webhdfs/v1/uploadImages/1615515295374.jpeg?op=OPEN",
+        "duration":0,
+        "file_modify_date":1615533834,
+        "file_access_date":1616484427,
+        "file_create_date":0,
+        "file_suffix":"jpeg",
+        "file_type":"JPEG",
+        "mime_type":"image/jpeg",
+        "has_gps":false,
+        "gps_lat":36.11439341247716,
+        "gps_lon":110.13538523520504,
+        "gps_country":"中国",
+        "gps_province":"陕西省",
+        "gps_city":"延安市",
+        "gps_district":"宜川县",
+        "gps_street":"0",
+        "class_auto":"0",
+        "class_manual":"0",
+        "thumbnail":"0",
+        "thumbnail_size":0,
+        "contain_person":[3],
+        "file_date_auto":1608680921,
+        "a01":["0"],
+        "a02":["0"],
+        "a03":["0"],
+        "a04":["0"],
+        "a05":["0"],
+        "a06":["0"],
+        "a07":["0"],
+        "a08":["0"],
+        "a09":["0"],
+        "a10":["0"],
+        "_version_":1695007126684958720}]
+  }}
+
+2. construct constructure
+data class StorageDestructure(val response: T1)
+data class T1(val docs: List<T2>)
+data class T2(
+        val id: String,
+        val file_name: String,
+        val file_size: Long,
+        val download_link: String,
+        val file_modify_date: Long,
+        val file_access_date: Long,
+        val file_create_date: Long,
+        val file_suffix: String,
+        val file_type: String,
+        val mime_type: String,
+        val has_gps: Boolean,
+        val gps_latitude: Double,
+        val gps_longitude: Double,
+        val gps_country: String,
+        val gps_province: String,
+        val gps_city: String,
+        val gps_district: String,
+        val gps_street: String,
+        val class_auto: String,
+        val class_manual: String,
+        val duration: Long,
+        val thumbnail: String,
+        val thumbnail_size: Long,
+        val contain_person: List<Long>,
+        val file_date_auto: Long,
+        val a01: List<String>,
+        val a02: List<String>,
+        val a03: List<String>,
+        val a04: List<String>,
+        val a05: List<String>,
+        val a06: List<String>,
+        val a07: List<String>,
+        val a08: List<String>,
+        val a09: List<String>,
+        val a10: List<String>
+)
+
+3. transformation
+ GsonBuilder().create().fromJson(result, StorageDestructure::class.java)
+
