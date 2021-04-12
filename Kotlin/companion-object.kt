@@ -1,4 +1,26 @@
+1. variable can't visit class parameter inside companion object defintion
+but  it can visit class parameter inside init function
+2. inside class it can visit companion object variable
+3. inside companion object definition, it can't visit class variable
 
+you can visit companion object inside class
+but you can't visit class variable inside companion object
+but you can do assign class variable to companion object varable inside init function
+
+class A (val x: Int) {
+    companion object {
+        lateinit var y : Any
+        var z = x // x is unresolved
+    }
+    init {
+        y = x
+    }
+
+    fun test(){
+        println(y)
+    }
+}
+-----------------------------------------
 //伴生对象无法访问类的属性，但是可以类初始化时访问伴生对象的属性
 
 //python类变量, Java public static变量, Kotlin伴生对象
