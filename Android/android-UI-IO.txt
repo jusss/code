@@ -1,0 +1,18 @@
+singleton object activity keep unique
+startActivity won't destory activity, this.finish will
+update ProgressBar inside IO, so the activity contain ProgressBar
+shouldn't be destoried, 
+
+manifest, activity lanuchmode singletask to make class activity keep alive!
+
+keep UI and IO split, then refresh UI per second and read data from IO
+IO store msg into a static class/companion object, UI read it
+so if UI is destoryed, it won't affect IO
+if you update UI inside IO, then if UI is destoryed, IO is destoryed too
+
+stream is IO,
+channel is NIO, New IO
+https://medium.com/@nilasini/java-nio-non-blocking-io-vs-io-1731caa910a2
+
+UI adapter use companion object as dataSource, IO change companion object, not pass through activity
+this could keep IO data alive!

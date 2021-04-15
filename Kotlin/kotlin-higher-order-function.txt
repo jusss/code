@@ -1,0 +1,5 @@
+    val reverse2 = {i: String -> i.reversed()}
+
+    //1. function take function as parameter, function need to be defined with lambda expression?
+    // fun reverse1(val x: String): String = x.reversed() is not taken by fmap(f: (String) -> String)
+   // fmap(reverse1) is not ok, but fmap(reverse2) is ok
