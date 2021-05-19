@@ -1,0 +1,40 @@
+three ways to express one same thing
+
+1. Java
+mediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+  @override
+  public void onPrepared(MediaPlayer mp) {
+    mp.start();
+  }}
+
+2. Kotlin 
+        mediaPlayer.setOnPreparedListener(
+                object : MediaPlayer.OnPreparedListener {
+                    override fun onPrepared(mediaPlayer: MediaPlayer) {
+                       mediaPlayer.start()
+  }})
+
+3. Kotlin
+
+        mediaPlayer.setOnPreparedListener(OnPreparedListener { mediaPlayer ->
+           mediaPlayer.start()
+        })
+
+-------------------------------------------------------------------
+
+        val mediaPlayer = MediaPlayer()
+        mediaPlayer.setDataSource("http://10.168.1.197:8000/test.mp3")
+
+        mediaPlayer.prepareAsync()
+
+        mediaPlayer.setOnPreparedListener(OnPreparedListener { mediaPlayer ->
+            if (!mediaPlayer.isPlaying) mediaPlayer.start()
+            else Toast.makeText(this,"stop other player please",Toast.LENGTH_LONG).show()
+        })
+
+        mediaPlayer.setOnErrorListener(MediaPlayer.OnErrorListener { p1, p2, p3 ->
+            p1.release()
+            println("error $p2 and $p3")
+            return@OnErrorListener false
+        })
+
