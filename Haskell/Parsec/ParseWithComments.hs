@@ -11,6 +11,7 @@ parseComment = do
     spaces
     string "--"
     c <- manyTill anyChar newline
+    spaces
     return Nothing
 
 parseAssign :: Parser (Maybe (String,String))
