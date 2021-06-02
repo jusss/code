@@ -1,0 +1,44 @@
+
+https://paste.ubuntu.com/p/tSbwNBNxhw/
+
+it parses something like "a=b" is ok, but I'd like to ignore like "--comment"
+
+Guest6538: https://hackage.haskell.org/package/parsec-3.1.14.0/docs/Text-Parsec-Token.html
+
+Guest6538: Alternatively you can just reimplement the `space` combinator from megaparsec, it's really trivial
+
+And adopt the rule that you always use `space` before or after (pick one!) each lexeme
+
+More concretely (hah) you can also just parse a CST (concrete syntax tree) first and then map it to the AST you want. 
+The distinction with a CST is that there exists a bijection from it to/from the original source. 
+
+They don't contain whitespace but they do contain token positions you could recreate the whitespace from
+
+https://hackage.haskell.org/package/megaparsec-9.0.1/docs/src/Text.Megaparsec.Lexer.html#space
+
+Comments otoh are usually in CSTs, at least in my e Irwin en 
+
+comment = string "--" *> (manyTill anyChar newline) $> ()
+newSpaces = spaces <|> comment
+
+Guest6538: Its not needed, `spaces` already covers this need.
+Guest6538: The idea is that `space` takes three lexers/consumers. One that consumes regular whitespace, one that consumes line comments and one that consumes block comments.
+So if we look at the implementation
+space sp line block = skipMany (choice [sp, line, block])
+You can see this just munches all contiguous whitespace, line and block comments
+Ah naming confusion
+Guest6538: Its not enough
+Guest6538: So lets avoid confusion now:
+I propose a simple combinator called:
+munch sp line block = skipMany (choice [sp, line, block])
+The implementation of `munch` mimics the implementation of `space` from megaparsec, it's unlike `space` from parsec.
+
+The implementation of `munch` mimics the implementation of `space` from megaparsec, it's unlike `space` from parsec.
+1) Your combinator wont work if there's any further whitespace after the comment
+2) Your combinator wont accept block comments (might be important to you or not)
+3) Your combinator is fixed rather than parametrized 
+
+The idea is that you'd write something like `sc = munch spaces lineComment blockComment where lineComment = string "--" *> manyTill anyChar newline; blockComment = string "{-" *> manyTill anyChar (string "-}")`
+
+dminuoso, I should copy `spaces` and `lexeme` from https://hackage.haskell.org/package/megaparsec-9.0.1/docs/src/Text.Megaparsec.Lexer.html#space ?
+
