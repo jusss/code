@@ -30,10 +30,12 @@ main = do
   let r2 = parse (many (try parseComment <|> parseAssign)) "" context
   print r2
   let r3 = fmap (filter (/= Nothing)) r2
-  print r3 -- Right [Just ("a","b")]
-  let r9 = fmap fromList (fmap (fmap fromJust) r3)
-  print r9
-  print (fmap (! "server") r9) -- Right "abc.net"
+  if (Right [] == r3) then print "no assign, just comments"
+  else do
+    print r3 -- Right [Just ("a","b")]
+    let r9 = fmap fromList (fmap (fmap fromJust) r3)
+    print r9 -- Right fromList [("a","b")]
+    print (fmap (findWithDefault " server not found" "server") r9) -- Right "abc.net"
   
 -------------
 -- a.conf
