@@ -1,0 +1,18 @@
+https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/group-by.html
+
+val test3 = arrayListOf("2020" to listOf("abc", "another"), "2020" to listOf("ok", "aha"), "2021" to listOf("3","5"))
+test3.groupBy { it.first }.map { println(it) }
+
+---------------------------------------------------------------
+
+https://juejin.cn/post/6844903470307229709
+
+data class Person(var name: String, var age: Int)
+
+var personList: MutableList<Person> = mutableListOf()
+personList.add(Person("Jim", 12))
+personList.add(Person("A-Lin", 12))
+personList.add(Person("Tom", 11))
+
+ personList.sortBy ({ it.age })
+

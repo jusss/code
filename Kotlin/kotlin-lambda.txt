@@ -1,0 +1,5 @@
+kotlin lambda return type
+
+val getLink = {alst: List<Pair<String, String>> -> alst.map { it.second }}
+
+this will return a List<String>
