@@ -419,21 +419,25 @@ main = do
             print r9 -- Right fromList [("a","b")]
 
             let rx1 = findIn "mode" r9
-            mode <- if (rx1 == Nothing) then print "mode not found" >> (exitWith $ ExitFailure 22) else return $ fromJust rx1
+            mode <- if (rx1 == Nothing) then print "mode = lite or normal?" >> (exitWith $ ExitFailure 22) else return $ fromJust rx1
             let rx2 = findIn "server" r9
-            server <- if (rx2 == Nothing) then print "server not found" >> (exitWith $ ExitFailure 22) else return $ fromJust rx2
+            server <- if (rx2 == Nothing) then print "server = ?" >> (exitWith $ ExitFailure 22) else return $ fromJust rx2
             let rx3 = findIn "port" r9
-            port <- if (rx3 == Nothing) then print "port not found" >> (exitWith $ ExitFailure 22) else return $ fromJust rx3
+            port <- if (rx3 == Nothing) then print "port = ?" >> (exitWith $ ExitFailure 22) else return $ fromJust rx3
             let rx4 = findIn "nick" r9
-            nick <- if (rx4 == Nothing) then print "nick not found" >> (exitWith $ ExitFailure 22) else return $ T.pack $ fromJust rx4
+            nick <- if (rx4 == Nothing) then print "nick = ?" >> (exitWith $ ExitFailure 22) else return $ T.pack $ fromJust rx4
+            let rx4_ = findIn "password" r9
+            password <- if (rx4_ == Nothing) then print "password = ?" >> (return "") else return $ T.pack $ fromJust rx4_
             let rx5 = findIn "channel" r9
-            autoJoinChannel <- if (rx5 == Nothing) then print "channel not found" >> (exitWith $ ExitFailure 22) else return $ T.pack $ fromJust rx5
+            autoJoinChannel <- if (rx5 == Nothing) then print "channel = ?" >> (exitWith $ ExitFailure 22) else return $ T.pack $ fromJust rx5
             let rx6 = findIn "token" r9
-            _token <- if (rx6 == Nothing) then print "token not found" >> (exitWith $ ExitFailure 22) else return $ T.pack $ fromJust rx6
+            _token <- if (rx6 == Nothing) then print "token = ?" >> (exitWith $ ExitFailure 22) else return $ T.pack $ fromJust rx6
             let rx7 = findIn "chatId" r9
-            _chatId <- if (rx7 == Nothing) then print "chatId not found" >> (exitWith $ ExitFailure 22) else return $ (read $ fromJust rx7 :: Int64)
+            _chatId <- if (rx7 == Nothing) then print "chatId = ?" >> (exitWith $ ExitFailure 22) else return $ (read $ fromJust rx7 :: Int64)
             let nickCmd = "NICK " <> nick <> "\r\n" :: Text
             let userCmd = "USER xxx 8 * :xxx\r\n" :: Text
+            -- /msg nickserv identify nick password
+            let identifyCmd = "PRIVMSG NickServ :IDENTIFY " <> nick <> " " <> password <> "\r\n" :: Text
             let autoJoinChannelCmd = "JOIN " <> autoJoinChannel <> "\r\n" :: Text
             -- nickList :: [Text]
             let nickList = fmap T.pack . L.permutations . T.unpack $ nick
@@ -443,7 +447,10 @@ main = do
                 chatId <- return $ ChatId _chatId
                 sendAll socket $ En.encodeUtf8 nickCmd
                 sendAll socket $ En.encodeUtf8 userCmd
+                if (password == "") then print "login without password" else sendAll socket $ En.encodeUtf8 identifyCmd
+                -- sleep 1
                 sendAll socket $ En.encodeUtf8 autoJoinChannelCmd
+                
                 -- t2IRC Telegram to IRC
                 t2IRC <- async (recvMsg token manager Nothing chatId socket nick Data.Map.Strict.empty)
                 -- pingMsg send PING per minute

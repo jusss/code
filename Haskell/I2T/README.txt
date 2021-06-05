@@ -19,7 +19,8 @@ usage:
 
 /prefix #channel
 
-/prefix nick    -- it's equal to /msg or /query
+/prefix nick    -- it's equal to /msg or /query, `/prefix nickserv` `help identify` are same to "/msg nickserv help identify"
+                -- "/msg nickserv identify nick password" is same to `/prefix nickserv` `identify nick password`
 
 /prefix #channel nick or /prefix #channel nick1 nick2
 
@@ -36,9 +37,9 @@ message  -- after you use `/prefix #channel` then you can send messages directly
 
 1. tar -xvJf I2T.tar.xz
 
-2. cd I2T; vim I2T16.config  # change your info
+2. cd I2T; vim I2T18.config  # change your info
 
-3. bash I2T16.sh
+3. bash I2T18.sh
 
 
 
@@ -52,13 +53,13 @@ message  -- after you use `/prefix #channel` then you can send messages directly
 
     cabal v2-build
 
-    cp ~/I2T16.hs ./
+    cp ~/I2T18.hs ./
 
-    ghc I2T16.hs 
+    ghc I2T18.hs 
 
 2. edit the config file
 
-    vim I2T16.config
+    vim I2T18.config
 
     -- create a bot from BotFather on telegram, then get its token and your telegram account's chatId, search and add that bot, then start it
 
@@ -68,6 +69,16 @@ message  -- after you use `/prefix #channel` then you can send messages directly
 
     -- NOTE: DO NOT USE THE SAME TELEGRAM API TOKEN IN TWO PROGRAMS AT THE SAME TIME, IT WILL CAUSE IRC FLOOD AND GET BANNED!
 
+    -- mode = lite or normal
+    mode = lite
+    server = irc.libera.chat
+    port = 6665
+    nick = x
+    password = x
+    channel = #x
+    token = bot9
+    chatId = 7
+
 3. run the script
 
-    bash I2T16.sh
+    bash I2T18.sh
