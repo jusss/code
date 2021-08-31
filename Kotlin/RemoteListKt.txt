@@ -1,0 +1,678 @@
+package com.hybroad.wnyphone.utils
+
+import android.net.Uri
+import android.os.Environment
+import android.os.Message
+import android.widget.ProgressBar
+import com.google.gson.GsonBuilder
+import com.hybroad.wnyphone.activity.*
+import com.hybroad.wnyphone.jtm.JTM
+import io.ktor.client.HttpClient
+import io.ktor.client.call.receive
+import io.ktor.client.engine.cio.CIO
+import io.ktor.client.request.delete
+import io.ktor.client.request.get
+import io.ktor.client.request.post
+import io.ktor.client.request.put
+import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.HttpStatement
+import io.ktor.http.content.OutgoingContent
+import io.ktor.utils.io.ByteReadChannel
+import io.ktor.utils.io.ByteWriteChannel
+import io.ktor.utils.io.close
+import io.ktor.utils.io.jvm.javaio.copyTo
+import io.ktor.utils.io.jvm.javaio.toInputStream
+import kotlinx.coroutines.*
+import org.greenrobot.eventbus.EventBus
+import java.io.*
+
+class RemoteList {
+    // ADDR SET IN HERE! REMOTELIST TAKE A ADDR PARAMETER TO INITIALIZED!
+
+    val updateUI = Job()
+    val updateUIScope = CoroutineScope(Dispatchers.Main + updateUI)
+
+
+    val httpClient = HttpClient(CIO) {
+        followRedirects = false
+    //        engine {
+//            this@HttpClient.expectSuccess = false
+//        }
+//        followRedirects = false
+//        install(HttpRedirect)
+//        install(JsonFeature){
+//            serializer = GsonSerializer()
+//        }
+    }
+    suspend fun getContent(addr: String): JTM {
+        val result = httpClient.get<String>(addr)
+        val gson = GsonBuilder().create()
+        print("json result $result")
+        val objectList = gson.fromJson(result, JTM::class.java)
+        return objectList
+    }
+
+    fun getContent2(addr: String): JTM {
+        var objectList = JTM()
+        runBlocking {
+            val result = httpClient.get<String>(addr)
+            val gson = GsonBuilder().create()
+            print("json result $result")
+            objectList = gson.fromJson(result, JTM::class.java)
+        }
+        return objectList
+    }
+
+    suspend fun delete(addr: String){
+        println("delete files: $addr")
+        println("if uploading 6 files at the same time, hadoop won't handle delete request")
+        val result = httpClient.delete<String>(addr)
+        println("--- remoteList.delete result $result")
+        delay(2000)
+        if (result.contains("false")) httpClient.delete<String>(addr)
+    }
+
+    suspend fun rename(addr: String){
+        println("rename file: $addr")
+        val result = httpClient.put<String>(addr)
+        println("rename result: $result")
+    }
+
+    suspend fun createDirecotry(addr: String){
+        val result = httpClient.put<String>(addr)
+        println("create dir $result")
+    }
+
+    suspend fun getDownloadAddr(addr: String): String? {
+        val _result = httpClient.get<HttpResponse>(addr)
+        println("this is get download addr $_result")
+        return _result.headers["LOCATION"]
+        }
+
+    suspend fun getFile(name: String, addr: String, invalid_count: Int, updateDownloadUi: UpdateDownloadUi) {
+        println("before 1")
+        val filePath = Environment.getExternalStorageDirectory().path + "/wnyphone/" + name
+        val checkDir = Environment.getExternalStorageDirectory().path + "/wnyphone/"
+        if (!File(checkDir).exists()) {
+            File(checkDir).mkdir()
+        }
+        if (File(filePath).exists()) {
+            File(filePath).delete()
+        }
+
+        val file = File(filePath)
+        val fos = FileOutputStream(file)
+
+        val client = HttpClient(CIO) {
+            followRedirects = false
+        }
+        val _result = client.get<HttpResponse>(addr)
+//        val readInputStream = client.get<InputStream>(_result.headers["LOCATION"]?:"")
+        client.get<HttpStatement>(_result.headers["LOCATION"]
+                ?: "").execute { response: HttpResponse ->
+            // Response is not downloaded here.
+            val channel = response.receive<ByteReadChannel>()
+            val count = response.headers["Content-Length"]?.toInt()?:1
+            println("this is the length $count")
+            val readInputStream = channel.toInputStream()
+            val buffer = ByteArray(1024)
+            var len: Int
+            var total = 0
+            var percent = 0.00
+            while (((readInputStream.read(buffer)).also { len = it }) != -1) {
+                percent = (total.toDouble() / count.toDouble()) * 100
+                updateDownloadUi.updateProgress(percent.toInt())
+                fos.write(buffer, 0, len)
+                total += len
+                println("this is total $total , this is count $count , this is percent $percent")
+            }
+            fos.close()
+            readInputStream.close()
+            updateDownloadUi.activityFinish()
+        }
+    }
+
+//                val buffer = ByteArray(1024)
+//                var len: Int
+//                var total = 0
+//                var percent = 0.00
+
+//                while (((readInputStream.read(buffer)).also { len = it }) != -1) {
+//                    percent = (total.toDouble() / count.toDouble()) * 100
+//                    updateDownloadUi.updateProgress(percent.toInt())
+//                    fos.write(buffer, 0, len)
+//                    fos.flush()
+//                    total += len
+//                    println("this is total $total , this is count $count , this is percent $percent")
+//                }
+//                fos.close()
+//                readInputStream.close()
+//               updateDownloadUi.activityFinish()
+//    }
+
+
+
+    suspend fun uploadFile(addr: String, uri: Uri, updateUi: UpdateUploadUi) {
+        val output = httpClient.put<HttpResponse>(addr)
+        println("this is upload test ${output.headers["Location"]}")
+        val realUrl = output.headers["Location"]?:""
+        val readInputStream = updateUi.getInputStream(uri)?:File("").inputStream()
+        val count = updateUi.length(uri)
+        val result = httpClient.put<ByteWriteChannel>(realUrl) {
+            body = StreamContent(readInputStream, count, updateUi)
+        }
+    }
+
+
+    fun append(obj: MultipleUploadStructure){
+        obj.uploading = true
+        var realUrl = ""
+        obj.uploadAddr = (obj.uploadAddr.dropLast(6) + "APPEND").replace(" ","%20")
+
+//        FileNameCache.video.add(obj.fileName)
+        println("--- appending file name is ${obj.fileName}")
+        println("--- appending file path is ${obj.uploadAddr}")
+
+        CoroutineScope(Dispatchers.IO).launch {
+            // same file name check
+            try {
+                var output = httpClient.post<HttpResponse>(obj.uploadAddr)
+
+//                println(output.status)
+//                println(output.headers)
+                println("--- this is append redir addr ${output.headers["Location"]}")
+                realUrl = output.headers["Location"]?:""
+            }
+            catch (e: Exception){
+                e.printStackTrace()
+            }
+
+            val readInputStream = File(obj.filePath).inputStream()
+            val count = obj.fileSize
+            val result = httpClient.post<ByteWriteChannel>(realUrl) {
+                body = StreamAppend(readInputStream, count, obj)
+            }
+        }
+    }
+
+
+
+    fun upload(obj: MultipleUploadStructure){
+        obj.uploading = true
+        var realUrl = ""
+
+//        FileNameCache.video.add(obj.fileName)
+        println("--- uploading file name is ${obj.fileName}")
+        println("--- uploading file path is ${obj.uploadAddr}")
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                var output = httpClient.put<HttpResponse>(obj.uploadAddr)
+                println("--- this is upload test ${output.headers["Location"]}")
+                realUrl = output.headers["Location"]?:""
+            }
+            catch (e: Exception){
+                e.printStackTrace()
+            }
+
+            val readInputStream = File(obj.filePath).inputStream()
+            val count = obj.fileSize
+            val result = httpClient.put<ByteWriteChannel>(realUrl) {
+                body = StreamUpload(readInputStream, count, obj)
+            }
+        }
+    }
+
+
+
+
+
+
+    fun download(obj: MultipleDownloadStructure){
+        CoroutineScope(Dispatchers.IO).launch {
+            obj.downloading = true
+            val msg = Message.obtain()
+            msg.what = EventBusWhatValue.NOTIFICATION_DOWNLOADING_CHANGE
+            val downloadAddr = obj.downloadAddr
+            val eventBus = EventBus.getDefault()
+            val remoteList = RemoteList()
+            var previousTimestamp = System.currentTimeMillis()
+            var now = 0L
+            var previousCount = 0L
+
+            val filePath =
+                Environment.getExternalStorageDirectory().path + "/wnyphone/" + obj.fileName
+            val checkDir = Environment.getExternalStorageDirectory().path + "/wnyphone/"
+            if (!File(checkDir).exists()) {
+                File(checkDir).mkdir()
+            }
+            if (File(filePath).exists()) {
+                File(filePath).delete()
+            }
+            val file = File(filePath)
+            val fos = FileOutputStream(file)
+
+            val _result = httpClient.get<HttpResponse>(obj.downloadAddr)
+            val realUrl = _result.headers["LOCATION"]
+            println("*** download addr is $realUrl")
+            httpClient.get<HttpStatement>(
+                _result.headers["LOCATION"]
+                    ?: ""
+            ).execute { response: HttpResponse ->
+                // Response is not downloaded here.
+                val channel = response.receive<ByteReadChannel>()
+                val total = response.headers["Content-Length"]?.toLong() ?: 1
+                val readInputStream = channel.toInputStream()
+                val buffer = ByteArray(1024)
+                var len: Int
+                var count: Long = 0
+                var percent = 0.00
+                while (((readInputStream.read(buffer)).also { len = it }) != -1) {
+                    if (obj.cancel) {
+                        println("--- download is canceled..., ${obj.downloadAddr}")
+                        break
+                    }
+                    if (obj.pause) {
+                        println("--- download is paused..., ${obj.downloadAddr}")
+                        break
+                    }
+                    percent = (count.toDouble() / total.toDouble()) * 100
+                    obj.percent = percent.toInt()
+                    obj.currentDownload = count
+                    fos.write(buffer, 0, len)
+                    count += len
+
+                    now = System.currentTimeMillis()
+                    if (now - previousTimestamp > 1000L) {
+                        previousTimestamp = now
+                        obj.speed = count - previousCount
+                        previousCount = count
+                        eventBus.post(msg)
+//                        println("--- total $total ,  count $count ,  percent $percent")
+                    }
+                }
+
+                if (obj.cancel) {
+//                    msg.what = EventBusWhatValue.NOTIFICATION_DOWNLOADING_CANCEL
+//                    msg.obj = obj
+                    println("--- downloading canceled, ${obj.downloadAddr}")
+                } else if (obj.pause) {
+                    msg.what = EventBusWhatValue.NOTIFICATION_DOWNLOADING_CHANGE
+                    eventBus.post(msg)
+                } else {
+                    obj.percent = 100
+                    msg.what = EventBusWhatValue.NOTIFICATION_DOWNLOADING_DONE
+                    eventBus.post(msg)
+                }
+
+                fos.close()
+                readInputStream.close()
+            }
+        }
+    }
+
+
+    fun downloadAppend(obj: MultipleDownloadStructure){
+        CoroutineScope(Dispatchers.IO).launch {
+            obj.downloading = true
+            val msg = Message.obtain()
+            msg.what = EventBusWhatValue.NOTIFICATION_DOWNLOADING_CHANGE
+            val downloadAddr = obj.downloadAddr
+            val eventBus = EventBus.getDefault()
+            val remoteList = RemoteList()
+            var previousTimestamp = System.currentTimeMillis()
+            var now = 0L
+            var previousCount = 0L
+
+            obj.downloadAddr = obj.downloadAddr + "&offset=" + obj.currentDownload.toString()
+
+            val filePath =
+                Environment.getExternalStorageDirectory().path + "/wnyphone/" + obj.fileName
+            val checkDir = Environment.getExternalStorageDirectory().path + "/wnyphone/"
+
+            val file = File(filePath)
+//            val fos = FileOutputStream(file, true)
+
+            val _result = httpClient.get<HttpResponse>(obj.downloadAddr)
+            val resAddr = _result.headers["LOCATION"]
+            println("*** download append is ${resAddr}")
+            httpClient.get<HttpStatement>(
+                _result.headers["LOCATION"]
+                    ?: ""
+            ).execute { response: HttpResponse ->
+                // Response is not downloaded here.
+                val channel = response.receive<ByteReadChannel>()
+                val total = response.headers["Content-Length"]?.toLong() ?: 1
+                val readInputStream = channel.toInputStream()
+                val buffer = ByteArray(1024)
+                var len: Int
+                var count: Long = obj.currentDownload
+                var percent = 0.00
+                while (((readInputStream.read(buffer)).also { len = it }) != -1) {
+                    if (obj.cancel) {
+                        println("--- download is canceled..., ${obj.downloadAddr}")
+                        break
+                    }
+                    if (obj.pause) {
+                        println("--- download is paused..., ${obj.downloadAddr}")
+                        break
+                    }
+//                    fos.write(buffer, 0, len)
+                    file.appendBytes(buffer)
+                    count += len
+                    percent = (count.toDouble() / total.toDouble()) * 100
+                    obj.percent = percent.toInt()
+                    obj.currentDownload = count
+
+                    now = System.currentTimeMillis()
+                    if (now - previousTimestamp > 1000L) {
+                        previousTimestamp = now
+                        obj.speed = count - previousCount
+                        previousCount = count
+                        eventBus.post(msg)
+//                        println("--- total $total ,  count $count ,  percent $percent")
+                    }
+                }
+
+                if (obj.cancel) {
+//                    msg.what = EventBusWhatValue.NOTIFICATION_DOWNLOADING_CANCEL
+//                    msg.obj = obj
+                    println("--- downloading canceled, ${obj.downloadAddr}")
+                } else if (obj.pause) {
+                    msg.what = EventBusWhatValue.NOTIFICATION_DOWNLOADING_CHANGE
+                    eventBus.post(msg)
+                } else {
+                    obj.percent = 100
+                    msg.what = EventBusWhatValue.NOTIFICATION_DOWNLOADING_DONE
+                    eventBus.post(msg)
+                }
+
+//                fos.close()
+
+                readInputStream.close()
+            }
+        }
+    }
+
+
+
+    suspend fun checkFileExist(link: String): Boolean {
+        val response = httpClient.get<HttpResponse>(link)
+        println("--- response code is ${response.status.value}")
+        if (response.status.value == 404) return false
+        else return true
+    }
+
+    fun downloadWithoutUI(downloadAddr: String, filePath: String = "/wnyphone/", fileName: String){
+        CoroutineScope(NonCancellable).async(Dispatchers.IO) {
+            val filePath = Environment.getExternalStorageDirectory().path + filePath + fileName
+            val checkDir = Environment.getExternalStorageDirectory().path + filePath
+            if (!File(checkDir).exists()) { File(checkDir).mkdir() }
+            if (File(filePath).exists()) { File(filePath).delete() }
+
+            val file = File(filePath)
+            val fos = FileOutputStream(file)
+            val _result = httpClient.get<HttpResponse>(downloadAddr)
+            httpClient.get<HttpStatement>(_result.headers["LOCATION"]
+                ?: "").execute { response: HttpResponse ->
+                val channel = response.receive<ByteReadChannel>()
+                val readInputStream = channel.toInputStream()
+                val buffer = ByteArray(1024)
+                var len: Int
+                while (((readInputStream.read(buffer)).also { len = it }) != -1) {
+                    fos.write(buffer, 0, len)
+                }
+                fos.close()
+                readInputStream.close()
+                // add function
+            }
+        }
+    }
+}
+
+//        val swapStream = ByteArrayOutputStream()
+//        val buff = ByteArray(1024)
+//        var rc = 0
+//        while (`readInputStream`.read(buff, 0, 1024).also({ rc = it }) > 0) {
+//            swapStream.write(buff, 0, rc)
+//            swapStream.flush()
+//            total = total + rc
+//            percent = (total.toDouble() / count.toDouble()) * 100
+////            println("this is total $total , this is count $count , this is percent $percent")
+//            updateDownloadUi.updateProgress(percent.toInt())
+//        }
+//        val in2b = swapStream.toByteArray()
+//        fos.write(in2b)
+//        fos.flush()
+//        fos.close()
+//        readInputStream.close()
+
+//        while (true) {
+//            len = readInputStream.read(buffer)
+//            if (len != -1) {
+//                fos.write(buffer.sliceArray(0 until len))
+//                fos.flush()
+//                total = total + len
+//                percent = (total / count ) * 100
+//                println("this is toatl $total , this is count $count , this is percent $percent")
+//                updateDownloadUi.updateProgress(percent)
+////                println("this is count $count")
+//            } else {
+//                break
+//            }
+//        }
+//
+//        fos.close()
+//        activity.finish()
+
+class StreamContent(private val inputStream: InputStream, val total: Long, val updateUi: UpdateUploadUi): OutgoingContent.WriteChannelContent() {
+    override suspend fun writeTo(channel: ByteWriteChannel) {
+        val readChannel = inputStream
+        var copiedBytes: Long
+        var count : Long = 0
+        var percent = 0.00
+        do {
+            copiedBytes = readChannel.copyTo(channel, 1024)
+            count =  count + copiedBytes
+            percent = (count.toDouble() / total.toDouble()) * 100
+            updateUi.updateProgress(percent.toInt())
+            println("reading files now! count is $count")
+            println("count is $count, total is $total, percent is $percent")
+        } while (copiedBytes > 0)
+
+        readChannel.close()
+        channel.flush()
+        channel.close()
+    }
+    override val contentLength: Long = total
+}
+class StreamUpload(private val inputStream: InputStream, val total: Long, val multipleUploadStructure: MultipleUploadStructure): OutgoingContent.WriteChannelContent() {
+    override suspend fun writeTo(channel: ByteWriteChannel) {
+        val readChannel = inputStream
+        var copiedBytes: Long
+        var count : Long = 0
+        var percent = 0.00
+        var previousPercent = 0.00
+        val msg = Message.obtain()
+        msg.what = EventBusWhatValue.NOTIFICATION_UPLOADING_CHANGE
+        msg.obj = multipleUploadStructure
+        val uploadAddr = multipleUploadStructure.uploadAddr
+        val eventBus = EventBus.getDefault()
+        val remoteList = RemoteList()
+        var previousTimestamp = System.currentTimeMillis()
+        var now = 0L
+        var previousCount = 0L
+
+        do {
+            if (multipleUploadStructure.cancel) {
+                println("--- uploading is canceled, ${multipleUploadStructure.uploadAddr}")
+                break
+            }
+            if (multipleUploadStructure.pause) {
+                println("--- uploading pause, ${multipleUploadStructure.uploadAddr}")
+                break
+            }
+
+            copiedBytes = readChannel.copyTo(channel, 1024)
+            count =  count + copiedBytes
+            percent = (count.toDouble() / total.toDouble()) * 100
+            multipleUploadStructure.percent = percent.toInt()
+            multipleUploadStructure.currentUpload = count
+//            if (percent - previousPercent > 1){
+//                eventBus.post(msg)
+//                previousPercent = percent
+//                println("reading file now! count is $count, total is $total, percent is $percent")
+//            }
+            // refresh UI per second, but multiple item will refresh multiple per second, so refresh in activity
+            now = System.currentTimeMillis()
+            if (now - previousTimestamp > 1000L) {
+                previousTimestamp = now
+                multipleUploadStructure.speed = count - previousCount
+                previousCount = count
+                eventBus.post(msg)
+//                println("uploading, reading file now! count is $count, total is $total, percent is $percent")
+            }
+        } while (copiedBytes > 0)
+
+        println("*** uploading loop is out")
+
+
+//        if (multipleUploadStructure.cancel) {
+//            while (RemoteList().checkFileExist(multipleUploadStructure.uploadAddr.dropLast(6) + "OPEN")) {
+//                RemoteList().delete(multipleUploadStructure.uploadAddr.dropLast(6) + "DELETE")
+//                delay(200)
+//            }
+//        }
+
+        if (multipleUploadStructure.cancel) {
+//            delay(2000)
+//            msg.what = EventBusWhatValue.NOTIFICATION_UPLOADING_CANCEL
+//            msg.obj = multipleUploadStructure
+//            eventBus.post(msg)
+//            msg.arg1 = multipleUploadStructure.position
+            println("--- will send delete file request, $uploadAddr")
+//            delay(3000)
+            remoteList.delete(uploadAddr.dropLast(6) + "DELETE")
+        }
+        else if (multipleUploadStructure.pause){
+            println("*** uploading pause")
+            msg.what = EventBusWhatValue.NOTIFICATION_UPLOADING_CHANGE
+            eventBus.post(msg)
+        }
+        else {
+//            multipleUploadStructure.percent = 100
+            msg.what = EventBusWhatValue.NOTIFICATION_UPLOADING_DONE
+            eventBus.post(msg)
+        }
+
+
+        readChannel.close()
+        channel.flush()
+        channel.close()
+        multipleUploadStructure.uploading = false
+//        if (multipleUploadStructure.pause){
+//            multipleUploadStructure.pauseable = true
+//            msg.what = EventBusWhatValue.NOTIFICATION_UPLOADING_CHANGE
+//            eventBus.post(msg)
+//            println("*** uploading, IO is closed, now pause is clickable")
+//        }
+    }
+    override val contentLength: Long = total
+}
+
+class StreamAppend(private val inputStream: InputStream, val total: Long, val multipleUploadStructure: MultipleUploadStructure): OutgoingContent.WriteChannelContent() {
+    override suspend fun writeTo(channel: ByteWriteChannel) {
+        val readChannel = inputStream
+        readChannel.skip(multipleUploadStructure.currentUpload)
+        var copiedBytes: Long
+        var count : Long = multipleUploadStructure.currentUpload
+        println("*** append skip ${count}")
+        println("*** multipleUploadStructure percent is ${multipleUploadStructure.percent}")
+//        var percent = multipleUploadStructure.percent
+        var percent = 0.00
+        var previousPercent = 0.00
+//        var previousPercent = 0
+        val msg = Message.obtain()
+        msg.what = EventBusWhatValue.NOTIFICATION_UPLOADING_CHANGE
+        msg.obj = multipleUploadStructure
+        val uploadAddr = multipleUploadStructure.uploadAddr
+        val eventBus = EventBus.getDefault()
+        val remoteList = RemoteList()
+        var previousTimestamp = System.currentTimeMillis()
+        var now = 0L
+        var previousCount = 0L
+
+        do {
+            if (multipleUploadStructure.cancel) {
+                println("--- appending is canceled, ${multipleUploadStructure.uploadAddr}")
+                break
+            }
+
+            if (multipleUploadStructure.pause) {
+                println("--- appending is pause")
+                break
+            }
+
+            copiedBytes = readChannel.copyTo(channel, 1024)
+            count =  count + copiedBytes
+
+            percent = (count.toDouble() / total.toDouble()) * 100
+            multipleUploadStructure.percent = percent.toInt()
+//            println("--- appending percent is $percent, total is $total, count is $count")
+
+            multipleUploadStructure.percent = percent.toInt()
+            multipleUploadStructure.currentUpload = count
+
+//            if (percent - previousPercent > 1){
+//                eventBus.post(msg)
+//                previousPercent = percent
+//                println("appending, reading file now! count is $count, total is $total, percent is $percent")
+//            }
+            // refresh UI per second
+            now = System.currentTimeMillis()
+
+            if (now - previousTimestamp > 1000L) {
+                previousTimestamp = now
+                multipleUploadStructure.speed = count - previousCount
+                previousCount = count
+                eventBus.post(msg)
+//                println("uploading, reading file now! count is $count, total is $total, percent is $percent")
+            }
+
+        } while (copiedBytes > 0)
+
+        println("*** appending loop is out")
+
+        if (multipleUploadStructure.cancel) {
+//            msg.what = EventBusWhatValue.NOTIFICATION_UPLOADING_CANCEL
+//            msg.obj = multipleUploadStructure
+//            eventBus.post(msg)
+//            msg.arg1 = multipleUploadStructure.position
+            println("--- will send delete file request, $uploadAddr")
+//            delay(3000)
+            remoteList.delete(uploadAddr.dropLast(6) + "DELETE")
+        }
+        else if (multipleUploadStructure.pause){
+            println("*** pause and exit appending")
+            msg.what = EventBusWhatValue.NOTIFICATION_UPLOADING_CHANGE
+            eventBus.post(msg)
+        }
+        else {
+//            multipleUploadStructure.percent = 100
+            msg.what = EventBusWhatValue.NOTIFICATION_UPLOADING_DONE
+            eventBus.post(msg)
+        }
+
+        readChannel.close()
+        channel.flush()
+        channel.close()
+        multipleUploadStructure.uploading = false
+//        if (multipleUploadStructure.pause){
+//            multipleUploadStructure.pauseable = true
+//            msg.what = EventBusWhatValue.NOTIFICATION_UPLOADING_CHANGE
+//            eventBus.post(msg)
+//            println("*** appending, IO is closed, now pause is clickable")
+//        }
+    }
+    override val contentLength: Long = total
+}

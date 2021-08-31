@@ -138,7 +138,7 @@ getResult  x = fmap (g . message) x
 g :: Maybe Message -> Maybe Text
 g (Just x) = text x
 -- g Nothing = Nothing
-g Nothing = Just "update message is Nothing"
+g Nothing = Just ""
 
 
 -- relay Telegram bot messages to IRC
@@ -170,7 +170,8 @@ recvMsg token manager upId chatId socket defaultPrefix alistMap = do
                         putStr "recv from Telegram: "
                         print t2i
                         
-                        if | T.isPrefixOf "/prefix " t2i -> if | (L.length . T.words $ t2i) == 2 -> -- /prefix #channel or /prefix nick
+                        if | "" == t2i ->  print "read Nothing from Telegram"
+                           | T.isPrefixOf "/prefix " t2i -> if | (L.length . T.words $ t2i) == 2 -> -- /prefix #channel or /prefix nick
                                                                  recvMsg token manager (Just latestId) chatId socket (T.drop 8 t2i) alistMap
                                                                | (L.length . T.words $ t2i) > 2 -> -- /prefix #channel nick or /prefix #channel nick1 nick2
                                                                  recvMsg token manager (Just latestId) chatId socket ((L.head . L.tail . T.words $ t2i) <> " :" <> (T.unwords . L.drop 2 . T.words $ t2i)) alistMap

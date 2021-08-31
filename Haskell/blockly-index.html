@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Blockly Demo: Fixed Blockly</title>
+  <script src="../../blockly_compressed.js"></script>
+  <script src="../../javascript_compressed.js"></script>
+  <script src="../../blocks_compressed.js"></script>
+  <script src="../../msg/js/en.js"></script>
+  <style>
+    body {
+      background-color: #fff;
+      font-family: sans-serif;
+    }
+    h1 {
+      font-weight: normal;
+      font-size: 140%;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="blocklyDiv" style="height: 480px; width: 600px;"></div>
+
+  <textarea id ="textarea" style="position: absolute; right: 20px; top: 10px;" rows="30" cols="80">
+      // code output
+  </textarea>
+
+  <button onclick="myEval()">evaluation</button>
+
+  <xml xmlns="https://developers.google.com/blockly/xml" id="toolbox" style="display: none">
+    <block type="controls_if"></block>
+    <block type="logic_compare"></block>
+    <block type="controls_repeat_ext"></block>
+    <block type="math_number">
+      <field name="NUM">123</field>
+    </block>
+    <block type="math_arithmetic"></block>
+    <block type="text"></block>
+    <block type="text_print"></block>
+  </xml>
+
+
+  <script>
+    var workspace = Blockly.inject('blocklyDiv',
+        {media: '../../media/',
+         toolbox: document.getElementById('toolbox')});
+
+
+
+function myUpdateFunction(event) {
+      var code = Blockly.JavaScript.workspaceToCode(workspace);
+      document.getElementById('textarea').value = code;
+    // or show code in console
+    console.log(code)
+}
+workspace.addChangeListener(myUpdateFunction);
+
+
+function myEval() {
+
+    try {
+          eval(document.getElementById('textarea').value);
+    } catch (error) {
+          console.log(error);
+    }
+}
+
+
+  </script>
+
+</body>
+</html>
