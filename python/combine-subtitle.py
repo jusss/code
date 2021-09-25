@@ -63,6 +63,7 @@ while True:
             file3_string_list.append(
                 file2_string_list[position2 + 1:])
     except ValueError as e:
+        file3_string_list.append("\n")
         pass
             
 
