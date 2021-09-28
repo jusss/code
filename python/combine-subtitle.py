@@ -4,6 +4,7 @@
 
 import sys
 empty_line = '\n'
+count = 1
         
 sub = []
 sub.append(open(sys.argv[1], 'r', encoding = 'utf-8'))
@@ -39,6 +40,11 @@ while True:
         break
     ### find the timestamp
     timestamp = file1_string_list[position1]
+
+    ### append number line
+    file3_string_list.append(str(count) + "\n")
+    count = count + 1
+
     ### append timestamp to file3_string_list
     file3_string_list.append(timestamp)
     ### append file1_string_list's subtitle into file3_string_list
