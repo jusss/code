@@ -23,7 +23,7 @@ def truncate(q):
     return q if size <= 20 else q[0:10] + str(size) + q[size - 10:size]
 
 def do_request(data):
-    print(data)
+    #print(data)
     headers = {'Content-Type': 'application/x-www-form-urlencoded'}
     return requests.post(YOUDAO_URL, data=data, headers=headers)
 
@@ -57,6 +57,10 @@ def get_strings_position_in_list(astring, alist, position):
 ### 找到 --> 在列表1中的位置    
 g = get_strings_position_in_list(" --> ", file1_string_list, 0)
 while True:
+    if ((count % 100) == 0):
+        print("sleep for 5 sec")
+        time.sleep(5)
+
     try:
         position1 = next(g)
     except StopIteration as e:
@@ -75,8 +79,10 @@ while True:
         eng_sub = file1_string_list[position1 + 1:
                               file1_string_list.index(empty_line, position1)]
         file3_string_list.append(eng_sub)
+        print(count)
+        print(timestamp)
         print("".join(eng_sub))
-        transResult = (connect("".join(eng_sub)) + "\n")
+        transResult = (connect("".join(eng_sub)) + "\n\n")
         print(transResult)
         file3_string_list.append(transResult)
 
