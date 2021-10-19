@@ -9,7 +9,7 @@ howItWorks :: yourTelegramAccount -> TelegramBot -> I2T -> IRC
 
 ############      What's the syntax?       ###################
 
-usage: 
+usage in Telegram: 
 
 #channel message -- send messages to IRC
 
@@ -30,6 +30,7 @@ message  -- after you use `/prefix #channel` then you can send messages directly
 
 /unset  -- clear all the alias, 'a messages' will be send as it is
 
+swipe from right to left on message to reply others from IRC, it will quote the original message from IRC
 
 ############    How to use it?     ######################
 
@@ -37,9 +38,9 @@ message  -- after you use `/prefix #channel` then you can send messages directly
 
 1. tar -xvJf I2T.tar.xz
 
-2. cd I2T; vim I2T18.config  # change your info
+2. cd I2T; vim I2T20.config  # change your info
 
-3. bash I2T18.sh
+3. bash I2T20.sh
 
 
 
@@ -53,13 +54,13 @@ message  -- after you use `/prefix #channel` then you can send messages directly
 
     cabal v2-build
 
-    cp ~/I2T18.hs ./
+    cp ~/I2T20.hs ./
 
-    ghc I2T18.hs 
+    ghc I2T20.hs 
 
 2. edit the config file
 
-    vim I2T18.config
+    vim I2T20.config
 
     -- create a bot from BotFather on telegram, then get its token and your telegram account's chatId, search and add that bot, then start it
 
@@ -81,4 +82,4 @@ message  -- after you use `/prefix #channel` then you can send messages directly
 
 3. run the script
 
-    bash I2T18.sh
+    bash I2T20.sh
