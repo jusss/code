@@ -1,0 +1,66 @@
+fmap is function compose
+
+g . f = \x -> g (f x)
+
+think the input x will unwrap the m and get the result a in m a
+
+fmap :: (a -> b) -> m a -> m b
+fmap     g          f    = \x -> g (f x)
+
+<*> :: f (a -> b) -> f a -> f b
+<*>    g             f    =\x -> g x (f x)
+
+g:: f (a -> b) take x to unwrap a -> b
+f:: f a take x to unwrap a
+
+>>= :: m a -> (a -> m b) -> m b
+>>=    g      f          = \x -> f (g x) x
+g :: m a take x to unwrap a
+f :: a -> m b take that (g x) to unwrap m b, m b take x to unwrap b
+
+>=> :: (a -> m b) -> (b -> m c) -> a -> m c
+>=>    g             f          = \a ->\x -> f (g a x) x
+when m ~ (->) x
+g :: a -> x -> b
+f :: b -> x -> c
+g a x get b, f b x get c
+
+--------------------------------------------------------
+
+turn [1,2,3,4,5,6] to [[1,2], [2,3], [3,4], [4,5], [5,6]
+
+arr = [1..6]
+l = [1..6]
+
+import Data.List
+import Control.Monad
+
+solution1.
+_arr = foldl1 (<>) $ (\x -> [x, x]) <$> arr
+(chunksOf 2) . init . tail $ _arr
+
+solution2.
+zip arr (tail arr)
+
+solution3.  
+ap zip tail $ l
+
+so I wonder if solution2 can express with >>= or <=<
+(tail >>= zip) l == zip (tail l) l
+but we need zip l (tail l)
+
+ap g f = \a -> g a (f a)
+f >>= g = \a -> g (f a) a
+
+ap zip tail $ l
+
+I wonder if >>= can be expressed with ap
+
+f >>= g = \a -> g (f a) a
+ap g f = \a -> g a (f a)
+
+ap f g = \a -> f a (g a)
+f =<< g = \a -> f (g a) a
+
+what about f <*> g?
+
