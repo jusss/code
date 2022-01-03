@@ -1,0 +1,360 @@
+import Control.Monad.State
+
+gc :: Integer -> State Integer Integer
+gc x = do
+  oldN <- get
+  let newN = oldN + 1
+  put newN
+  return (x + newN)
+
+main :: IO ()
+main = do
+  print (evalState (traverse gc [1,1,1]) 0)
+-- [2,3,4]
+-- evalState State s a = \s -> a
+-- runState State s a = \s -> (a, s)
+
+-- f = \x -> do { o <- get; let {n = o+1}; put n; return (o+n) }
+-- traverse f [1,1] == sequence (map f [1,1]) == sequence [f 1, f 1] == sequence [State $ \s -> (s+1, s), State $ \s -> (s+1, s)]
+-- sequence [State $ \s -> (s+1, s), State $ \s -> (s+1, s)] == State $ \s -> (s+2, [s, s+1])
+-- sequence will pass that s+1 from the first State $ \s -> (s+1, s) as s for the second State $ \s -> (s+1, s)
+-- [1,1,1] isn't take by State, so [2,2,2] will get the same result
+-- unless gc x = do { o <- get; let {n = x}; put n; return (x+n) }
+-- f 1 = State $ \s -> (s+1, s)
+-- <whatif> tomsmeding: this sequence [State...] is like reduce to me
+-- <whatif> foldl
+-- <[exa]> `sequence_` can be easily defined as `foldr (>>) (pure ())`
+-- <[exa]> that said, isn't there a name for `pure ()` ? like void, but without the parameter
+-- <tomsmeding> instance Monad m => Monoid (m ()) where mappend = (>>) ; mempty = pure () -- pre-semigroup split because meh  [18:21]
+--  <whatif> [exa]: sequence_ = \x -> foldr1 (>>) x?
+-- <[exa]> yeah except it doesn't match the definition of sequence_ anymore, it's something like sequenceLast or so
+
+-- <whatif> why State a a can't be print?
+-- <[exa]> mjrosenb: always better be sure with pastebin :D anyway can you
+--         pastebin the relevant snippets of the config?  [15:31]
+-- <whatif> Maybe is an instance of Show, and why State isn't?
+-- <[exa]> whatif: because it's internally a function
+-- <[exa]> and it's very hard to print functions
+-- <whatif> [exa]: State a b is a function?  [15:32]
+-- <[exa]> technically, you'd need to construct something like `instance Show (a
+--         -> (a,a))`
+-- <[exa]> yes
+-- <[exa]> though wrapped
+-- <[exa]> see e.g. here, a non-transformer version of State:
+--         https://hackage.haskell.org/package/containers-0.6.5.1/docs/Data-Sequence-Internal.html#t:State
+-- <[exa]> `State s a` is a datatype with a single field of type `s -> (a,s)`
+-- <[exa]> (or (s,a), depending on author's preferences)  [15:34]
+-- <[exa]> the stateful computation is internally modelled as a function that
+--         takes old state and produces new state + the "result"
+-- <xsperry> in other words, Show instance of state couldn't print anything
+--           useful the argument you'd provide to runState/evalState
+-- <xsperry> without the argument*  [15:35]
+-- <whatif> [exa]: why people always the transformer to define the type? use
+--          StateT to define State
+-- <whatif> but not use MaybeT to define Maybe
+-- <EvanR> don't worry about MaybeT, there's ExceptT  [15:36]
+-- <jackdk> probably because MaybeT predates Maybe
+-- <[exa]> whatif: with State, it saves a lot of almost duplicate code in
+--         libraries. Maybe is in `base` and needs to have the constructors
+--         directly accessible to programmers, unlike State
+-- <EvanR> also Maybe = MaybeT Identity would be annoying
+-- <whatif> EvanR I think the others are annoying too  [15:38]
+-- <[exa]> yeah, and everyone loves patternmatching Just x, not Just (Identity x)
+-- <EvanR> the error messages from State = StateT Identity are pretty bad yeah
+-- <whatif> there's no Reader, Writer, State
+-- <EvanR> or Writer
+-- <whatif> and also the famous Cont
+-- <EvanR> Maybe (no T) is pretty fundamental and not a wrapper
+-- <whatif> so is there IdentityT ? IdentityT Identity
+-- <EvanR> Maybe A is like A + 1
+-- <tomsmeding> @let data IdentityT m a = IdentityT (m a) deriving (Show)  [15:41]
+-- <lambdabot>  Defined.
+-- <tomsmeding> @let instance MonadTrans IdentityT where lift = IdentityT
+-- <lambdabot>  /sandbox/tmp/.L.hs:166:21: error:
+-- <lambdabot>      Ambiguous occurrence ‘IdentityT’
+-- <lambdabot>      It could refer to
+-- <tomsmeding> lol I was not the first one
+-- <tomsmeding> whatif: Identity does nothing, and IdentityT just does more
+--              nothing
+-- <whatif> tomsmeding: is there a library, define the simple unwrapped type like
+--          Reader, State, Cont etc
+-- <EvanR> really, Reader and Cont are probably easier to use without the wrapper
+-- <whatif> how you people accept that use transformer way to define type when
+--          you're beginner?
+-- <EvanR> as a beginner, go without mtl transformers for a minute  [15:45]
+-- <EvanR> you don't need StateT to work with state
+-- <[exa]> for a beginner it's best to invest 3 minutes of life into
+--         reimplementing State, then the problems disappear  [15:46]
+-- <EvanR> is good but won't help decipher the errors from mtl  [15:47]
+-- <EvanR> so 3 minutes later invest 30 minutes implementing StateT the way mtl
+--         does
+-- <jackdk> mtl is an industrial tool, not a learning tool. therefore, build the
+--          learning tool to learn and use the industrial tool later  [15:54]
+-- <whatif> f = \x -> do { o <- get; let n = o+1; put n; return (o+n) } parse
+--          "put n;" error, what do I miss?  [16:01]
+-- <tomsmeding> @let f = \x -> do { o <- get; let n = o+1; put n; return (o+n) }
+-- <lambdabot>  Parse failed: Parse error: ;
+-- <tomsmeding> @let f = \x -> do { o <- get; let { n = o+1 }; put n; return
+--              (o+n) }
+-- <lambdabot>  Defined.
+-- <tomsmeding> whatif: 'let' also takes multiple bindings using ; so the ;
+--              before 'put' got parsed as belonging to the 'let'  [16:06]
+-- <tomsmeding> if you use the multi-line version with indentation, you have no
+--              such issues :)
+-- <whatif> tomsmeding: why let doesn't use ',' as split?  [16:07]
+-- <whatif> let a=1, b=2
+-- <tomsmeding> I guess it could  [16:08]
+-- <tomsmeding> but please put it on multiple lines :p
+-- <EvanR> braces and semicolons is the raw form of that syntax, no need to make
+--         that fancy too
+-- <tomsmeding> whatif: https://paste.tomsmeding.com/FOIejovG  [16:09]
+-- <whatif> f :: Int -> State Int Int  [16:12]
+-- <whatif> f = \x -> do { o <- get; let {n = o+1}; put n; return (o+n) }
+-- <whatif> what traverse f [1,1] would do?
+-- <whatif> traverse print [1,1] would print 1 and 1  [16:13]
+-- <tomsmeding> 'traverse f l = sequence (map f l)' on lists  [16:16]
+-- <EvanR> :t sequenceA
+-- <lambdabot> (Traversable t, Applicative f) => t (f a) -> f (t a)
+-- <tomsmeding> so it would be 'do { a <- f 1 ; b <- f 2 ; return [a, b] }'
+-- <whatif> tomsmeding: how [1,1] turn to f 2?  [16:17]
+-- <whatif> traverse f [1,1] == sequence (map f [1,1])  [16:18]
+-- <whatif> map f [1,1] == [f 1, f 1]
+-- <whatif> where f 2 comes from?
+-- <tomsmeding> whatif: oh lol sorry, should be 'f 1' twice  [16:19]
+-- <tomsmeding> what I wrote would be the result of 'traverse f [1, 2]'
+-- <whatif> traverse f [1,1] == do { a <- f 1; b <- f 1; return [a, b] }  [16:21]
+-- <EvanR> @check \n m -> f [n,m] == do { a <- f n; b <- f m; return [a,b] }
+-- <EvanR> @check \n m -> L.f [n,m] == do { a <- L.f n; b <- L.f m; return [a,b]
+--         }
+-- <EvanR> i didn't put traverse
+-- <tomsmeding> whatif:
+--              https://hackage.haskell.org/package/base-4.14.0.0/docs/src/Data.Traversable.html#line-230
+-- <whatif> does State construct a binary function? State $ \s -> \a -> (a,s)?
+-- <tomsmeding> foldr cons_f (pure []) = foldr (\x ys -> do { x' <- f x ; ys' <-
+--              ys ; return (x' : ys) }) (return [])  [16:27]
+-- <tomsmeding> whatif:
+--              https://hackage.haskell.org/package/transformers-0.6.0.2/docs/src/Control.Monad.Trans.State.Strict.html#StateT
+-- <tomsmeding> ignore the 'm' for the non-transformer variant
+-- <whatif> newtype StateT s m a = StateT { runStateT :: s -> m (a,s) }, where
+--          the a come from?
+-- <EvanR> newtypes are cool because they don't exist at runtime
+-- <EvanR> their representation equals whatever is being wrapped  [16:30]
+-- <EvanR> a zero-cost abstraction
+-- <whatif> State or StateT wrapped a function, what's the function?   [16:31]
+-- <whatif> \s -> (a,s)?
+-- <EvanR> your stateful program
+-- <whatif> :t State $ \s -> (a,s)
+-- <lambdabot> error:
+-- <lambdabot>     • Data constructor not in scope: State :: (b0 -> (Expr, b0))
+--             -> t
+-- <lambdabot>     • Perhaps you meant one of these:
+-- <EvanR> :t State (\s -> ('?', s))  [16:32]
+-- <lambdabot> error:
+-- <lambdabot>     • Data constructor not in scope: State :: (b0 -> (Char, b0))
+--             -> t
+-- <lambdabot>     • Perhaps you meant one of these:
+-- <whatif> how to use value constructor State to construct a State a b
+-- <EvanR> :t StateT (\s -> ('?', s))
+-- <lambdabot> error:
+-- <lambdabot>     • Occurs check: cannot construct the infinite type: s ~ (a, s)
+-- <lambdabot>     • In the expression: s
+-- <EvanR> :t StateT (\s -> Identity ('?', s))
+-- <lambdabot> StateT b Identity Char
+-- <EvanR> finally
+-- <EvanR> you wouldn't use StateT directly, you would use return or (>>=)
+-- <EvanR> that thing I constructed is pure '?'
+-- <EvanR> return '?'
+-- <whatif> a is free, State $ \s -> (a, s) :: State S A  [16:40]
+-- <whatif> more confused, f 1:: State Int Int, in that o <- get; what 'get' get?
+-- <whatif> 1?
+-- <whatif> f = \x -> do { o <- get; let {n = o+1}; put n; return (o+n) }
+-- <whatif> f 1 = State $ \s -> (s+1, s)
+-- <tomsmeding> it gets the current state
+-- <whatif> tomsmeding: but 1 isn't pass to State  [16:48]
+-- <tomsmeding> that 'f' is similar to '\s -> \x -> let o = s ; n = o+1 ; s' = n
+--              in (o+n,s')'
+-- <tomsmeding> except there are some State and Identity wrappers around it
+-- <tomsmeding> 's' is the input state, 'x' is your argument x; o+n is the return
+--              value, and s' is the output state  [16:49]
+-- <whatif> tomsmeding: you mean that 'get' will get 1?
+-- <tomsmeding> no, it will get the input state
+-- <tomsmeding> the only way to _run_ a State computation is using runState
+-- <tomsmeding> :t runState
+-- <lambdabot> State s a -> s -> (a, s)
+-- <tomsmeding> here, you have to supply the initial state
+-- <tomsmeding> > runState (f 10) 42  [16:50]
+-- <lambdabot>  error:
+-- <lambdabot>      Ambiguous occurrence ‘f’
+-- <lambdabot>      It could refer to
+-- <tomsmeding> > runState (L.f 10) 42
+-- <lambdabot>  (85,43)
+-- <tomsmeding> o = 42; n = 43; s' = 43; return value is then o+n=42+43=85
+-- <tomsmeding> note that x wasn't used, because, well, your f doesn't use x :)
+-- <whatif> traverse f [1,1] == sequence (map f [1,1]) == sequence [f 1, f 1] ==
+--          sequence [State $ \s -> (s+1, s), State $ \s -> (s+1, s)], right?
+--                                                                         [16:56]
+-- <whatif> is there wrong?  [16:57]
+-- <[exa]> looks valid to me  [17:00]
+-- <[exa]> (except perhaps the order of stuff in the tuples)
+-- <whatif> [exa]: what do you mean the order of stuff?
+-- <whatif> (s, s+1)?  [17:01]
+-- <mjrosenb> [exa]: sorry, I was dumb.  I removed a path, without removing all
+--            of its children.  Fixed that issue, and the problem went away.
+-- <mjrosenb> (the error message was super not useful)  [17:02]
+-- <whatif> sequence :: [State s a] -> State [a], right?  [17:04]
+-- <whatif> so sequence [State $ \s -> (s+1, s), State $ \s -> (s+1, s) == State
+--          $ \s -> [s+1, s+1], right?
+-- <whatif> is there wrong?  [17:06]
+-- <[exa]> whatif: the last thing you wrote doesn't really typecheck
+-- <[exa]> in particular, `sequence :: [State s a] -> State s [a]`   (you missed
+--         the last `s`)  [17:08]
+-- <[exa]> in turn, the thing should result into something like `State $ \s ->
+--         (s+2, [s, s+1])`  [17:09]
+-- <[exa]> (note the function must return the tuple again)
+-- <mjrosenb> because running a state returns the result of the computation, as
+--            well as the new result.
+-- <[exa]> ...new state. ^ :]  [17:10]
+-- <whatif> yeah, State s is the m
+-- <whatif> [exa]: but I don't understand how s+1 becoome s+2  [17:11]
+-- <whatif> sequence :: [State s a] -> State s [a]
+-- <whatif> sequence [State $ \s -> (s+1, s), State $ \s -> (s+1, s) == State $
+--          \s -> (s+2, [s, s+1]) /=  State $ \s -> [s+1, s+1]  [17:12]
+-- <whatif> how it become s+2?  [17:16]
+-- <tomsmeding> sequence [State (\s -> (s+1, s)), State (\s -> (s+1, s))]  is
+--              similar to  \s -> let (s1, x) = (\s -> (s+1, s)) s ; (s2, y) =
+--              (\s -> (s+1, s)) s1 in (s2, [x,y])
+-- <tomsmeding> it's called state-passing for a reason; the state is threaded
+--              through and updated along the way by the computations  [17:20]
+-- <tomsmeding> my "similar to" is basically after removing StateT newtype
+--              wrappers and simplifying a little (e.g. simplifying '(\x -> x)
+--              10' to '10')  [17:21]
+-- <whatif> tomsmeding: sequence will pass that s+1 from the first State $ \s ->
+--          (s+1, s) as s for the second State $ \s -> (s+1, s)?  [17:25]
+-- <tomsmeding> yes  [17:26]
+-- <tomsmeding> because that way, you're simulating "updating" the state from s
+--              to s+1, before running the second thing
+-- <whatif> tomsmeding: and that's what sequence's definition? right?
+-- <tomsmeding> @src sequence
+-- <lambdabot> sequence []     = return []
+-- <lambdabot> sequence (x:xs) = do v <- x; vs <- sequence xs; return (v:vs)
+-- <lambdabot> --OR
+-- <lambdabot> sequence xs = foldr (liftM2 (:)) (return []) xs
+-- <tomsmeding> see the first version  [17:27]
+-- <tomsmeding> and for State, what you way is what it ends up doing
+-- <tomsmeding> *what you say
+-- <whatif> I don't understand, sequence (x:xs) = do v <- x; vs <- sequence xs;
+--          return (v:vs), so sequence [State $\s -> (s+1, s), State $\s -> (s+1,
+--          s)] would be v is s+1,  return (v:vs) would be State $\s -> ([s+1,
+--          s+1], s)
+-- <whatif> tomsmeding: sequence (x:xs) = ... return (v:vs) what's the m here?
+--          []?  [17:36]
+-- <tomsmeding> whatif: State, right?
+-- <tomsmeding> well, m ~ State Int
+-- <tomsmeding> gentauro: 0 clue about emacs, but for hls, ghcup  [17:37]
+-- <tomsmeding> though ghcup's HLS crashes for me, so I build it myself using
+--              'git clone HLS; cd HLS; cabal install' :p
+-- <gentauro> tomsmeding: thx, I look into that  [17:38]
+-- <whatif> sequence [State \s -> (s+1,s)] would be State $\s -> ([(s+1)],s)?
+-- <tomsmeding> whatif: we had 'newtype State s a = State (s -> (s, a))' right?
+-- <tomsmeding> so the value is in the second component, the state in the first
+-- <tomsmeding> so the result would be State (\s -> (s+1, [s]))
+-- <whatif> what's the oldtype...  [17:42]
+-- <whatif> data State s a =...
+-- <tomsmeding> old type?  [17:45]
+-- <tomsmeding> 'newtype' and 'data' are equivalent for everything except a bit
+--              of runtime performance and less distinct 'undefined' values
+-- <whatif> tomsmeding: this sequence [State...] is like reduce to me
+-- <whatif> foldl
+-- <[exa]> `sequence_` can be easily defined as `foldr (>>) (pure ())`
+-- <[exa]> that said, isn't there a name for `pure ()` ? like void, but without
+--         the parameter
+-- <tomsmeding> instance Monad m => Monoid (m ()) where mappend = (>>) ; mempty =
+--              pure () -- pre-semigroup split because meh  [18:21]
+-- <whatif> [exa]: `sequence_` can be easily defined as `foldr (>>) (pure ())`
+--          this is point-free style?  [18:26]
+-- <[exa]> well there's no point so yeah, it is
+-- <[exa]> tomsmeding: ah nice thanks. :D
+-- <whatif> what pure () doing here?
+-- <[exa]> ensuring that the whole thing returns `m ()`. You could omit it and go
+--         with `foldr1` but that's not as nice
+-- <tomsmeding> [exa]: though I'm not sure quite how useful that instance is :p
+-- <whatif> [exa]: could it be with foldl1?
+-- <tomsmeding> whatif: you need to return something in case the list is empty
+-- <geekosaur> foldl is generally not as useful as one might think  [18:28]
+-- <[exa]> whatif: yeah but the "actions" would happen in a mildly surprising
+--         order, starting from the last one
+-- <whatif> I very like foldl1, it's called reduce in other languages
+-- <tomsmeding> [exa]: not with foldl1 (>>), right?
+-- <tomsmeding> Ignoring foldl efficiency concerns  [18:29]
+-- <[exa]> ah yeah nope, sorry for confusion
+-- <[exa]> still, efficiency concerns
+-- <geekosaur> actually what most languages call reduce is foldr1. (the "l"/"r"
+--             is about associativity, not order; lists can only ever be
+--             traversed from the left)
+-- <whatif> geekosaur: what?
+-- <[exa]> whatif: left-folding a right-folded structure sometimes hurts
+-- <whatif> [1,2,3], [1+2,3] what this? foldl?
+-- <geekosaur> > foldl f z [a,b,c]
+-- <lambdabot>  error:
+-- <lambdabot>      Ambiguous occurrence ‘f’
+-- <lambdabot>      It could refer to
+-- <tomsmeding> geekosaur: not in js, at least; [1,2,3].reduce((a,b) => 10*a+b)
+--              returns 123 in js
+-- <geekosaur> bah
+-- <tomsmeding> @undef  [18:31]
+-- <lambdabot> Undefined.
+-- <geekosaur> > foldl f z [a,b,c]
+-- <lambdabot>  f (f (f z a) b) c
+-- <geekosaur> > foldr f z [a,b,c]
+-- <lambdabot>  f a (f b (f c z))
+-- <geekosaur> compare these
+-- <tomsmeding> > foldl1 (\a b -> 10*a+b) [1,2,3]  [18:32]
+-- <whatif> I still like foldl, from left to right to do something
+-- <lambdabot>  123
+-- <geekosaur> foldr is much more natural because it matches the associativity of
+--             a list
+-- <tomsmeding> > foldr1 (\a b -> 10*a+b) [1,2,3]
+-- <lambdabot>  33
+-- <[exa]> whatif: the main problem with foldl is that in a lazy language it
+--         first rebuilds the right-folded list to a left-folded thunk of (+)'s,
+--         THEN starts reducing it. You almost always want something stricter,
+--         such as foldl'
+-- <geekosaur> and in fact `foldr (:) []` is the identity on a list
+-- <whatif> in natural, do you read something from left to right?  [18:33]
+-- <tomsmeding> whatif: foldl has the more common order, when comparing with
+--              other programming languages. However, because of haskell's list
+--              structure, in combination with the laziness, foldr ends up
+--              working better in a lot of cases
+-- <tomsmeding> Exception: sum = foldl' (+) 0 -- and note the foldl' instead of
+--              foldl (look up the documentation)
+-- <__monty__> I also believe you can express foldl in terms of foldr but not the
+--             other way around?  [18:34]
+-- * tomsmeding is skeptical  [18:35]
+-- <whatif> [exa]: sequence_ = \x -> foldr1 (>>) x?
+-- <[exa]> yeah except it doesn't match the definition of sequence_ anymore, it's
+--         something like sequenceLast or so  [18:41]
+-- <__monty__> > let foldrl f z xs = foldr (\x next y -> next $ f y x) id xs z in
+--             (foldl f z [a,b,c], foldrl f z [a, b, c])
+-- <lambdabot>  (f (f (f z a) b) c,f (f (f z a) b) c)
+-- <__monty__> tomsmeding: ^
+-- <__monty__> I think this is correct.
+-- <geekosaur> proves the one but not the other  [18:48]
+-- <tomsmeding> > let foldlr f z xs = foldl (\x next y -> next $ f y x) id xs z
+--              in (foldr f z [a,b,c], foldlr f z [a,b,c])
+-- <__monty__> Well, foldl doesn't work on infinite lists, right? So it can't
+--             ever implement foldr.
+-- <tomsmeding> Hm right
+-- <__monty__> This is a brilliant blogpost about folds for anyone who wants to
+--             understand them better, https://ertes.eu/tutorial/foldr.html (<3
+--             Ertugrul†)  [18:51]
+-- <__monty__> geekosaur: I know my proof isn't very rigorous. Would love to hear
+--             if I'm wrong though.  [18:53]
+-- <geekosaur> doesn't seem like it needs to be any more rigorous to me, although
+--             I guess a proper mathematician would want proof that foldr can
+--             handle infinite lists :)
+-- <geekosaur> (should follow from its definition, though, so shouldn't be
+--             difficult)  [18:54]
+-- <__monty__> > foldr (const) z [0..]  [18:56]
+-- <lambdabot>  0
+-- <__monty__> Proof by counterexample : )
+-- <__monty__> Or example rather.  [18:57]
