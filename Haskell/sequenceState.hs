@@ -1,5 +1,22 @@
 import Control.Monad.State
 
+
+{-Reader r a = Reader $ \a -> r-}
+
+{-a is the input and r is the result-}
+
+{-in Reader r a >>= ...-}
+{-put r as a to the next one, but you can in the rest use `ask' to get the original a-}
+
+{-so State s a, in the next computation chain, use `get' to get the original input,-}
+{-use `put' to change the original input-}
+
+{-g x = do {o <- get; let {n=o+1}; put n; return (n+x);}-}
+{-runState (traverse g [1,1,1]) 0 == ([2,3,4],3)-}
+
+{-traverse g [1,1,1], the `get' will get 0, then `get' will get 1, then `get' will get 2-}
+
+
 gc :: Integer -> State Integer Integer
 gc x = do
   oldN <- get
@@ -13,6 +30,10 @@ main = do
 -- [2,3,4]
 -- evalState State s a = \s -> a
 -- runState State s a = \s -> (a, s)
+--
+-- g x = do {o <- get; let {n=o+1}; put n; return (n+x);}
+-- runState (traverse g [1,1,1]) 0 == ([2,3,4],3)
+
 
 -- f = \x -> do { o <- get; let {n = o+1}; put n; return (o+n) }
 -- traverse f [1,1] == sequence (map f [1,1]) == sequence [f 1, f 1] == sequence [State $ \s -> (s+1, s), State $ \s -> (s+1, s)]
