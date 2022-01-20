@@ -75,8 +75,14 @@ main = do
     --appendFile "docs.html" "</html>\n" 
     -- <a href="path"> name </a>
 
+    writeFile "index.html" " "
+    appendFile "index.html" $ "<html lang=\"en-US\">\n <head>\n <meta charset=\"utf-8\"> <title> index </title>\n </head>\n <body>\n"
+    appendFile "index.html" $ foldl1 (<>) (fmap (\x -> "<a href=\"" <> x  <> "\"> " <> x <> "</a> <br> <br> <br>" <> "\n") ["/docs", "/config", "/code", "/upload", "/text", "/audio", "/video", "/picture", "/others"])
+    appendFile "index.html" "</body>\n </html>\n" 
+
     scotty 8080 $ do
-    get "/" $ text "docs, config, code, upload, text, audio, video, picture, others"
+    --get "/" $ text "docs, config, code, upload, text, audio, video, picture, others"
+    get "/" $ file "index.html"
     get "/docs" $ file "docs.html"
     get "/code" $ file "code.html"
     get "/config" $ file "config.html"
@@ -93,13 +99,6 @@ main = do
         --traverse (\_file -> liftIO $ generateIndexHtml (DTL.unpack $ fst _file)) _files
         --liftIO $ print "upload done"
         --file "upload.html"
-
-    --post "/text" $ do
-        --_files <- files
-        --traverse (\_file -> liftIO $ DB.writeFile ((DTL.unpack $ fst _file) <> "/" <> (BSC.unpack $ fileName $ snd _file)) (fileContent $ snd _file)) _files
-        --traverse (\_file -> liftIO $ generateIndexHtml (DTL.unpack $ fst _file)) _files
-        --liftIO $ print "upload done"
-        --file "text.html"
 
     postAndShow "/upload"
     postAndShow "/text"
