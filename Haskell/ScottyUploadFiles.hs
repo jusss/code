@@ -8,6 +8,7 @@ import System.Directory
 import Control.Monad
 import System.Environment
 import Network.Wai.Parse
+import qualified Data.List as DL
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as DTL
 import qualified Data.ByteString.Lazy as DB
@@ -36,14 +37,27 @@ app _ respond = do
 
 generateIndexHtml :: String -> IO ()
 generateIndexHtml pathName = do
-        fileList <- getDirectoryContents pathName
+        _fileList <- getDirectoryContents pathName
+        --_fileList <- listDirectory pathName
+        let fileList = DL.sort _fileList
         let fileName = pathName <> ".html"
         writeFile fileName " "
-        appendFile fileName $ "<html>\n <head>\n <title>" <> pathName <> "</title>\n </head>\n <body>\n"
+        appendFile fileName $ "<html lang=\"en-US\">\n <head>\n <meta charset=\"utf-8\"> <title>" <> pathName <> "</title>\n </head>\n <body>\n"
+        appendFile fileName $ "<form enctype=\"multipart/form-data\" action=\"/" <> pathName <> "\" method=\"post\">"
+        appendFile fileName $ "<input type=\"file\" name=\"" <> pathName <> "\" multiple> <input type=\"submit\" value=\"Submit\"> </form> <br>"
         -- <a href="path"> name </a>
         appendFile fileName $ foldl1 (<>) (fmap (\x -> "<a href=\"" <> pathName <> "/" <> x <> "\"> " <> x <> "</a> <br>" <> "\n") fileList)
         -- traverse (\x -> liftIO $ appendFile "uploadFile.html" $ "<a href=\"uploadFile/" <> x <> "\"> " <> x <> "</a> <br>" <> "\n") fileList
         appendFile fileName "</body>\n </html>\n" 
+
+postAndShow :: String -> ScottyM ()
+postAndShow pathName =
+    post (capture pathName) $ do
+        _files <- files
+        traverse (\_file -> liftIO $ DB.writeFile ((DTL.unpack $ fst _file) <> "/" <> (BSC.unpack $ fileName $ snd _file)) (fileContent $ snd _file)) _files
+        traverse (\_file -> liftIO $ generateIndexHtml (DTL.unpack $ fst _file)) _files
+        liftIO $ print $ pathName <> " upload done"
+        file $ (drop 1 pathName) <> ".html"
 
 main :: IO ()
 main = do
@@ -73,11 +87,26 @@ main = do
     get "/picture" $ file "picture.html"
     get "/others" $ file "others.html"
 
-    post "/upload" $ do
-        _files <- files
-        traverse (\_file -> liftIO $ DB.writeFile ((DTL.unpack $ fst _file) <> "/" <> (BSC.unpack $ fileName $ snd _file)) (fileContent $ snd _file)) _files
-        traverse (\_file -> liftIO $ generateIndexHtml (DTL.unpack $ fst _file)) _files
-        liftIO $ print "upload done"
+    --post "/upload" $ do
+        --_files <- files
+        --traverse (\_file -> liftIO $ DB.writeFile ((DTL.unpack $ fst _file) <> "/" <> (BSC.unpack $ fileName $ snd _file)) (fileContent $ snd _file)) _files
+        --traverse (\_file -> liftIO $ generateIndexHtml (DTL.unpack $ fst _file)) _files
+        --liftIO $ print "upload done"
+        --file "upload.html"
+
+    --post "/text" $ do
+        --_files <- files
+        --traverse (\_file -> liftIO $ DB.writeFile ((DTL.unpack $ fst _file) <> "/" <> (BSC.unpack $ fileName $ snd _file)) (fileContent $ snd _file)) _files
+        --traverse (\_file -> liftIO $ generateIndexHtml (DTL.unpack $ fst _file)) _files
+        --liftIO $ print "upload done"
+        --file "text.html"
+
+    postAndShow "/upload"
+    postAndShow "/text"
+    postAndShow "/picture"
+    postAndShow "/audio"
+    postAndShow "/video"
+    postAndShow "/others"
 
     get "/:file" $ do
          _file <- param "file"
