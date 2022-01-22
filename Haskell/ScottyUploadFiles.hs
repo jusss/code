@@ -53,7 +53,7 @@ generatePasteHtml pathName = do
         let fileName = pathName <> ".html"
         writeFile fileName $ "<html lang=\"zh-CN\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">  <title>" <> pathName <> "</title>\n </head>\n <body>\n"
         appendFile fileName $ "<form enctype=\"multipart/form-data\" action=\"/" <> pathName <> "\" method=\"post\">"
-        appendFile fileName $ "<input type=\"text\" name=\"" <> pathName <> "\" multiple> <input type=\"submit\" value=\"Submit\"> </form> <br>"
+        appendFile fileName $ "<textarea rows=\"6\" cols=\"80\" name=\"" <> pathName <> "\"></textarea>  <input type=\"submit\" value=\"Submit\"> </form> <br>"
         {-D.appendFile (pathName <> ".txt") $ BSC.pack "\n"-}
         {-content <- fmap BSC.unpack $ fmap BSC.lines $ D.readFile $ pathName <> ".txt"-}
         byteData <- D.readFile $ pathName <> ".txt"
@@ -149,9 +149,11 @@ main = do
         --traverse (\_param -> liftIO $ appendFile ((DTL.unpack $ fst _param) <> ".txt") (DTL.unpack $ (snd _param) <> "\n")) _params
         {-traverse (\_param -> liftIO $ insertFile ((DTL.unpack $ fst _param) <> ".txt") (DTL.unpack $ (snd _param) <> "\n")) _params-}
         binaryData <- param "paste"
+        let binaryDataList = BSC.lines binaryData
+        liftIO $ insertFileWithByteString "paste.txt" $ BSC.concat $ fmap (<> (BSC.pack "<br>")) binaryDataList
         {-liftIO $ D.appendFile "paste.txt" binaryData -}
-        liftIO $ insertFileWithByteString "paste.txt" $ BSC.pack "\n<br>"
-        liftIO $ insertFileWithByteString "paste.txt" binaryData
+        {-liftIO $ insertFileWithByteString "paste.txt" $ BSC.pack "\n<br>"-}
+        {-liftIO $ insertFileWithByteString "paste.txt" binaryData-}
         {-byteData <- liftIO $ D.readFile "paste.txt"-}
         {-text $ DTL.pack $ BSC.unpack byteData-}
         liftIO $ generatePasteHtml "paste"
