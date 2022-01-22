@@ -43,16 +43,25 @@ insertFile filePath str = do
     content <- D.readFile filePath
     D.writeFile filePath $ (BSC.pack str) <> content
 
+insertFileWithByteString :: FilePath -> D.ByteString -> IO ()
+insertFileWithByteString filePath byteString = do 
+    content <- D.readFile filePath 
+    D.writeFile filePath $ byteString <> content
+
 generatePasteHtml :: String -> IO ()
 generatePasteHtml pathName = do
         let fileName = pathName <> ".html"
-        writeFile fileName $ "<html lang=\"en-US\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">  <title>" <> pathName <> "</title>\n </head>\n <body>\n"
+        writeFile fileName $ "<html lang=\"zh-CN\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">  <title>" <> pathName <> "</title>\n </head>\n <body>\n"
         appendFile fileName $ "<form enctype=\"multipart/form-data\" action=\"/" <> pathName <> "\" method=\"post\">"
         appendFile fileName $ "<input type=\"text\" name=\"" <> pathName <> "\" multiple> <input type=\"submit\" value=\"Submit\"> </form> <br>"
-        appendFile (pathName <> ".txt") "\n"
-        content <- fmap lines $ readFile $ pathName <> ".txt"
+        {-D.appendFile (pathName <> ".txt") $ BSC.pack "\n"-}
+        {-content <- fmap BSC.unpack $ fmap BSC.lines $ D.readFile $ pathName <> ".txt"-}
+        byteData <- D.readFile $ pathName <> ".txt"
+        {-let content = fmap BSC.unpack $ BSC.lines byteData-}
         --let _content = foldl1 <> (fmap (\x -> x <> "<br>") $ DT.splitOn '\n' content)
-        appendFile fileName $ join $ fmap (\x -> x <> "<br>") content
+        {-appendFile fileName $ join $ fmap (\x -> x <> "<br>") content-}
+        {-appendFile fileName $ BSC.unpack byteData-}
+        D.appendFile fileName byteData
         appendFile fileName "</body>\n </html>\n" 
 
 generateIndexHtml :: String -> IO ()
@@ -101,6 +110,8 @@ main = do
     appendFile "index.html" $ "<html lang=\"en-US\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"> <title> index </title>\n </head>\n <body>\n"
     appendFile "index.html" $ foldl1 (<>) (fmap (\x -> "<a href=\"" <> x  <> "\"> " <> x <> "</a> <br> <br> <br>" <> "\n") ["/paste", "/docs", "/config", "/code", "/upload", "/text", "/audio", "/video", "/picture", "/others"])
     appendFile "index.html" "</body>\n </html>\n" 
+    
+    D.appendFile "paste.txt" $ BSC.pack "\n<br>"
 
     generatePasteHtml "paste"
 
@@ -134,9 +145,15 @@ main = do
 
     post "/paste" $ do
     -- submit form data is post with params
-        _params <- params
+        {-_params <- params-}
         --traverse (\_param -> liftIO $ appendFile ((DTL.unpack $ fst _param) <> ".txt") (DTL.unpack $ (snd _param) <> "\n")) _params
-        traverse (\_param -> liftIO $ insertFile ((DTL.unpack $ fst _param) <> ".txt") (DTL.unpack $ (snd _param) <> "\n")) _params
+        {-traverse (\_param -> liftIO $ insertFile ((DTL.unpack $ fst _param) <> ".txt") (DTL.unpack $ (snd _param) <> "\n")) _params-}
+        binaryData <- param "paste"
+        {-liftIO $ D.appendFile "paste.txt" binaryData -}
+        liftIO $ insertFileWithByteString "paste.txt" $ BSC.pack "\n<br>"
+        liftIO $ insertFileWithByteString "paste.txt" binaryData
+        {-byteData <- liftIO $ D.readFile "paste.txt"-}
+        {-text $ DTL.pack $ BSC.unpack byteData-}
         liftIO $ generatePasteHtml "paste"
         file "paste.html"
 
