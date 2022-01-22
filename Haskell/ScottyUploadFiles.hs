@@ -8,9 +8,12 @@ import System.Directory
 import Control.Monad
 import System.Environment
 import Network.Wai.Parse
+import qualified System.Posix.IO as SPI
 import qualified Data.List as DL
-import qualified Data.Text as T
+import qualified Data.Text as DT
+import qualified Data.Text.IO as DTI
 import qualified Data.Text.Lazy as DTL
+import qualified Data.ByteString as D
 import qualified Data.ByteString.Lazy as DB
 import qualified Data.ByteString.Lazy.UTF8 as DBLU
 import qualified Data.ByteString.Char8 as BSC
@@ -35,14 +38,33 @@ app _ respond = do
         [("Content-Type", "text/plain")]
         "Hello, Web!"
 
+insertFile :: FilePath -> String -> IO ()
+insertFile filePath str = do
+    content <- D.readFile filePath
+    D.writeFile filePath $ (BSC.pack str) <> content
+
+generatePasteHtml :: String -> IO ()
+generatePasteHtml pathName = do
+        let fileName = pathName <> ".html"
+        writeFile fileName $ "<html lang=\"en-US\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">  <title>" <> pathName <> "</title>\n </head>\n <body>\n"
+        appendFile fileName $ "<form enctype=\"multipart/form-data\" action=\"/" <> pathName <> "\" method=\"post\">"
+        appendFile fileName $ "<input type=\"text\" name=\"" <> pathName <> "\" multiple> <input type=\"submit\" value=\"Submit\"> </form> <br>"
+        appendFile (pathName <> ".txt") "\n"
+        content <- fmap lines $ readFile $ pathName <> ".txt"
+        --let _content = foldl1 <> (fmap (\x -> x <> "<br>") $ DT.splitOn '\n' content)
+        appendFile fileName $ join $ fmap (\x -> x <> "<br>") content
+        appendFile fileName "</body>\n </html>\n" 
+
 generateIndexHtml :: String -> IO ()
 generateIndexHtml pathName = do
-        _fileList <- getDirectoryContents pathName
-        --_fileList <- listDirectory pathName
-        let fileList = DL.sort _fileList
+        --_fileList <- getDirectoryContents pathName
+        _fileList <- listDirectory pathName
+        --let fileList = DL.sort _fileList
+        --let fileList = [".", ".."] <> (filter (== "..") $ filter (== ".") _fileList)
+        let fileList = [".", ".."] <> _fileList
         let fileName = pathName <> ".html"
         writeFile fileName " "
-        appendFile fileName $ "<html lang=\"en-US\">\n <head>\n <meta charset=\"utf-8\"> <title>" <> pathName <> "</title>\n </head>\n <body>\n"
+        appendFile fileName $ "<html lang=\"en-US\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"> <title>" <> pathName <> "</title>\n </head>\n <body>\n"
         appendFile fileName $ "<form enctype=\"multipart/form-data\" action=\"/" <> pathName <> "\" method=\"post\">"
         appendFile fileName $ "<input type=\"file\" name=\"" <> pathName <> "\" multiple> <input type=\"submit\" value=\"Submit\"> </form> <br>"
         -- <a href="path"> name </a>
@@ -76,9 +98,11 @@ main = do
     -- <a href="path"> name </a>
 
     writeFile "index.html" " "
-    appendFile "index.html" $ "<html lang=\"en-US\">\n <head>\n <meta charset=\"utf-8\"> <title> index </title>\n </head>\n <body>\n"
-    appendFile "index.html" $ foldl1 (<>) (fmap (\x -> "<a href=\"" <> x  <> "\"> " <> x <> "</a> <br> <br> <br>" <> "\n") ["/docs", "/config", "/code", "/upload", "/text", "/audio", "/video", "/picture", "/others"])
+    appendFile "index.html" $ "<html lang=\"en-US\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"> <title> index </title>\n </head>\n <body>\n"
+    appendFile "index.html" $ foldl1 (<>) (fmap (\x -> "<a href=\"" <> x  <> "\"> " <> x <> "</a> <br> <br> <br>" <> "\n") ["/paste", "/docs", "/config", "/code", "/upload", "/text", "/audio", "/video", "/picture", "/others"])
     appendFile "index.html" "</body>\n </html>\n" 
+
+    generatePasteHtml "paste"
 
     scotty 8080 $ do
     --get "/" $ text "docs, config, code, upload, text, audio, video, picture, others"
@@ -92,6 +116,7 @@ main = do
     get "/video" $ file "video.html"
     get "/picture" $ file "picture.html"
     get "/others" $ file "others.html"
+    get "/paste" $ file "paste.html"
 
     --post "/upload" $ do
         --_files <- files
@@ -106,6 +131,14 @@ main = do
     postAndShow "/audio"
     postAndShow "/video"
     postAndShow "/others"
+
+    post "/paste" $ do
+    -- submit form data is post with params
+        _params <- params
+        --traverse (\_param -> liftIO $ appendFile ((DTL.unpack $ fst _param) <> ".txt") (DTL.unpack $ (snd _param) <> "\n")) _params
+        traverse (\_param -> liftIO $ insertFile ((DTL.unpack $ fst _param) <> ".txt") (DTL.unpack $ (snd _param) <> "\n")) _params
+        liftIO $ generatePasteHtml "paste"
+        file "paste.html"
 
     get "/:file" $ do
          _file <- param "file"
