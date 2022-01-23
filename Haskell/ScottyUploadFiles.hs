@@ -1,8 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 import Network.Wai
 import Network.HTTP.Types
 import Network.Wai.Handler.Warp (run)
 import Web.Scotty
+import Web.Scotty.Login.Session
 import Control.Monad.IO.Class
 import System.Directory
 import Control.Monad
@@ -18,9 +20,14 @@ import qualified Data.ByteString.Lazy as DB
 import qualified Data.ByteString.Lazy.UTF8 as DBLU
 import qualified Data.ByteString.Char8 as BSC
 
+-- git clone https://github.com/asg0451/scotty-login-session.git
+-- cd scotty-login-session
+-- cabal v2-build
+-- cabal v2-install --lib
 -- create 'docs', 'config', 'code', 'text', 'audio', 'picture', 'video', 'others' 
 -- put this file and upload.html on the same path with that
--- runghc ScottyUploadFiles.hs
+-- ghc ScottyUploadFiles.hs -optl-static -package scotty -package wai-extra -package wai -package http-types -package warp -package utf8-string
+-- ./ScottyUploadFiles
 
 --main = do
  --   fileList <- getDirectoryContents "/tmp"
@@ -38,6 +45,9 @@ app _ respond = do
         [("Content-Type", "text/plain")]
         "Hello, Web!"
 
+conf :: SessionConfig
+conf = defaultSessionConfig
+
 insertFile :: FilePath -> String -> IO ()
 insertFile filePath str = do
     content <- D.readFile filePath
@@ -53,7 +63,7 @@ generatePasteHtml pathName = do
         let fileName = pathName <> ".html"
         writeFile fileName $ "<html lang=\"zh-CN\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">  <title>" <> pathName <> "</title>\n </head>\n <body>\n"
         appendFile fileName $ "<form enctype=\"multipart/form-data\" action=\"/" <> pathName <> "\" method=\"post\">"
-        appendFile fileName $ "<textarea rows=\"6\" cols=\"80\" name=\"" <> pathName <> "\"></textarea>  <input type=\"submit\" value=\"Submit\"> </form> <br>"
+        appendFile fileName $ "<textarea rows=\"6\" cols=\"56\" name=\"" <> pathName <> "\"></textarea>  <input type=\"submit\" value=\"Submit\"> </form> <br>"
         {-D.appendFile (pathName <> ".txt") $ BSC.pack "\n"-}
         {-content <- fmap BSC.unpack $ fmap BSC.lines $ D.readFile $ pathName <> ".txt"-}
         byteData <- D.readFile $ pathName <> ".txt"
@@ -83,7 +93,7 @@ generateIndexHtml pathName = do
 
 postAndShow :: String -> ScottyM ()
 postAndShow pathName =
-    post (capture pathName) $ do
+    post (capture pathName) $ authCheck (redirect "/denied") $ do
         _files <- files
         traverse (\_file -> liftIO $ DB.writeFile ((DTL.unpack $ fst _file) <> "/" <> (BSC.unpack $ fileName $ snd _file)) (fileContent $ snd _file)) _files
         traverse (\_file -> liftIO $ generateIndexHtml (DTL.unpack $ fst _file)) _files
@@ -115,19 +125,35 @@ main = do
 
     generatePasteHtml "paste"
 
+    initializeCookieDb conf
+
     scotty 8080 $ do
     --get "/" $ text "docs, config, code, upload, text, audio, video, picture, others"
-    get "/" $ file "index.html"
-    get "/docs" $ file "docs.html"
-    get "/code" $ file "code.html"
-    get "/config" $ file "config.html"
-    get "/upload" $ file "upload.html"
-    get "/text" $ file "text.html"
-    get "/audio" $ file "audio.html"
-    get "/video" $ file "video.html"
-    get "/picture" $ file "picture.html"
-    get "/others" $ file "others.html"
-    get "/paste" $ file "paste.html"
+    get "/" $ authCheck (redirect "/login") $ file "index.html"
+    get "/docs" $ authCheck (redirect "/denied") $ file "docs.html"
+    get "/code" $ authCheck (redirect "/denied") $ file "code.html"
+    get "/config" $ authCheck (redirect "/denied") $ file "config.html"
+    get "/upload" $ authCheck (redirect "/denied") $ file "upload.html"
+    get "/text" $ authCheck (redirect "/denied") $ file "text.html"
+    get "/audio" $ authCheck (redirect "/denied") $ file "audio.html"
+    get "/video" $ authCheck (redirect "/denied") $ file "video.html"
+    get "/picture" $ authCheck (redirect "/denied") $ file "picture.html"
+    get "/others" $ authCheck (redirect "/denied") $ file "others.html"
+    get "/paste" $ authCheck (redirect "/denied") $ file "paste.html"
+    get "/denied" $ text "access denied"
+    get "/login" $ do html $ DTL.pack $ unlines $
+                        [ "<form method=\"POST\" action=\"/login\">"
+                        , "<input type=\"text\" placeholder=\"user\" name=\"username\">"
+                        , "<input type=\"password\" placeholder=\"password\" name=\"password\">"
+                        , "<input type=\"submit\" name=\"login\" value=\"login\">"
+                        , "</form>" ]
+    post "/login" $ do
+        (usn :: String) <- param "username"
+        (pass :: String) <- param "password"
+        if usn == "user" && pass == "password"
+            then do addSession conf
+                    redirect "/"
+            else do redirect "/denied"
 
     --post "/upload" $ do
         --_files <- files
@@ -143,7 +169,7 @@ main = do
     postAndShow "/video"
     postAndShow "/others"
 
-    post "/paste" $ do
+    post "/paste" $ authCheck (redirect "/denied") $ do
     -- submit form data is post with params
         {-_params <- params-}
         --traverse (\_param -> liftIO $ appendFile ((DTL.unpack $ fst _param) <> ".txt") (DTL.unpack $ (snd _param) <> "\n")) _params
@@ -159,19 +185,19 @@ main = do
         liftIO $ generatePasteHtml "paste"
         file "paste.html"
 
-    get "/:file" $ do
+    get "/:file" $ authCheck (redirect "/denied") $ do
          _file <- param "file"
          liftIO $ putStrLn _file
          file _file
 
-    get "/:to/:file" $ do
+    get "/:to/:file" $ authCheck (redirect "/denied") $ do
         _to <- param "to"
         _file <- param "file"
         let dest = _to <> "/" <> _file
         liftIO $ putStrLn dest
         file $ dest
 
-    get "/:path/:to/:file" $ do
+    get "/:path/:to/:file" $ authCheck (redirect "/denied") $ do
         _path <- param "path"
         _to <- param "to"
         _file <- param "file"
