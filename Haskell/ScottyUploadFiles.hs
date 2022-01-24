@@ -45,6 +45,14 @@ app _ respond = do
         [("Content-Type", "text/plain")]
         "Hello, Web!"
 
+{-getFile restrictList =-}
+    {-flip traverse restrictList $ \x ->-}
+    {-get (x <> "/:file") $ do-}
+        {-_file <- param "file"-}
+        {-let dest = (drop 1 x) <> "/" <> _file-}
+        {-liftIO $ putStrLn dest-}
+        {-authCheck (redirect "/login") $ file dest-}
+
 conf :: SessionConfig
 conf = defaultSessionConfig
 
@@ -93,7 +101,7 @@ generateIndexHtml pathName = do
 
 postAndShow :: String -> ScottyM ()
 postAndShow pathName =
-    post (capture pathName) $ authCheck (redirect "/denied") $ do
+    post (capture pathName) $ authCheck (redirect "/login") $ do
         _files <- files
         traverse (\_file -> liftIO $ DB.writeFile ((DTL.unpack $ fst _file) <> "/" <> (BSC.unpack $ fileName $ snd _file)) (fileContent $ snd _file)) _files
         traverse (\_file -> liftIO $ generateIndexHtml (DTL.unpack $ fst _file)) _files
@@ -130,30 +138,30 @@ main = do
     scotty 8080 $ do
     --get "/" $ text "docs, config, code, upload, text, audio, video, picture, others"
     get "/" $ authCheck (redirect "/login") $ file "index.html"
-    get "/docs" $ authCheck (redirect "/denied") $ file "docs.html"
-    get "/code" $ authCheck (redirect "/denied") $ file "code.html"
-    get "/config" $ authCheck (redirect "/denied") $ file "config.html"
-    get "/upload" $ authCheck (redirect "/denied") $ file "upload.html"
-    get "/text" $ authCheck (redirect "/denied") $ file "text.html"
-    get "/audio" $ authCheck (redirect "/denied") $ file "audio.html"
-    get "/video" $ authCheck (redirect "/denied") $ file "video.html"
-    get "/picture" $ authCheck (redirect "/denied") $ file "picture.html"
-    get "/others" $ authCheck (redirect "/denied") $ file "others.html"
-    get "/paste" $ authCheck (redirect "/denied") $ file "paste.html"
+    get "/docs" $ authCheck (redirect "/login") $ file "docs.html"
+    get "/code" $ authCheck (redirect "/login") $ file "code.html"
+    get "/config" $ authCheck (redirect "/login") $ file "config.html"
+    get "/upload" $ authCheck (redirect "/login") $ file "upload.html"
+    get "/text" $ authCheck (redirect "/login") $ file "text.html"
+    get "/audio" $ authCheck (redirect "/login") $ file "audio.html"
+    get "/video" $ authCheck (redirect "/login") $ file "video.html"
+    get "/picture" $ authCheck (redirect "/login") $ file "picture.html"
+    get "/others" $ authCheck (redirect "/login") $ file "others.html"
+    get "/paste" $ authCheck (redirect "/login") $ file "paste.html"
     get "/denied" $ text "access denied"
     get "/login" $ do html $ DTL.pack $ unlines $
                         [ "<form method=\"POST\" action=\"/login\">"
-                        , "<input type=\"text\" placeholder=\"user\" name=\"username\">"
-                        , "<input type=\"password\" placeholder=\"password\" name=\"password\">"
+                        , "<label for=\"username\">User:</label> <input type=\"text\" name=\"username\"> <br> <br>"
+                        , "<label for=\"password\">Pass:</label> <input type=\"password\" name=\"password\"> <br> <br>"
                         , "<input type=\"submit\" name=\"login\" value=\"login\">"
                         , "</form>" ]
     post "/login" $ do
         (usn :: String) <- param "username"
         (pass :: String) <- param "password"
-        if usn == "user" && pass == "password"
+        if usn == "username" && pass == "password"
             then do addSession conf
                     redirect "/"
-            else do redirect "/denied"
+            else text "invalid user or wrong password"
 
     --post "/upload" $ do
         --_files <- files
@@ -169,7 +177,7 @@ main = do
     postAndShow "/video"
     postAndShow "/others"
 
-    post "/paste" $ authCheck (redirect "/denied") $ do
+    post "/paste" $ authCheck (redirect "/login") $ do
     -- submit form data is post with params
         {-_params <- params-}
         --traverse (\_param -> liftIO $ appendFile ((DTL.unpack $ fst _param) <> ".txt") (DTL.unpack $ (snd _param) <> "\n")) _params
@@ -185,22 +193,25 @@ main = do
         liftIO $ generatePasteHtml "paste"
         file "paste.html"
 
-    get "/:file" $ authCheck (redirect "/denied") $ do
-         _file <- param "file"
-         liftIO $ putStrLn _file
-         file _file
+    {-get "/:file" $ do-}
+         {-_file <- param "file"-}
+         {-liftIO $ putStrLn _file-}
+         {-file _file-}
 
-    get "/:to/:file" $ authCheck (redirect "/denied") $ do
+    get "/:to/:file" $ do
         _to <- param "to"
         _file <- param "file"
         let dest = _to <> "/" <> _file
         liftIO $ putStrLn dest
-        file $ dest
+        authCheck (redirect "/login") $ file dest
 
-    get "/:path/:to/:file" $ authCheck (redirect "/denied") $ do
-        _path <- param "path"
-        _to <- param "to"
-        _file <- param "file"
-        let dest = _path <> "/" <> _to <> "/" <> _file
-        liftIO $ putStrLn dest
-        file $ dest
+    {-get "/:path/:to/:file" $ do-}
+        {-_path <- param "path"-}
+        {-_to <- param "to"-}
+        {-_file <- param "file"-}
+        {-let dest = _path <> "/" <> _to <> "/" <> _file-}
+        {-liftIO $ putStrLn dest-}
+        {-file $ dest-}
+
+    {-getFile ["docs", "code", "config", "text", "audio", "video", "picture", "others"]-}
+    {-return ()-}
