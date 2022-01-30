@@ -1,10 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 import Network.Wai
+import Data.Maybe
 import Network.HTTP.Types
 import Network.Wai.Handler.Warp (run)
 import Web.Scotty
 import Web.Scotty.Login.Session
+import Web.Scotty.Cookie
 import Control.Monad.IO.Class
 import System.Directory
 import Control.Monad
@@ -26,7 +28,7 @@ import qualified Data.ByteString.Char8 as BSC
 -- cabal v2-install --lib
 -- create 'docs', 'config', 'code', 'text', 'audio', 'picture', 'video', 'others' 
 -- put this file and upload.html on the same path with that
--- ghc ScottyUploadFiles.hs -optl-static -package scotty -package wai-extra -package wai -package http-types -package warp -package utf8-string
+-- ghc ScottyUploadFiles.hs -optl-static -package scotty -package wai-extra -package wai -package http-types -package warp -package utf8-string -package scotty-cookie
 -- ./ScottyUploadFiles
 
 --main = do
@@ -53,8 +55,13 @@ app _ respond = do
         {-liftIO $ putStrLn dest-}
         {-authCheck (redirect "/login") $ file dest-}
 
-conf :: SessionConfig
-conf = defaultSessionConfig
+{-conf :: SessionConfig-}
+{-conf = defaultSessionConfig-}
+
+-- the defaultSessionConfig is 120 sec to expire, change it to 1 day
+mySessionConfig :: SessionConfig
+mySessionConfig = SessionConfig "sessions.sqlite3" 1200 86400 False
+conf = mySessionConfig
 
 insertFile :: FilePath -> String -> IO ()
 insertFile filePath str = do
@@ -71,7 +78,7 @@ generatePasteHtml pathName = do
         let fileName = pathName <> ".html"
         writeFile fileName $ "<html lang=\"zh-CN\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">  <title>" <> pathName <> "</title>\n </head>\n <body>\n"
         appendFile fileName $ "<form enctype=\"multipart/form-data\" action=\"/" <> pathName <> "\" method=\"post\">"
-        appendFile fileName $ "<textarea rows=\"6\" cols=\"56\" name=\"" <> pathName <> "\"></textarea>  <input type=\"submit\" value=\"Submit\"> </form> <br>"
+        appendFile fileName $ "<textarea rows=\"6\" cols=\"36\" name=\"" <> pathName <> "\"></textarea> <br> <input type=\"submit\" value=\"Submit\"> </form> <br>"
         {-D.appendFile (pathName <> ".txt") $ BSC.pack "\n"-}
         {-content <- fmap BSC.unpack $ fmap BSC.lines $ D.readFile $ pathName <> ".txt"-}
         byteData <- D.readFile $ pathName <> ".txt"
@@ -155,12 +162,21 @@ main = do
                         , "<label for=\"password\">Pass:</label> <input type=\"password\" name=\"password\"> <br> <br>"
                         , "<input type=\"submit\" name=\"login\" value=\"login\">"
                         , "</form>" ]
+
+    get "/test" $ do 
+        agent <- header "User-Agent"
+        liftIO $ print agent
+        setSimpleCookie "this-is-cookie-name" "b"
+        text "hi"
+
     post "/login" $ do
         (usn :: String) <- param "username"
         (pass :: String) <- param "password"
-        if usn == "username" && pass == "password"
-            then do addSession conf
-                    redirect "/"
+        if usn == "user" && pass == "password"
+            then do 
+                id <- addSession conf
+                liftIO $ print id
+                redirect "/"
             else text "invalid user or wrong password"
 
     --post "/upload" $ do
@@ -193,25 +209,26 @@ main = do
         liftIO $ generatePasteHtml "paste"
         file "paste.html"
 
-    {-get "/:file" $ do-}
-         {-_file <- param "file"-}
-         {-liftIO $ putStrLn _file-}
-         {-file _file-}
+    get "/:file" $ authCheck (redirect "/login") $ do
+         _file <- param "file"
+         liftIO $ putStrLn _file
+         file _file
 
-    get "/:to/:file" $ do
+    get "/:to/:file" $ authCheck (redirect "/login") $ do
         _to <- param "to"
         _file <- param "file"
         let dest = _to <> "/" <> _file
         liftIO $ putStrLn dest
-        authCheck (redirect "/login") $ file dest
+        file dest
+        {-authCheck (redirect "/login") $ file dest-}
 
-    {-get "/:path/:to/:file" $ do-}
-        {-_path <- param "path"-}
-        {-_to <- param "to"-}
-        {-_file <- param "file"-}
-        {-let dest = _path <> "/" <> _to <> "/" <> _file-}
-        {-liftIO $ putStrLn dest-}
-        {-file $ dest-}
+    get "/:path/:to/:file" $ authCheck (redirect "/login") $ do
+        _path <- param "path"
+        _to <- param "to"
+        _file <- param "file"
+        let dest = _path <> "/" <> _to <> "/" <> _file
+        liftIO $ putStrLn dest
+        file $ dest
 
     {-getFile ["docs", "code", "config", "text", "audio", "video", "picture", "others"]-}
     {-return ()-}
