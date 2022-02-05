@@ -28,7 +28,7 @@ import qualified Data.ByteString.Char8 as BSC
 -- cabal v2-install --lib
 -- create 'docs', 'config', 'code', 'text', 'audio', 'picture', 'video', 'others' 
 -- put this file and upload.html on the same path with that
--- ghc ScottyUploadFiles.hs -optl-static -package scotty -package wai-extra -package wai -package http-types -package warp -package utf8-string -package scotty-cookie
+-- ghc ScottyUploadFiles.hs -optl-static -package scotty -package wai-extra -package wai -package http-types -package warp -package utf8-string
 -- ./ScottyUploadFiles
 
 --main = do
@@ -77,8 +77,9 @@ generatePasteHtml :: String -> IO ()
 generatePasteHtml pathName = do
         let fileName = pathName <> ".html"
         writeFile fileName $ "<html lang=\"zh-CN\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">  <title>" <> pathName <> "</title>\n </head>\n <body>\n"
-        appendFile fileName $ "<form enctype=\"multipart/form-data\" action=\"/" <> pathName <> "\" method=\"post\">"
-        appendFile fileName $ "<textarea rows=\"6\" cols=\"36\" name=\"" <> pathName <> "\"></textarea> <br> <input type=\"submit\" value=\"Submit\"> </form> <br>"
+        appendFile fileName $ "<form id='myForm' enctype=\"multipart/form-data\" action=\"/" <> pathName <> "\" method=\"post\">"
+        appendFile fileName $ "<textarea id=\"formData\" rows=\"6\" cols=\"36\" name=\"" <> pathName <> "\"></textarea> <br> <input onclick=\"clearForm()\" type=\"submit\" value=\"Submit\"> </form> <br>"
+        appendFile fileName $ "<script> function clearForm() { var fm = document.getElementById('myForm')[0]; fm.submit(); fm.reset(); document.getElementById('formData').value = '';}; if (window.history.replaceState) {windows.history.replaceState(null, null, window.location.href)} </script>"
         {-D.appendFile (pathName <> ".txt") $ BSC.pack "\n"-}
         {-content <- fmap BSC.unpack $ fmap BSC.lines $ D.readFile $ pathName <> ".txt"-}
         byteData <- D.readFile $ pathName <> ".txt"
@@ -172,7 +173,7 @@ main = do
     post "/login" $ do
         (usn :: String) <- param "username"
         (pass :: String) <- param "password"
-        if usn == "user" && pass == "password"
+        if usn == "user" && pass == "pass"
             then do 
                 id <- addSession conf
                 liftIO $ print id
@@ -199,13 +200,16 @@ main = do
         --traverse (\_param -> liftIO $ appendFile ((DTL.unpack $ fst _param) <> ".txt") (DTL.unpack $ (snd _param) <> "\n")) _params
         {-traverse (\_param -> liftIO $ insertFile ((DTL.unpack $ fst _param) <> ".txt") (DTL.unpack $ (snd _param) <> "\n")) _params-}
         binaryData <- param "paste"
-        let binaryDataList = BSC.lines binaryData
-        liftIO $ insertFileWithByteString "paste.txt" $ BSC.concat $ fmap (<> (BSC.pack "<br>")) binaryDataList
-        {-liftIO $ D.appendFile "paste.txt" binaryData -}
-        {-liftIO $ insertFileWithByteString "paste.txt" $ BSC.pack "\n<br>"-}
-        {-liftIO $ insertFileWithByteString "paste.txt" binaryData-}
-        {-byteData <- liftIO $ D.readFile "paste.txt"-}
-        {-text $ DTL.pack $ BSC.unpack byteData-}
+        liftIO $ print binaryData
+        if (binaryData == BSC.pack "") then liftIO $ print "empty submit"
+        else do
+            let binaryDataList = BSC.lines binaryData
+            liftIO $ insertFileWithByteString "paste.txt" $ BSC.concat $ fmap (<> (BSC.pack "<br>\n")) binaryDataList
+            {-liftIO $ D.appendFile "paste.txt" binaryData -}
+            {-liftIO $ insertFileWithByteString "paste.txt" $ BSC.pack "\n<br>"-}
+            {-liftIO $ insertFileWithByteString "paste.txt" binaryData-}
+            {-byteData <- liftIO $ D.readFile "paste.txt"-}
+            {-text $ DTL.pack $ BSC.unpack byteData-}
         liftIO $ generatePasteHtml "paste"
         file "paste.html"
 
