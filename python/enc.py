@@ -11,9 +11,9 @@ def f(n):
 
 def dec(xs):
     g = f(xs[0])
-    return [ g(diff) for diff in xs ]
+    return xs[:1] + [ g(diff) for diff in xs[1:] ]
 
-after_enc = enc(list(range(22)))
+after_enc = enc([1,2,3,5,6])
 print(after_enc)
 
 
