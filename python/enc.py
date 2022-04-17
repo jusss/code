@@ -1,3 +1,5 @@
+# enc xs = (take 1 xs) <> (zipWith (-) (tail xs) xs)
+# dec = scanl1 (+) 
 
 enc = lambda xs: xs[:1] + list(map(lambda x,y: x-y, xs[1:], xs))
 
