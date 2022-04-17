@@ -11,4 +11,5 @@ def fib(n):
         x,y = y, x+y
     return c
 
-print(fib(22))
+num_to_list = lambda x: [int(i) for i in str(x)]
+print(num_to_list(fib(3000)))
