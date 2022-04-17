@@ -12,4 +12,14 @@ def fib(n):
     return c
 
 num_to_list = lambda x: [int(i) for i in str(x)]
-print(num_to_list(fib(3000)))
+#print(num_to_list(fib(3000)))
+
+def align_length(xs, size):
+    while True:
+        xs_length = len(xs)
+        if xs_length > size:
+            return xs[:size]
+        xs = xs + xs
+
+print(align_length(num_to_list(fib(22)), 10))
+
