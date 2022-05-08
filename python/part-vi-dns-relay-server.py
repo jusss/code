@@ -8,8 +8,8 @@ import os, sys, socket, threading
 # and tcp socket have a default timeout if you don't set timeout for it
 
 # TCP connection, server shut down, client recv ''. client shut down, server recv [Errno 32] Broken pipe, you can use try except Exception to catch it
-# local_addr should be your vps'ip and port
-local_addr = ('1.1.1.1',66666)
+# local_addr should be your vps'ip and port, 0.0.0.0 and port
+local_addr = ('0.0.0.0',port)
 server_addr = ('114.114.114.114',53)
 recv_send_size = 10240
 
