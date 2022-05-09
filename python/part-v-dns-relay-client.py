@@ -3,12 +3,17 @@ import os, sys, socket, threading
 
 local_addr = ('127.0.0.1',53)
 # server_addr should be your vps'ip and port
-server_addr = ('1.1.1.1',66666)
+server_addr = (server-ip,port)
 recv_send_size = 102400
 query_addr_ID = []
 switch = 1
 switch_on = 1
 switch_off = 0
+
+black_list = [b'Z\x89\x01\x00\x00\x01\x00\x00\x00\x00\x00\x00\x01i\x0bagyj6awcnow\x03xyz\x00\x00\x01\x00\x01',
+        b'"\x10\x01\x00\x00\x01\x00\x00\x00\x00\x00\x00\x01i\x08a6inc1wy\x03xyz\x00\x00\x01\x00\x01',
+        b'\xe3\x98\x81\x80\x00\x01\x00\x03\x00\x00\x00\x00\x01i\x08agyj6awc\x04club\x00\x00\x01\x00\x01\xc0\x0c\x00\x05\x00\x01\x00\x00\x0c<\x00\x18\x06ca03bx\x01g\teverturst\x03com\x00\xc0-\x00\x01\x00\x01\x00\x00\x00\x1f\x00\x04\xaa!\x00P\xc0-\x00\x01\x00\x01\x00\x00\x00\x1f\x00\x04\xaa!\x02\x8a'
+        ]
     
 def recv_local(local_socket, server_socket, recv_send_size):
     global switch, switch_on, switch_off, query_addr_ID
@@ -24,7 +29,8 @@ def recv_local(local_socket, server_socket, recv_send_size):
             query_addr_ID.append(query_data[0:2])
             # reverse data for keeping away from poison
             try:
-                server_socket.send(query_data[::-1])
+                if query_data not in black_list:
+                    server_socket.send(query_data[::-1])
             except Exception as e:
                 print(e)
                 break
