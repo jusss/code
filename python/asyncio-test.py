@@ -1,11 +1,13 @@
 
-import asyncio
+import asyncio, time
 
 async def loop1():
     n=1
     while n<6:
         print("loop1")
         n=n+1
+        # if you dont want loop1 run at the same time with other loop, use time.sleep, asyncio.sleep just like a break won't block current loop
+        time.sleep(2)
         await asyncio.sleep(1)
     return 1
 
