@@ -1,22 +1,22 @@
 
-import asyncio, time
+import asyncio, time, datetime
 
 async def loop1():
+    print(datetime.datetime.now(), f"loop1 is created")
     n=1
     while n<6:
-        print("loop1")
+        print(datetime.datetime.now(), f"loop1, {n}")
         n=n+1
-        # if you dont want loop1 run at the same time with other loop, use time.sleep, asyncio.sleep just like a break won't block current loop
-        time.sleep(2)
-        await asyncio.sleep(1)
+        await asyncio.sleep(2)
     return 1
 
 async def loop2():
+    print(datetime.datetime.now(), f"loop2 is created")
     n=1
     while n<6:
-        print("loop2")
+        print(datetime.datetime.now(), f"loop2, {n}")
         n=n+1
-        await asyncio.sleep(1)
+        await asyncio.sleep(3)
     return 2
 
 async def loop3():
@@ -66,24 +66,24 @@ async def main():
 asyncio.run(main())
 print("async is done")
 
---------------------------------------------------------------
-import asyncio
+#--------------------------------------------------------------
+#import asyncio
 
 
-async def func(i: int) -> None:
-    for _ in range(i):
-        await asyncio.sleep(1)
-    print(f"Task {i} completed.")
+#async def func(i: int) -> None:
+    #for _ in range(i):
+        #await asyncio.sleep(1)
+    #print(f"Task {i} completed.")
 
 
-async def main() -> None:
-    coro1 = func(1)
-    coro2 = func(2)
-    task1 = asyncio.create_task(coro1)
-    task2 = asyncio.create_task(coro2)
-    await task1
-    coro3 = func(3)
-    await asyncio.gather(task2, coro3)
+#async def main() -> None:
+    #coro1 = func(1)
+    #coro2 = func(2)
+    #task1 = asyncio.create_task(coro1)
+    #task2 = asyncio.create_task(coro2)
+    #await task1
+    #coro3 = func(3)
+    #await asyncio.gather(task2, coro3)
 
 
-asyncio.run(main())
+#asyncio.run(main())
