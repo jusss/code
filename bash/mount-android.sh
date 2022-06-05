@@ -1,4 +1,4 @@
-# run 'sh mount-android.sh' in android terminal
+# run 'sh /sdcard/mount-android.sh' in android terminal
 # and write '#!/bin/bash;export PATH=/usr/bin:/bin:/usr/local/bin' to chroot's root/.bashrc, chroot will read it
 DP=/dev/block/mmcblk1p1
 MP=/mnt/media_rw/sdcard1

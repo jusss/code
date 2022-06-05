@@ -1,4 +1,4 @@
-# run 'sh umount-android.sh' in android terminal
+# run 'sh /sdcard/umount-android.sh' in android terminal
 DP=/dev/block/mmcblk1p1
 MP=/mnt/media_rw/sdcard1
 busybox umount $MP/dev/shm
