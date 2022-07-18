@@ -14,6 +14,7 @@ import System.Directory
 import System.IO
 import Data.Maybe
 import Data.Binary.Builder
+{- import GHC.Num.Integer -}
 import qualified System.Posix.IO as SPI
 import qualified Data.List as DL
 import qualified Data.Text as DT
@@ -146,7 +147,7 @@ main = do
 
     initializeCookieDb conf
 
-    scotty 8080 $ do
+    scotty 3000 $ do
         --get "/" $ text "docs, config, code, upload, text, audio, video, picture, others"
         get "/" $ authCheck (redirect "/login") $ file "index.html"
         get "/docs" $ authCheck (redirect "/login") $ file "docs.html"
@@ -252,23 +253,38 @@ main = do
             liftIO $ putStrLn dest
             if _to /= "chunk"
                 then file dest
-                else stream (\write flush ->
-                    let mediaStream filePath = do
-                        handle <- openBinaryFile filePath ReadMode
-                        bytestring <- D.hGet handle 100000
-                        let readSize = D.length bytestring
-                        print $ "read chunk size " <> (show readSize)
-                        if readSize /= 0
-                            then do
-                                hSeek handle RelativeSeek 100000
-                                write $ fromByteString bytestring
-                                flush
-                                mediaStream filePath
-                            else return ()
-                     in mediaStream (_to <> "/" <> _file))
+                else do
+                    let filePath = _to <> "/" <> _file
+                    handle <- liftIO $ openBinaryFile filePath ReadMode
+                    stream (\write flush ->
+                        let mediaStream handle = do 
+                                                    {- isEof <- hIsEOF handle -}
+                                                    {- if isEof -}
+                                                        {- then return () -}
+                                                        {- else do  -}
+                                                          {- bytestring <- D.hGet handle 100000 -}
+                                                          {- let readSize = D.length bytestring -}
+                                                          {- print $ "read chunk size " <> (show readSize) -}
+                                                          {- write $ fromByteString bytestring -}
+                                                          {- flush -}
+                                                          {- hSeek handle RelativeSeek $ toInteger readSize -}
+                                                          {- mediaStream handle -}
+                                                    bytestring <- D.hGet handle 100000
+                                                    {- 100000 mean 100MB, since hGet increase the offset by it read, so no hSeek here -}
+                                                    if D.length bytestring == 0
+                                                        then return ()
+                                                        else do 
+                                                          let readSize = D.length bytestring
+                                                          putStr $ "read chunk size " <> (show readSize) <> ", "
+                                                          write $ fromByteString bytestring
+                                                          flush
+                                                          {- hSeek handle RelativeSeek $ toInteger readSize -}
+                                                          {- hSeek handle RelativeSeek 100000 -}
+                                                          count <- hTell handle
+                                                          print $ show count
+                                                          mediaStream handle
+                        in mediaStream handle)
 
-            {-authCheck (redirect "/login") $ file dest-}
-    
         get "/:path/:to/:file" $ authCheck (redirect "/login") $ do
             _path <- param "path"
             _to <- param "to"
@@ -279,3 +295,4 @@ main = do
     
         {-getFile ["docs", "code", "config", "text", "audio", "video", "picture", "others"]-}
         {-return ()-}
+
