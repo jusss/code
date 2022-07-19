@@ -1,0 +1,66 @@
+name:                scotty-login-session
+version:             0.1.2.0
+synopsis:            Simple library for Scotty sessions and authorization
+description:         Simple library for session adding and checking, with automatic SQLite backup of session store. The store is stored in memory for fast access. Session cookie expiration and database syncing timing are configurable.
+license:             GPL-2
+license-file:        LICENSE
+author:              Miles Frankel
+maintainer:          miles.frankel@gmail.com
+homepage:            https://github.com/asg0451/scotty-login-session/
+category:            Web
+build-type:          Simple
+cabal-version:       >=1.20
+
+source-repository head
+  type: git
+  location: git://github.com/asg0451/scotty-login-session.git
+
+Library
+  hs-source-dirs:      src
+  ghc-options:         -Wall -fno-warn-unused-do-bind
+  exposed-modules:     Web.Scotty.Login.Session
+  other-modules:       Web.Scotty.Login.Internal.Model, Web.Scotty.Login.Internal.Cookies
+  default-language:    Haskell2010
+  build-depends:       base >= 4.7 && < 5
+                     , scotty >= 0.10.2
+                     , text
+                     , transformers >= 0.3
+                     , persistent
+                     , persistent-template
+                     , persistent-sqlite
+                     , cookie
+                     , time >= 1.4
+                     , scotty-cookie
+                     , cryptonite
+                     , bytestring
+                     , monad-logger
+                     , resourcet
+                     , http-types
+                     , unordered-containers
+                     , monad-control
+                     , aeson <= 2.0
+                     , unliftio-core
+
+
+test-suite Test
+  main-is: Spec.hs
+  other-modules: Web.SLSSpec
+  type: exitcode-stdio-1.0
+  hs-source-dirs: test
+  default-language: Haskell2010
+  build-depends: base >= 4.7 && < 5
+               , scotty >= 0.10.2
+               , scotty-login-session
+               , text
+               , wai
+               , wai-extra
+               , hspec
+               , HTTP
+               , hspec-wai
+               , scotty-cookie
+               , bytestring
+               , case-insensitive
+               , http-types
+               , transformers
+               , directory
+  ghc-options: -threaded -fno-warn-orphans
