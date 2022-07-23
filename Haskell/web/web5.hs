@@ -125,7 +125,7 @@ generateFilePondHtml pathName = do
         let fileName = pathName <> ".html"
         writeFile fileName ""
         appendFile fileName $ "<html lang=\"en-US\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"> <title>" <> pathName <> "</title>\n <link href=\"https://unpkg.com/filepond/dist/filepond.css\" rel=\"stylesheet\" />\n <script src=\"https://unpkg.com/filepond/dist/filepond.js\"></script>\n </head>\n <body>\n"
-        appendFile fileName $ "<input type=\"file\"><br><br><br>\n" 
+        appendFile fileName $ "<input type=\"file\" multiple><br><br><br>\n" 
         appendFile fileName $ foldl1 (<>) (fmap (\x -> "<a href=\"" <> pathName <> "/" <> x <> "\"> " <> x <> "</a> <br>" <> "\n") fileList)
         -- traverse (\x -> liftIO $ appendFile "uploadFile.html" $ "<a href=\"uploadFile/" <> x <> "\"> " <> x <> "</a> <br>" <> "\n") fileList
         appendFile fileName $ "</body>\n <script> const inputElement = document.querySelector('input[type=\"file\"]'); const pond = FilePond.create( inputElement ); pond.setOptions({ server: \"/" <> pathName <> "\" }) </script> </html>\n" 
