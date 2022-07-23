@@ -78,6 +78,15 @@ insertFileWithByteString filePath byteString = do
     content <- D.readFile filePath 
     D.writeFile filePath $ byteString <> content
 
+{- listDirectoryAscendingByTime "Downloads/" -}
+listDirectoryAscendingByTime :: FilePath -> IO [FilePath]
+listDirectoryAscendingByTime path = do
+    filelist <- listDirectory path
+    tl <- traverse getModificationTime $ (path <>) <$> filelist
+    let fl = reverse $ fst <$> (DL.sortOn snd $ zipWith (,) filelist tl)
+    {- print $ fl -}
+    return fl
+
 generatePasteHtml :: String -> IO ()
 generatePasteHtml pathName = do
         let fileName = pathName <> ".html"
@@ -118,7 +127,8 @@ generateIndexHtml pathName = do
 generateFilePondHtml :: String -> IO ()
 generateFilePondHtml pathName = do
         --_fileList <- getDirectoryContents pathName
-        _fileList <- listDirectory pathName
+        {- _fileList <- listDirectory pathName -}
+        _fileList <- listDirectoryAscendingByTime $ pathName <> "/"
         --let fileList = DL.sort _fileList
         --let fileList = [".", ".."] <> (filter (== "..") $ filter (== ".") _fileList)
         let fileList = [".", ".."] <> _fileList
