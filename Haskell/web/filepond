@@ -1,0 +1,6 @@
+cd web
+apt install npm
+npm install filepond
+web/node_modules/filepond/...
+
+in that chunk.html, use "node_modules/filepond/..." instead of "https://..."
