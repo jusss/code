@@ -261,9 +261,9 @@ postChunkedDataFromFilePond pathName =
 
 main :: IO ()
 main = do
-    {- traverse generateIndexHtml ["docs", "code", "config", "text", "audio", "video", "picture", "others", "chunk"] -}
-    traverse generateIndexHtml ["docs", "code", "config", "text", "audio", "video", "picture", "others"]
-    generateFilePondHtml "chunk"
+    {- traverse generateIndexHtml ["docs", "code", "config", "text", "audio", "video", "picture", "others"] -}
+    traverse generateFilePondHtml ["docs", "code", "config", "text", "audio", "video", "picture", "others", "chunk"]
+    {- generateFilePondHtml "chunk" -}
     --fileList <- getDirectoryContents "docs"
     --traverse print fileList
     --writeFile "docs.html" " "
@@ -333,13 +333,17 @@ main = do
             --liftIO $ print "upload done"
             --file "upload.html"
     
-        postAndShow "/upload"
-        postAndShow "/text"
-        postAndShow "/picture"
-        postAndShow "/audio"
-        postAndShow "/video"
-        postAndShow "/others"
-    
+        {- postAndShow "/upload" -}
+        {- postAndShow "/text" -}
+        {- postAndShow "/picture" -}
+        {- postAndShow "/audio" -}
+        {- postAndShow "/video" -}
+        {- postAndShow "/others" -}
+        {- postChunkedDataFromFilePond "chunk" -}
+
+        {- traverse postChunkedDataFromFilePond ["docs", "code", "config", "text", "audio", "video", "picture", "others", "chunk"] -}
+        traverse postChunkedDataFromFilePond ["upload", "text", "audio", "video", "picture", "others", "chunk"]
+
         post "/paste" $ authCheck (redirect "/login") $ do
         -- submit form data is post with params
             {-_params <- params-}
@@ -358,8 +362,6 @@ main = do
                 {-text $ DTL.pack $ BSC.unpack byteData-}
             liftIO $ generatePasteHtml "paste"
             file "paste.html"
-    
-        postChunkedDataFromFilePond "chunk"
 
         get "/:file" $ authCheck (redirect "/login") $ do
              _file <- param "file"
