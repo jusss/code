@@ -12,9 +12,11 @@ import Control.Monad
 import System.Environment
 import System.Directory
 import System.IO
+import System.Process
 import Data.Maybe
 import Data.Binary.Builder
 import Data.Text.Lazy.Encoding
+import Data.Time.Clock.POSIX
 {- import GHC.Num.Integer -}
 import qualified System.Posix.IO as SPI
 import qualified Data.List as DL
@@ -86,6 +88,18 @@ listDirectoryAscendingByTime path = do
     let fl = reverse $ fst <$> (DL.sortOn snd $ zipWith (,) filelist tl)
     {- print $ fl -}
     return fl
+
+generateVideoHtml :: String -> IO ()
+generateVideoHtml pathName = do
+        _fileList <- listDirectoryAscendingByTime $ pathName <> "/"
+        let fileList = [".", ".."] <> _fileList
+        let fileName = pathName <> ".html"
+        writeFile fileName $ "<html lang=\"zh-CN\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">  <title>" <> pathName <> "</title>\n </head>\n <body>\n"
+        appendFile fileName $ "<form id='myForm' enctype=\"multipart/form-data\" action=\"/" <> pathName <> "\" method=\"post\">"
+        appendFile fileName $ "<textarea id=\"formData\" rows=\"6\" cols=\"36\" name=\"" <> pathName <> "\"></textarea> <br> <input onclick=\"clearForm()\" type=\"submit\" value=\"Submit\"> </form> <br>"
+        appendFile fileName $ foldl1 (<>) (fmap (\x -> "<a href=\"" <> pathName <> "/" <> x <> "\"> " <> x <> "</a> <br>" <> "\n") fileList)
+        appendFile fileName $ "<script> function clearForm() { var fm = document.getElementById('myForm')[0]; fm.submit(); fm.reset(); document.getElementById('formData').value = '';}; if (window.history.replaceState) {windows.history.replaceState(null, null, window.location.href)} </script>"
+        appendFile fileName "</body>\n </html>\n" 
 
 generatePasteHtml :: String -> IO ()
 generatePasteHtml pathName = do
@@ -262,7 +276,8 @@ postChunkedDataFromFilePond pathName =
 main :: IO ()
 main = do
     {- traverse generateIndexHtml ["docs", "code", "config", "text", "audio", "video", "picture", "others"] -}
-    traverse generateFilePondHtml ["docs", "code", "config", "text", "audio", "video", "picture", "others", "chunk"]
+    traverse generateIndexHtml ["docs", "code", "config"]
+    traverse generateFilePondHtml ["text", "audio", "picture", "others", "chunk"]
     {- generateFilePondHtml "chunk" -}
     --fileList <- getDirectoryContents "docs"
     --traverse print fileList
@@ -285,6 +300,7 @@ main = do
     D.appendFile "paste.txt" $ BSC.pack "\n<br>"
 
     generatePasteHtml "paste"
+    generateVideoHtml "video"
 
     initializeCookieDb conf
 
@@ -342,7 +358,8 @@ main = do
         {- postChunkedDataFromFilePond "chunk" -}
 
         {- traverse postChunkedDataFromFilePond ["docs", "code", "config", "text", "audio", "video", "picture", "others", "chunk"] -}
-        traverse postChunkedDataFromFilePond ["upload", "text", "audio", "video", "picture", "others", "chunk"]
+        {- traverse postAndShow ["/upload", "/text", "/picture", "/audio", "/video", "/others"] -}
+        traverse postChunkedDataFromFilePond ["upload", "text", "audio", "picture", "others", "chunk"]
 
         post "/paste" $ authCheck (redirect "/login") $ do
         -- submit form data is post with params
@@ -363,17 +380,42 @@ main = do
             liftIO $ generatePasteHtml "paste"
             file "paste.html"
 
+
+        post "/video" $ authCheck (redirect "/login") $ do
+            binaryData <- param "video"
+            liftIO $ print binaryData
+            if (binaryData == BSC.pack "") then liftIO $ print "empty submit"
+            else do
+                t <- liftIO $ getPOSIXTime
+                let timestamp = show t 
+                liftIO $ callCommand ("cd video; youtube-dl --no-mtime -o '" <> timestamp <> ".%(ext)s' " <> (BSC.unpack binaryData))
+                -- let binaryDataList = BSC.lines binaryData
+                -- liftIO $ insertFileWithByteString "paste.txt" $ BSC.concat $ fmap (<> (BSC.pack "<br>\n")) binaryDataList
+                {-liftIO $ D.appendFile "paste.txt" binaryData -}
+                {-liftIO $ insertFileWithByteString "paste.txt" $ BSC.pack "\n<br>"-}
+                {-liftIO $ insertFileWithByteString "paste.txt" binaryData-}
+                {-byteData <- liftIO $ D.readFile "paste.txt"-}
+                {-text $ DTL.pack $ BSC.unpack byteData-}
+            liftIO $ generateVideoHtml "video"
+            file "video.html"
+
+
         get "/:file" $ authCheck (redirect "/login") $ do
              _file <- param "file"
              liftIO $ putStrLn $ "visit " <> _file
-             file _file
+             if _file == "video"
+                then do 
+                    liftIO $ generateVideoHtml "video" 
+                    file "video.html"
+                else
+                    file _file
     
         get "/:to/:file" $ authCheck (redirect "/login") $ do
             _to <- param "to"
             _file <- param "file"
             let dest = _to <> "/" <> _file
             liftIO $ putStrLn $ "visit " <> dest
-            if _to /= "chunk"
+            if (_to /= "chunk") && (_to /= "video")
                 then file dest
                 else do
                     let filePath = _to <> "/" <> _file
