@@ -1,85 +1,56 @@
-###########       What is this?              ######################
+telegram-api depends on cabal v3,so if it's cabal v2, then update cabal
 
-this is a tool for bridging IRC channels to Telegram Bots
+cabal install cabal-install
+it will be installed in ~/.cabal/bin/cabal
 
-based on telegram-api for haskell https://github.com/klappvisor/haskell-telegram-api
+mv /usr/bin/cabal /usr/bin/_cabal
+ln -s ~/.cabal/bin/cabal /usr/bin/cabal
 
-howItWorks :: yourTelegramAccount -> TelegramBot -> I2T -> IRC
+mkdir -p I2T/i2c
 
+vim I2T/cabal.project
+packages: */*.cabal
 
-############      What's the syntax?       ###################
+cd I2T
+git clone https://github.com/klappvisor/haskell-telegram-api.git
+cd I2T/i2c
+cabal init # choose executable, not library 
 
-usage in Telegram: 
-
-#channel message -- send messages to IRC
-
-/command parameters  -- send IRC commands
-
-/time      -- just another valid irc commands, start them with /
-
-/prefix #channel
-
-/prefix nick    -- it's equal to /msg or /query, `/prefix nickserv` `help identify` are same to "/msg nickserv help identify"
-                -- "/msg nickserv identify nick password" is same to `/prefix nickserv` `identify nick password`
-
-/prefix #channel nick or /prefix #channel nick1 nick2
-
-message  -- after you use `/prefix #channel` then you can send messages directly
-
-/set a #channel nick1 nick2  -- then 'a messgaes' replace 'a' with '#channel nick'
-
-/unset  -- clear all the alias, 'a messages' will be send as it is
-
-swipe from right to left on message to reply others from IRC, it will quote the original message from IRC
-
-############    How to use it?     ######################
-
-# Download the binary release file I2T.tar.xz from above, it's for linux on amd64 only
-
-1. tar -xvJf I2T.tar.xz
-
-2. cd I2T; vim I2T20.config  # change your info
-
-3. bash I2T20.sh
+vim I2T/haskell-telegram-api/telegram-api.cabal
+build-depends:       base >= 4.7 && < 5
+                      , aeson
+                      , containers
+                      , http-api-data
+                      , http-client
+                      , http-client-tls
+                      , servant >= 0.16 && < 0.17
+                      , servant-client >= 0.16 && < 0.17
+                      , servant-client-core >= 0.16 && < 0.17
+                      , mtl
+                      , text
+                      , transformers
+                      , http-media
+                      , http-types
+                      , mime-types
+                      , bytestring
+                      , string-conversions
+                      , binary
+                      , network 
+                      , irc 
+                      , ircbot
 
 
+vim I2T/i2c/i2c.cabal
+main-is:             I2T20.hs
+build-depends:       base >=4.13 && <4.14, telegram-api,http-client-tls, network, async, text, parsec, containers, http-client, bytestring, utf8-string
 
-###########   Wanna build from source?    #########################
+cabal v2-run i2c I2T20.config
 
-1. compile code to native code
+there're `my-code arg1 arg2` and `my-code --arg1 value1 --arg2
+value2` two ways to pass parameter to code, cabal can do the second way with --?
+you may need to watch out for parameters with leading dashes,
+which will be eaten by cabal. cabal v2-run -- my-project --whatever
+it tells cabal (or stack) to stop reading parameters starting with - for itself, so they go to your program
+without the `--` cabal will consume all options of the form `--*` itself, you need the bare `--` to tell it to stop
 
-    git clone haskell https://github.com/klappvisor/haskell-telegram-api.git 
 
-    cd haskell-telegram-api
-
-    cabal v2-build
-
-    cp ~/I2T20.hs ./
-
-    ghc I2T20.hs 
-
-2. edit the config file
-
-    vim I2T20.config
-
-    -- create a bot from BotFather on telegram, then get its token and your telegram account's chatId, search and add that bot, then start it
-
-    -- there're `normal` and `lite` modes, normal mode will show IRC channel prefix, lite mode won't
-
-    -- edit your IRC and telegram info
-
-    -- NOTE: DO NOT USE THE SAME TELEGRAM API TOKEN IN TWO PROGRAMS AT THE SAME TIME, IT WILL CAUSE IRC FLOOD AND GET BANNED!
-
-    -- mode = lite or normal
-    mode = lite
-    server = irc.libera.chat
-    port = 6665
-    nick = x
-    password = x
-    channel = #x
-    token = bot9
-    chatId = 7
-
-3. run the script
-
-    bash I2T20.sh
