@@ -1,3 +1,21 @@
+it supposed to be a bug, but it accomplished a feature, 
+in normal mode, the replayMsg is like "#channel nick :msg"
+and reply would be like "#channel nick " <> ", msg"
+and "#channel " would reply on that channel, no matter which prefix channel is.
+so it's a replay feature, not a bug
+and on lite mode, the replayMsg is like "nick :msg", 
+and reply would be like "nick , msg", it needs a prefix channel
+
+getResult :: [Update] -> [Maybe Text]
+getResult  x = fmap (g . message) x
+g :: Maybe Message -> Maybe Text
+g (Just x) = case reply_to_message x of
+    Nothing -> text x
+    Just replyMsg -> (T.filter (/= '\128994') <$> L.head <$> (T.splitOn ":") <$> (text replyMsg)) <> (Just ", ") <> (text x)
+g Nothing = Just ""
+
+
+------------------------------
 telegram-api depends on cabal v3,so if it's cabal v2, then update cabal
 
 cabal install cabal-install

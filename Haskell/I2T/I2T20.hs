@@ -133,6 +133,14 @@ sendMsg chatId inputMsg token manager = do
 --  , author_signature :: Maybe Text, text :: Maybe Text, entities :: Maybe [MessageEntity], caption_entities :: Maybe [MessageEntity] ...}
 -- https://github.com/klappvisor/haskell-telegram-api/blob/master/src/Web/Telegram/API/Bot/Data.hs
 
+-- it supposed to be a bug, but it accomplished a feature, 
+-- in normal mode, the replayMsg is like "#channel nick :msg"
+-- and reply would be like "#channel nick " <> ", msg"
+-- and "#channel " would reply on that channel, no matter which prefix channel is.
+-- so it's a replay feature, not a bug
+-- and on lite mode, the replayMsg is like "nick :msg", 
+-- and reply would be like "nick , msg", it needs a prefix channel
+
 getResult :: [Update] -> [Maybe Text]
 getResult  x = fmap (g . message) x
 g :: Maybe Message -> Maybe Text
