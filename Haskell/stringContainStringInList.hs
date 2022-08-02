@@ -1,4 +1,5 @@
 import Data.List
+import Control.Applicative
 
 alist = ["a","b","c"]
 blist = ["awe","bword","fc","wf","lp"]
@@ -12,4 +13,6 @@ getSeq x y = if x `isSubsequenceOf` y
 
 {- main = print $ fmap (\a -> fmap (\b -> getSeq a b) blist) alist -}
 {- [Just "awe",Just "bword",Just "fc"] -}
-main = print $ foldl1 (<>) $ fmap (filter (/= Nothing)) $ fmap (\a -> fmap (\b -> getSeq a b) blist) alist
+{- main = print $ foldl1 (<>) $ fmap (filter (/= Nothing)) $ fmap (\a -> fmap (\b -> getSeq a b) blist) alist -}
+
+main = print $ filter (/= Nothing) $ liftA2 getSeq alist blist
