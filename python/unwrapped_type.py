@@ -136,7 +136,11 @@ fmap_cont = lambda a, b: lambda _: b(a)
 # <*> :: (((a->b) -> r) -> r) -> ((a->r)->r) -> (b->r) -> r
 # @djinn (((a->b) -> r) -> r) -> ((a->r)->r) -> (b->r) -> r
 # lambdabot :f a b c = b (\ d -> a (\ e -> c (e d)))
-liftA2_cont = lambda a, b, c: b(lambda d: a(lambda e: c(e(d))))
+
+# @djinn (((a->b) -> r) -> r) -> ((a->r)->r) -> (b->r) -> r; lambdabot :f a b c = b (\ d -> a (\ e -> c (e d))); tomsmeding :that djinn output is incorrect as an implementation for Cont though, because it evaluates the argument before the function :p
+# monochrom :f a b c = a (\e -> b (\d -> c (e d)))
+
+liftA2_cont = lambda a, b, c: a(lambda e: b(lambda d: c(e(d))))
 
 # Cont :: ((a -> r) -> r) -> Cont r a
 # (>>=) :: Monad m => m a -> (a -> m b) -> m b
@@ -186,6 +190,7 @@ all_equal = lambda xs: all(ap_func(partial(zipWith, eq), tail)(xs))
 identity = lambda x: x
 const = lambda x, y: x
 
+remove_dup = lambda alist: [alist[i] for i in range(len(alist)) if alist[i] not in alist[i+1::]]
 
 
 
@@ -198,3 +203,26 @@ const = lambda x, y: x
 # fmap :: (a->(b->c)) -> (e->a) -> e -> b->c
 # fmap (+) (+1) 
 
+"""
+
+"@djinn (((a->b) -> r) -> r) -> ((a->r)->r) -> (b->r) -> r; lambdabot :f a b c = b (\ d -> a (\ e -> c (e d))); tomsmeding :that djinn output is incorrect as an implementation for Cont though, because it evaluates the argument before the function :p
+" then what's the right implementation?
+monochrom :f a b c = a (\e -> b (\d -> c (e d)))
+how u work this out? type tetris?
+Cale :Just thinking about what it means, probably. Though I'm not sure I would consider either option "wrong".
+monochrom :I learned continuations.
+monochrom :Or at least continuation passing style.
+Cale :In monochrom's version, we first run a, getting some function e :: a -> b, and then we run b, getting some value d :: a, and then we finish (apply the final continuation c) with the result e d of applying the function we got to the value we got.
+Cale, and djinn's version is wrong?
+Cale :No, it just gets the argument first, then the function, and calls the final continuation with the same result.
+Cale :The evaluation order will be different, but in any case where both terminate, the result will be the same.
+Cale :If this were ContT and there were effects, then executing things in a different order might make effects occur in a different order, but it's difficult to say that one way is "wrong".
+Cale :I do like the version which does the function first though, it's a little more obvious to go left to right.
+should this liftA2 on Cont ever be used? or never be used?
+Cale :There are probably cases. Cases where you should use Cont/ContT are already fairly rare as it is.
+monochrom :But ContT would be way more complex than "a (\e -> ...)" :)
+Cale :(true)
+Cale :But if you're going to use it, one of the main reasons is to be able to get hold of combinators like liftA2 and sequence
+Cale :Especially the recursive things like sequence can be kind of annoying to write by hand when manipulating things in continuation passing style
+
+"""
