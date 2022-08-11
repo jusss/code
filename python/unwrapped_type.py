@@ -192,6 +192,9 @@ const = lambda x, y: x
 
 remove_dup = lambda alist: [alist[i] for i in range(len(alist)) if alist[i] not in alist[i+1::]]
 
+intersect = lambda xxs: list(reduce(lambda xs, ys: [x for x in xs if x in ys], xxs))
+
+# print(intersect([[1,2,3],[3,4,23],[7,8,2,3,56]]))
 
 
 
