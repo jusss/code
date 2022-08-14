@@ -140,7 +140,14 @@ fmap_cont = lambda a, b: lambda _: b(a)
 # @djinn (((a->b) -> r) -> r) -> ((a->r)->r) -> (b->r) -> r; lambdabot :f a b c = b (\ d -> a (\ e -> c (e d))); tomsmeding :that djinn output is incorrect as an implementation for Cont though, because it evaluates the argument before the function :p
 # monochrom :f a b c = a (\e -> b (\d -> c (e d)))
 
-liftA2_cont = lambda a, b, c: a(lambda e: b(lambda d: c(e(d))))
+ap_cont = lambda a, b, c: a(lambda e: b(lambda d: c(e(d))))
+
+
+# liftA2 :: (((a->b->c) -> r) -> r) -> ((a->r)->r) -> ((b->r) -> r) -> (c->r)->r
+# f a b c d = c (\ e -> b (\ f -> a (\ g -> d (g f e))))
+
+# liftA2_cont f ma mb = ma >>= \a -> mb >>= \b -> pure $ f a b
+liftA2_cont = lambda f, ma, mb: bind_cont(ma, (lambda a: bind_cont(mb, lambda b: return_cont(f(a,b)))))
 
 # Cont :: ((a -> r) -> r) -> Cont r a
 # (>>=) :: Monad m => m a -> (a -> m b) -> m b
@@ -196,6 +203,9 @@ intersect = lambda xxs: list(reduce(lambda xs, ys: [x for x in xs if x in ys], x
 
 # print(intersect([[1,2,3],[3,4,23],[7,8,2,3,56]]))
 
+findElementInList = lambda elem, alist: [p for e, p in zip(alist, range(len(alist))) if elem == e]
+
+# print(findElementInList('a', "abcdaewa"))
 
 
 
