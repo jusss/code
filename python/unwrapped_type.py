@@ -154,7 +154,8 @@ liftA2_cont = lambda f, ma, mb: bind_cont(ma, (lambda a: bind_cont(mb, lambda b:
 # (>>=) :: ((a->r)->r) -> (a->(b->r)->r) -> (b->r) -> r
 # (>>=) a b c = a (\d -> b d c)
 # Cont f >>= g = \ar -> f (\a -> g a ar)
-bind_cont = lambda g: lambda f: lambda k: g(lambda x: f(x,k))
+# this f must be an unary here, python does not do curry
+bind_cont = curry(lambda g, f, k: g(lambda x: f(x)(k)))
 
 # newtype ContT r m a = ContT { runContT :: (a -> m r) -> m r }
 # import Control.Monad.Trans.Cont, import Control.Monad
@@ -239,3 +240,7 @@ Cale :But if you're going to use it, one of the main reasons is to be able to ge
 Cale :Especially the recursive things like sequence can be kind of annoying to write by hand when manipulating things in continuation passing style
 
 """
+
+
+# return_cont = lambda
+# join_cont = if iscallable(a) not retur b
