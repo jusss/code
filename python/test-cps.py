@@ -1,4 +1,5 @@
 from unwrapped_type import *
+from cont import *
 
 k = return_cont(3)
 # print(k(identity))
@@ -46,6 +47,15 @@ cps_6 = bind_cont(k, lambda a: bind_cont(lambda z: a if a == 3 else return_cont(
 cps_7 = bind_cont(k, lambda a: bind_cont(lambda x: x("a") + x("b"), lambda b: return_cont(str(a)+b)))
 print(cps_7(identity))
 
+k3 = pure(3)
 
+k7 = k3.bind(lambda a: Cont(lambda x: x("a") + x("b")).bind(lambda b: pure(str(a)+b)))
+print(k7.runCont(id))
 
+k5 = k3.fmap(lambda x: x+2)
+print(k5.runCont(id))
 
+k6 = k3.ap(pure(lambda x: x+3))
+print(k6.runCont(id))
+
+# https://jsdw.me/posts/haskell-cont-monad/
