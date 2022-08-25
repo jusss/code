@@ -58,4 +58,26 @@ print(k5.runCont(id))
 k6 = k3.ap(pure(lambda x: x+3))
 print(k6.runCont(id))
 
+k7 = k3 >> (lambda a: 
+        Cont(lambda x: x("a") + x("b")) >> (lambda b: 
+            pure(str(a)+b)))
+
+print(k7.runCont(id))
+
+# def do(monad, f):
+    # def wrapper(**kwargs):
+        # gen = f(**kwargs)
+
+# # with do notation
+
+# @do(Cont)
+# def k7(k3):
+    # a = yield k3
+    # b = yield Cont(lambda x: x("a")+x("b"))
+    # pure(str(a)+b)
+
+
+
+
 # https://jsdw.me/posts/haskell-cont-monad/
+# http://www.valuedlessons.com/2008/01/monads-in-python-with-nice-syntax.html
