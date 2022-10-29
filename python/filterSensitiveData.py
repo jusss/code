@@ -62,9 +62,9 @@ def file_or_dir(input_file, sensitive_file, from_time, to_time):
         list(map(lambda i, s, f, t: file_or_dir(i, s, f, t), input_full_path, sensitive_list, from_time_list, to_time_list))
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="")
-    parser.add_argument("-i", "--input_file", help="input_file file path or dir")
-    parser.add_argument("-s", "--sensitive_file", help="sensitive_file file path")
+    parser = argparse.ArgumentParser(description='~/filterSensitiveData.py -i . -s ~/sensitive.txt -f "2022-01-06"')
+    parser.add_argument("-i", "--input_file", help="the file or path it will check")
+    parser.add_argument("-s", "--sensitive_file", help="keyword file path")
     parser.add_argument("-f", "--from_time", help="from when, like '2022-02-12'")
     parser.add_argument("-t", "--to_time", default = None, help="to when, like '2022-02-12'")
     args = parser.parse_args()
