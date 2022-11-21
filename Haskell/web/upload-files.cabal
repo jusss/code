@@ -19,6 +19,7 @@ extra-source-files:  CHANGELOG.md
 
 executable upload-files
   main-is:             web5.hs
+  ghc-options: -threaded -rtsopts
   -- other-modules:
   -- other-extensions:
   build-depends:       base >=4.13 && <4.14, scotty, wai, text, transformers, directory, http-types, wai-extra, unix, bytestring, utf8-string, scotty-login-session, scotty-cookie, blaze-builder, binary, warp, process, time
