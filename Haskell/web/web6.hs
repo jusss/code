@@ -246,10 +246,11 @@ getChunkedData filePath = do
 showContent filePath = do
     -- liftIO $ print filePath
     let _pathList = DL.filter (/= "") $ DTL.splitOn "/:" filePath
+    pathList <- traverse param _pathList
+    {- liftIO $ print pathList -}
     -- limit the access
-    if (head _pathList) `notElem` ["docs", "code", "config", "text", "audio", "video", "picture", "others"] then text "not found"
+    if (head pathList) `notElem` ["paste", "docs", "config", "code", "upload", "text", "audio", "video", "picture", "others", "chunk"] then text "not found"
     else do
-        pathList <- traverse param _pathList
         -- liftIO $ print "showContent, pathList is " <> (DL.foldl1 (<>) pathList)
         let dest = DL.init $ DL.foldl1 (<>) $ fmap (<> "/") pathList
         isExist <- liftIO $ fileExist dest
