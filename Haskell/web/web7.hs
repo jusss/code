@@ -56,9 +56,7 @@ generateVideoHtml :: String -> IO String
 generateVideoHtml pathName = do
         createDirectoryIfMissing True $ rootPath <> "/html/" <> pathName
         createDirectoryIfMissing True $ rootPath <> "/" <> pathName
-        _fileList <- listDirectoryAscendingByTime $ rootPath <> "/" <> pathName <> "/"
-        {- let fileList = [".", ".."] <> _fileList -}
-        let fileList = _fileList
+        fileList <- listDirectoryAscendingByTime $ rootPath <> "/" <> pathName <> "/"
         let fileName = rootPath <> "/html/" <> pathName <> "/index.html"
         writeFile fileName $ "<html lang=\"zh-CN\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">  <title>" <> pathName <> "</title>\n </head>\n <body>\n"
         appendFile fileName $ "<button onclick=\"history.back()\">Go Back</button><br><br>"
@@ -91,9 +89,7 @@ generatePasteHtml pathName = do
 {- generateFilePondHtml "chunk" -}
 generateFilePondHtml :: String -> IO String
 generateFilePondHtml pathName = do
-        _fileList <- listDirectoryAscendingByTime $ rootPath <> "/" <> pathName <> "/"
-        {- let fileList = [".", ".."] <> _fileList -}
-        let fileList =  _fileList
+        fileList <- listDirectoryAscendingByTime $ rootPath <> "/" <> pathName <> "/"
         createDirectoryIfMissing True $ rootPath <> "/html/" <> pathName
         createDirectoryIfMissing True $ rootPath <> "/" <> pathName
         let fileName = rootPath <> "/html/" <> pathName <> "/index.html"
@@ -141,18 +137,10 @@ generateHtmlForDirectory :: String -> IO String
 generateHtmlForDirectory pathName = do
         -- it's important, only the last level in the html, when you in chunk directory, and html has chunk/a, click it, it will visit chunk/chunk/a
         let lastLevel = DTL.unpack $ DL.last $ DTL.splitOn "/" $ DTL.pack pathName
-        _fileList <- listDirectory pathName
-
-        let fileList = _fileList
-        {- let fileList = [".", ".."] <> _fileList -}
-
+        fileList <- listDirectory pathName
         -- generate directory html in /root/web/html/, not same path where file path is
         let fileName = rootPath <> "/html/" <> pathName <> "/index.html"
-        isExist <- doesPathExist $ rootPath <> "/html/" <> pathName
-        if isExist then 
-            {- print "path exist" -}
-            return ()
-        else createDirectoryIfMissing True $ rootPath <> "/html/" <> pathName
+        createDirectoryIfMissing True $ rootPath <> "/html/" <> pathName
         print $ "generate " <> fileName
         writeFile fileName " "
         appendFile fileName $ "<html lang=\"en-US\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"> <title>" <> pathName <> "</title>\n </head>\n <body>\n"
@@ -160,15 +148,12 @@ generateHtmlForDirectory pathName = do
         -- appendFile fileName $ foldl1 (<>) (fmap (\x -> "<a href=\"" <> pathName <> "/" <> x <> "\"> " <> x <> "</a> <br>" <> "\n") fileList)
         if null fileList then return ()
         else appendFile fileName $ foldl1 (<>) (fmap (\x -> "<a href=\"" <> lastLevel <> "/" <> x <> "\"> " <> x <> "</a> <br>" <> "\n") fileList)
-        -- traverse (\x -> liftIO $ appendFile "uploadFile.html" $ "<a href=\"uploadFile/" <> x <> "\"> " <> x <> "</a> <br>" <> "\n") fileList
         appendFile fileName "</body>\n </html>\n" 
         return fileName
 
 getChunkedData filePath = do
-    -- let filePath = DL.init $ DL.foldl1 (<>) $ fmap (<> "/") filePaths
     fileStatus <- liftIO $ getFileStatus filePath 
     let _isDir = isDirectory fileStatus
-    {- liftIO $ print $ filePath <> " is Directory? " <> show _isDir -}
     if _isDir then file =<< (liftIO $ generateHtmlForDirectory filePath)
     else do
         handle <- liftIO $ openBinaryFile filePath ReadMode
@@ -192,17 +177,11 @@ showContent filePath = do
     -- limit the access
     if (head pathList) `notElem` accessPoint then text "not found"
     else do
-        -- liftIO $ print "showContent, pathList is " <> (DL.foldl1 (<>) pathList)
         let dest = DL.init $ DL.foldl1 (<>) $ fmap (<> "/") pathList
+        liftIO $ print $ "showContent, visit " <> dest
         isExist <- liftIO $ fileExist dest
-        if isExist then do
-            liftIO $ putStrLn $ "showContent, visit " <> dest
-            getChunkedData dest
-        else do
-            if dest == "favicon.ico" then return ()
-            else do
-                liftIO $ print $ "showContent, visit " <> dest <> " not exist"
-                return ()
+        if isExist then getChunkedData dest
+        else text "not found"
 
 generateHomePageHtml :: String -> IO String
 generateHomePageHtml rootPath = do
@@ -268,5 +247,4 @@ main = do
 
         {- post first level -}
         traverse postChunkedDataFromFilePond ["upload", "text", "audio", "picture", "others", "chunk"]
-
         return ()
