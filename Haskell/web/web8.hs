@@ -60,7 +60,7 @@ generateVideoHtml pathName = do
         createDirectoryIfMissing True $ rootPath <> "/" <> pathName
         fileList <- listDirectoryAscendingByTime $ rootPath <> "/" <> pathName <> "/"
         let h0 = "<html lang=\"zh-CN\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">  <title>" <> pathName <> "</title>\n </head>\n <body>\n"
-        let h1 = "<button onclick=\"history.back()\">Go Back</button><br><br>"
+        let h1 = "<a href=\"/\">home</a><br><br>"
         let h2 = "<form id='myForm' enctype=\"multipart/form-data\" action=\"/" <> pathName <> "\" method=\"post\">"
         let h3 = "<textarea id=\"formData\" rows=\"6\" cols=\"36\" name=\"" <> pathName <> "\"></textarea> <br> <input onclick=\"clearForm()\" type=\"submit\" value=\"Submit\"> </form> <br>"
         let h4 = if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> pathName <> "/" <> x <> "\"> " <> x <> "</a> <br>" <> "\n") fileList)
@@ -79,8 +79,8 @@ generatePasteHtml pathName = do
         let h2 = "<form id='myForm' enctype=\"multipart/form-data\" action=\"/" <> pathName <> "\" method=\"post\">"
         let h3 = "<textarea id=\"formData\" rows=\"6\" cols=\"36\" name=\"" <> pathName <> "\"></textarea> <br> <input onclick=\"clearForm()\" type=\"submit\" value=\"Submit\"> </form> <br>"
         let h4 = "<script> function clearForm() { var fm = document.getElementById('myForm')[0]; fm.submit(); fm.reset(); document.getElementById('formData').value = '';}; if (window.history.replaceState) {windows.history.replaceState(null, null, window.location.href)} </script>"
-        byteData <- D.readFile $ rootPath <> "/" <> pathName <> "/paste.txt"
-        let h5 = DT.unpack $ DTE.decodeUtf8With lenientDecode byteData
+        binaryData <- D.readFile $ rootPath <> "/" <> pathName <> "/paste.txt"
+        let h5 = concat $ fmap (<> "<br>") $ lines $ DT.unpack $ DTE.decodeUtf8With lenientDecode binaryData
         {- let f = rootPath <> "/" <> pathName <> "/paste.txt" -}
         {- strOrException <- catch (readFile f) -}
                             {- (\e -> do  -}
@@ -222,19 +222,18 @@ main = do
         post "/paste" $ authCheck (redirect "/login") $ do
             binaryData <- param "paste"
             liftIO $ print binaryData
-            if (binaryData == BSC.pack "") then liftIO $ print "empty submit"
-            else do
-                let binaryDataList = BSC.lines binaryData
-                liftIO $ insertFileWithByteString (rootPath <> "/paste/paste.txt") $ BSC.concat $ fmap (<> (BSC.pack "<br>\n")) binaryDataList
+            if BSC.null binaryData then liftIO $ print "empty submit"
+            else liftIO $ insertFileWithByteString (rootPath <> "/paste/paste.txt") $ binaryData <> (BSC.pack "\r\n\r\n")
             html =<< (liftIO $ generatePasteHtml "paste")
 
         post "/video" $ authCheck (redirect "/login") $ do
             binaryData <- param "video"
             liftIO $ print binaryData
-            if (binaryData == BSC.pack "") then liftIO $ print "empty submit"
+            if BSC.null binaryData then liftIO $ print "empty submit"
             else do
                 _d <- liftIO $ getCurrentTime
-                let _date = fmap (\x -> if x == ' ' then '.' else x) $ DL.take 19 $ show _d
+                let _t = addUTCTime (60*60*8 :: NominalDiffTime) _d
+                let _date = fmap (\x -> if x == ' ' then '.' else x) $ DL.take 19 $ show _t
                 liftIO $ callCommand ("cd video; youtube-dl --no-mtime -o '" <> _date <> ".%(ext)s' " <> (BSC.unpack binaryData))
             html =<< (liftIO $ generateVideoHtml "video")
 
