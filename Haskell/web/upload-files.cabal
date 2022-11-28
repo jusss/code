@@ -18,7 +18,7 @@ build-type:          Simple
 extra-source-files:  CHANGELOG.md
 
 executable upload-files
-  main-is:             web8.hs
+  main-is:             web9.hs
   ghc-options: -threaded -rtsopts
   -- other-modules:
   -- other-extensions:
