@@ -191,9 +191,9 @@ getFileOrDirectory fileAction directoryAction urlPath = do
     if urlPath `notElem` doNotShowPath then liftIO $ print $ "get " <> urlPath
     else return ()
     -- limit the access
-    {- if "/" <> (head urlPathList) `notElem` accessPoint then text "not found" -}
-    if any (`DL.isPrefixOf` urlPath) (fmap (<> "/") accessPoint)
-    then do
+    let urlPathList = DL.filter (/= "") $ DTL.splitOn "/" $ DTL.pack urlPath
+    if "/" <> (head urlPathList) `notElem` accessPoint then text "not found"
+    else do
         let filePath = rootPath <> urlPath
         isExist <- liftIO $ fileExist filePath
         if isExist then do
@@ -201,7 +201,6 @@ getFileOrDirectory fileAction directoryAction urlPath = do
             if isDirectory fileStatus then directoryAction filePath
             else fileAction filePath
         else text "not found"
-    else text "not found"
 
 generateHomePageHtml :: String -> ActionM ()
 generateHomePageHtml rootPath = do
@@ -292,7 +291,6 @@ main = do
             {- if BSC.null binaryData then liftIO $ print "empty submit" -}
             {- else liftIO $ insertFileWithByteString (rootPath <> "/paste/paste.txt") $ binaryData <> (BSC.pack "\r\n\r\n") -}
             {- generatePasteHtml "paste" -}
-
 
         {- post first level -}
         traverse (\path -> post (capture path) $ authCheck (redirect "/login") $ postChunkedDataFromFilePond generateFilePondHtml path) ["/upload", "/audio", "/picture", "/others", "/chunk"]
