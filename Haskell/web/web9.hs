@@ -33,13 +33,17 @@ import qualified Data.ByteString.Lazy.UTF8 as DBLU
 import qualified Data.ByteString.Char8 as BSC
 import Network.Wai.Middleware.Gzip (gzip, def, gzipFiles, GzipFiles(GzipCompress))
 
-{- no more html file, just html strings -}
+{- no more html file, just html strings for directory -}
 {- there're urlPath like /a/b and filePath like rootPath <> urlPath -}
 rootPath = "/root/web"
 accessPoint = ["/paste", "/docs", "/config", "/code", "/upload", "/text", "/audio", "/video", "/picture", "/others", "/chunk", "/node_modules"]
 routePatternList = scanl1 (<>) $ fmap (("/:" <>) . ("l" <>) . show) [1..9]
 {- do not show visit path on console -}
 doNotShowPath = ["/favicon.ico", "/node_modules/filepond/dist/filepond.css", "/node_modules/filepond/dist/filepond.js"]
+
+{- in order to show text with utf8 in get request,  -}
+{- addHeader "Content-Type" "text/plain; charset=utf-8", for file -}
+{- addHeader "Content-Type" "text/html; charset=utf-8", for directory html string -}
 
 -- the defaultSessionConfig is 120 sec to expire, change it to 1 day
 sessionConfig :: SessionConfig
@@ -59,6 +63,7 @@ listDirectoryAscendingByTime path = do
 
 generateVideoHtml :: String -> ActionM ()
 generateVideoHtml pathName = do
+        addHeader "Content-Type" "text/html; charset=utf-8"
         liftIO $ print $ "get " <> pathName
         liftIO $ createDirectoryIfMissing True $ rootPath <> pathName
         fileList <- liftIO $ listDirectoryAscendingByTime $ rootPath <> pathName
@@ -73,6 +78,7 @@ generateVideoHtml pathName = do
 
 generatePasteHtml :: String -> ActionM ()
 generatePasteHtml pathName = do
+        addHeader "Content-Type" "text/html; charset=utf-8"
         liftIO $ print $ "get " <> pathName
         liftIO $ createDirectoryIfMissing True $ rootPath <> pathName
         isExist <- liftIO $ doesFileExist $ rootPath <> pathName <> "/paste.txt"
@@ -99,6 +105,7 @@ generatePasteHtml pathName = do
 
 generateFilePondHtml :: String -> ActionM ()
 generateFilePondHtml pathName = do
+        addHeader "Content-Type" "text/html; charset=utf-8"
         liftIO $ print $ "get " <> pathName
         fileList <- liftIO $ listDirectoryAscendingByTime $ rootPath <> pathName
         liftIO $ createDirectoryIfMissing True $ rootPath <> pathName
@@ -111,6 +118,7 @@ generateFilePondHtml pathName = do
 
 generateTextHtml :: String -> ActionM ()
 generateTextHtml pathName = do
+        addHeader "Content-Type" "text/html; charset=utf-8"
         liftIO $ print $ "get " <> pathName
         fileList <- liftIO $ listDirectoryAscendingByTime $ rootPath <> pathName
         liftIO $ createDirectoryIfMissing True $ rootPath <> pathName
@@ -153,6 +161,7 @@ postChunkedDataFromFilePond afterPostGenerateHtml pathName = do
 
 generateHtmlForDirectory :: String -> ActionM ()
 generateHtmlForDirectory pathName = do
+        addHeader "Content-Type" "text/html; charset=utf-8"
         -- it's important, only the last level in the html, when you in chunk directory, and html has chunk/a, click it, it will visit chunk/chunk/a
         let lastLevel = DTL.unpack $ DL.last $ DTL.splitOn "/" $ DTL.pack pathName
         fileList <- liftIO $ listDirectory pathName
@@ -164,6 +173,7 @@ generateHtmlForDirectory pathName = do
 
 getChunkedFile :: String -> ActionM ()
 getChunkedFile filePath = do
+        addHeader "Content-Type" "text/plain; charset=utf-8"
         handle <- liftIO $ openBinaryFile filePath ReadMode
         stream (\write flush ->
             let mediaStream handle = do 
@@ -204,6 +214,7 @@ getFileOrDirectory fileAction directoryAction urlPath = do
 
 generateHomePageHtml :: String -> ActionM ()
 generateHomePageHtml rootPath = do
+    addHeader "Content-Type" "text/html; charset=utf-8"
     liftIO $ print "get /"
     let h0 = "<html lang=\"en-US\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"> <title> index </title>\n </head>\n <body>\n"
     let h1 = foldl1 (<>) (fmap (\x -> "<a href=\"" <> x  <> "\"> " <> x <> "</a> <br> <br> <br>" <> "\n") ["/paste", "/docs", "/config", "/code", "/upload", "/text", "/audio", "/video", "/picture", "/others", "/chunk"])
@@ -223,6 +234,7 @@ main = do
         get "/paste" $ checkLogin "/paste" $ generatePasteHtml "/paste"
         get "/denied" $ text "access denied"
         get "/login" $ do 
+            addHeader "Content-Type" "text/html; charset=utf-8"
             (from :: String) <- param "from"
             liftIO $ print $ "from " <> from
             html $ DTL.pack $ unlines $
@@ -234,6 +246,7 @@ main = do
                             , "</form>" ]
     
         get "/test" $ do 
+            addHeader "Content-Type" "text/html; charset=utf-8"
             liftIO $ print "get /test"
             agent <- header "User-Agent"
             liftIO $ print agent
@@ -284,7 +297,6 @@ main = do
             generateVideoHtml "/video"
 
         post "/text" $ authCheck (redirect "/login") $ postChunkedDataFromFilePond generateTextHtml "/text"
-
         {- post "/text" $ authCheck (redirect "/login") $ do -}
             {- binaryTitleData <- param "title" -}
             {- binaryContentData <- param "content" -}
