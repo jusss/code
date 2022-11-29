@@ -37,7 +37,7 @@ import Network.Wai.Middleware.Gzip (gzip, def, gzipFiles, GzipFiles(GzipCompress
 {- there're urlPath like /a/b and filePath like rootPath <> urlPath -}
 rootPath = "/root/web"
 accessPoint = ["/paste", "/docs", "/config", "/code", "/upload", "/text", "/audio", "/video", "/picture", "/others", "/chunk", "/node_modules"]
-urlPathLevel = scanl1 (<>) $ fmap (("/:" <>) . ("l" <>) . show) [1..9]
+routePatternList = scanl1 (<>) $ fmap (("/:" <>) . ("l" <>) . show) [1..9]
 {- do not show visit path on console -}
 doNotShowPath = ["/favicon.ico", "/node_modules/filepond/dist/filepond.css", "/node_modules/filepond/dist/filepond.js"]
 
@@ -179,16 +179,21 @@ getChunkedFile filePath = do
                                               mediaStream handle
             in mediaStream handle)
 
-{- getFileOrDirectory getChunkedFile generateHtmlForDirectory "docs/a" -}
-getFileOrDirectory :: (String -> ActionM ()) -> (String -> ActionM ()) -> String -> ActionM ()
-getFileOrDirectory fileAction directoryAction routePattern = do
+routePatternToUrlPath :: String -> ActionM String
+routePatternToUrlPath routePattern = do
     urlPathList <- traverse param $ DL.filter (/= "") $ DTL.splitOn "/:" $ DTL.pack routePattern
     let urlPath = concat $ fmap ("/" <>) urlPathList
+    return urlPath
+
+{- getFileOrDirectory getChunkedFile generateHtmlForDirectory "/a/b" -}
+getFileOrDirectory :: (String -> ActionM ()) -> (String -> ActionM ()) -> String -> ActionM ()
+getFileOrDirectory fileAction directoryAction urlPath = do
     if urlPath `notElem` doNotShowPath then liftIO $ print $ "get " <> urlPath
     else return ()
     -- limit the access
-    if "/" <> (head urlPathList) `notElem` accessPoint then text "not found"
-    else do
+    {- if "/" <> (head urlPathList) `notElem` accessPoint then text "not found" -}
+    if any (`DL.isPrefixOf` urlPath) (fmap (<> "/") accessPoint)
+    then do
         let filePath = rootPath <> urlPath
         isExist <- liftIO $ fileExist filePath
         if isExist then do
@@ -196,6 +201,7 @@ getFileOrDirectory fileAction directoryAction routePattern = do
             if isDirectory fileStatus then directoryAction filePath
             else fileAction filePath
         else text "not found"
+    else text "not found"
 
 generateHomePageHtml :: String -> ActionM ()
 generateHomePageHtml rootPath = do
@@ -204,21 +210,27 @@ generateHomePageHtml rootPath = do
     let h1 = foldl1 (<>) (fmap (\x -> "<a href=\"" <> x  <> "\"> " <> x <> "</a> <br> <br> <br>" <> "\n") ["/paste", "/docs", "/config", "/code", "/upload", "/text", "/audio", "/video", "/picture", "/others", "/chunk"])
     html $ h0 <> h1
 
-checkLogin = authCheck (redirect "/login")
+{- there are request and response, and web server only can do response to client's request, except redirect -}
+{- and then you can use param in url with redirect -}
+checkLogin url = authCheck $ redirect $ "/login?from=" <> url
 
 main :: IO ()
 main = do
     initializeCookieDb sessionConfig
     scotty 3000 $ do
-        get "/" $ checkLogin $ generateHomePageHtml rootPath
-        get "/video" $ checkLogin $ generateVideoHtml "/video"
-        get "/text" $ checkLogin $ generateTextHtml "/text"
-        get "/paste" $ checkLogin $ generatePasteHtml "/paste"
+        get "/" $ checkLogin "/" $ generateHomePageHtml rootPath
+        get "/video" $ checkLogin "/video" $ generateVideoHtml "/video"
+        get "/text" $ checkLogin "/text" $ generateTextHtml "/text"
+        get "/paste" $ checkLogin "/paste" $ generatePasteHtml "/paste"
         get "/denied" $ text "access denied"
-        get "/login" $ do html $ DTL.pack $ unlines $
+        get "/login" $ do 
+            (from :: String) <- param "from"
+            liftIO $ print $ "from " <> from
+            html $ DTL.pack $ unlines $
                             [ "<form method=\"POST\" action=\"/login\">"
                             , "<label for=\"username\">User:</label> <input type=\"text\" name=\"username\"> <br> <br>"
                             , "<label for=\"password\">Pass:</label> <input type=\"password\" name=\"password\"> <br> <br>"
+                            , "<input type=\"hidden\" name=\"from\" value=\"" <> from <> "\">"
                             , "<input type=\"submit\" name=\"login\" value=\"login\">"
                             , "</form>" ]
     
@@ -230,23 +242,28 @@ main = do
             text "hi"
 
         {- get first level  -}
-        traverse (\path -> get (capture path) $ checkLogin $ generateFilePondHtml path) ["/upload", "/audio", "/picture", "/others", "/chunk"]
+        traverse (\path -> get (capture path) $ checkLogin (DTL.pack path) $ generateFilePondHtml path) ["/upload", "/audio", "/picture", "/others", "/chunk"]
 
         {- get arbitrary level -}
-        traverse (\path -> get (capture path) $ checkLogin $ getFileOrDirectory getChunkedFile generateHtmlForDirectory path) urlPathLevel
+        traverse (\routePattern -> get (capture routePattern) $ do
+            urlPath <- routePatternToUrlPath routePattern
+            checkLogin (DTL.pack urlPath) $ getFileOrDirectory getChunkedFile generateHtmlForDirectory urlPath) routePatternList
     
         post "/login" $ do
             liftIO $ print $ "post /login"
+            (from :: String) <- param "from"
+            liftIO $ print $ "from " <> from
             (usn :: String) <- param "username"
             (pass :: String) <- param "password"
             if usn == "user" && pass == "pass"
                 then do 
                     id <- addSession sessionConfig
                     liftIO $ print id
-                    redirect "/"
+                    {- redirect "/" -}
+                    redirect $ DTL.pack from
                 else text "invalid user or wrong password"
 
-        post "/paste" $ checkLogin $ do
+        post "/paste" $ checkLogin "/paste" $ do
             binaryData <- param "/paste"
             let strData = BSC.unpack binaryData
             liftIO $ print $ "post /paste with " <> strData
