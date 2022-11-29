@@ -34,11 +34,12 @@ import qualified Data.ByteString.Char8 as BSC
 import Network.Wai.Middleware.Gzip (gzip, def, gzipFiles, GzipFiles(GzipCompress))
 
 {- no more html file, just html strings -}
+{- there're urlPath like /a/b and filePath like rootPath <> urlPath -}
 rootPath = "/root/web"
-accessPoint = ["paste", "docs", "config", "code", "upload", "text", "audio", "video", "picture", "others", "chunk", "node_modules"]
-pathLevel = scanl1 (<>) $ fmap (("/:" <>) . ("l" <>) . show) [1..9]
+accessPoint = ["/paste", "/docs", "/config", "/code", "/upload", "/text", "/audio", "/video", "/picture", "/others", "/chunk", "/node_modules"]
+urlPathLevel = scanl1 (<>) $ fmap (("/:" <>) . ("l" <>) . show) [1..9]
 {- do not show visit path on console -}
-doNotShowPath = ["favicon.ico", "node_modules/filepond/dist/filepond.css", "node_modules/filepond/dist/filepond.js"]
+doNotShowPath = ["/favicon.ico", "/node_modules/filepond/dist/filepond.css", "/node_modules/filepond/dist/filepond.js"]
 
 -- the defaultSessionConfig is 120 sec to expire, change it to 1 day
 sessionConfig :: SessionConfig
@@ -49,22 +50,21 @@ insertFileWithByteString filePath byteString = do
     content <- D.readFile filePath 
     D.writeFile filePath $ byteString <> content
 
-{- listDirectoryAscendingByTime "Downloads/" -}
 listDirectoryAscendingByTime :: FilePath -> IO [FilePath]
 listDirectoryAscendingByTime path = do
     filelist <- listDirectory path
-    tl <- traverse getModificationTime $ (path <>) <$> filelist
+    tl <- traverse getModificationTime $ ((path <> "/") <>) <$> filelist
     let fl = reverse $ fst <$> (DL.sortOn snd $ zipWith (,) filelist tl)
     return fl
 
 generateVideoHtml :: String -> ActionM ()
 generateVideoHtml pathName = do
         liftIO $ print $ "get " <> pathName
-        liftIO $ createDirectoryIfMissing True $ rootPath <> "/" <> pathName
-        fileList <- liftIO $ listDirectoryAscendingByTime $ rootPath <> "/" <> pathName <> "/"
+        liftIO $ createDirectoryIfMissing True $ rootPath <> pathName
+        fileList <- liftIO $ listDirectoryAscendingByTime $ rootPath <> pathName
         let h0 = "<html lang=\"zh-CN\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">  <title>" <> pathName <> "</title>\n </head>\n <body>\n"
         let h1 = "<a href=\"/\">home</a><br><br>"
-        let h2 = "<form id='myForm' enctype=\"multipart/form-data\" action=\"/" <> pathName <> "\" method=\"post\">"
+        let h2 = "<form id='myForm' enctype=\"multipart/form-data\" action=\"" <> pathName <> "\" method=\"post\">"
         let h3 = "<textarea id=\"formData\" rows=\"6\" cols=\"36\" name=\"" <> pathName <> "\"></textarea> <br> <input onclick=\"clearForm()\" type=\"submit\" value=\"Submit\"> </form> <br>"
         let h4 = if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> pathName <> "/" <> x <> "\"> " <> x <> "</a> <br>" <> "\n") fileList)
         let h5 = "<script> function clearForm() { var fm = document.getElementById('myForm')[0]; fm.submit(); fm.reset(); document.getElementById('formData').value = '';}; if (window.history.replaceState) {windows.history.replaceState(null, null, window.location.href)} </script>"
@@ -74,16 +74,16 @@ generateVideoHtml pathName = do
 generatePasteHtml :: String -> ActionM ()
 generatePasteHtml pathName = do
         liftIO $ print $ "get " <> pathName
-        liftIO $ createDirectoryIfMissing True $ rootPath <> "/" <> pathName
-        isExist <- liftIO $ doesFileExist $ rootPath <> "/" <> pathName <> "/paste.txt"
+        liftIO $ createDirectoryIfMissing True $ rootPath <> pathName
+        isExist <- liftIO $ doesFileExist $ rootPath <> pathName <> "/paste.txt"
         if isExist then return ()
-        else liftIO $ D.appendFile (rootPath <> "/" <> pathName <> "/paste.txt") $ BSC.pack "\n<br>"
+        else liftIO $ D.appendFile (rootPath <> pathName <> "/paste.txt") $ BSC.pack "\n<br>"
         let h0 = "<html lang=\"zh-CN\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">  <title>" <> pathName <> "</title>\n </head>\n <body>\n"
         let h1 = "<a href=\"/\">home</a><br><br>"
-        let h2 = "<form id='myForm' enctype=\"multipart/form-data\" action=\"/" <> pathName <> "\" method=\"post\">"
+        let h2 = "<form id='myForm' enctype=\"multipart/form-data\" action=\"" <> pathName <> "\" method=\"post\">"
         let h3 = "<textarea id=\"formData\" rows=\"6\" cols=\"36\" name=\"" <> pathName <> "\"></textarea> <br> <input onclick=\"clearForm()\" type=\"submit\" value=\"Submit\"> </form> <br>"
         let h4 = "<script> function clearForm() { var fm = document.getElementById('myForm')[0]; fm.submit(); fm.reset(); document.getElementById('formData').value = '';}; if (window.history.replaceState) {windows.history.replaceState(null, null, window.location.href)} </script>"
-        binaryData <- liftIO $ D.readFile $ rootPath <> "/" <> pathName <> "/paste.txt"
+        binaryData <- liftIO $ D.readFile $ rootPath <> pathName <> "/paste.txt"
         let h5 = concat $ fmap (<> "<br>") $ lines $ DT.unpack $ DTE.decodeUtf8With lenientDecode binaryData
         {- let f = rootPath <> "/" <> pathName <> "/paste.txt" -}
         {- strOrException <- catch (readFile f) -}
@@ -97,36 +97,34 @@ generatePasteHtml pathName = do
         let h6 = "</body>\n </html>\n" 
         html $ DTL.pack $ h0 <> h1 <> h2 <> h3 <> h4 <> h5 <> h6
 
-{- generateFilePondHtml "chunk" -}
 generateFilePondHtml :: String -> ActionM ()
 generateFilePondHtml pathName = do
         liftIO $ print $ "get " <> pathName
-        fileList <- liftIO $ listDirectoryAscendingByTime $ rootPath <> "/" <> pathName <> "/"
-        liftIO $ createDirectoryIfMissing True $ rootPath <> "/" <> pathName
+        fileList <- liftIO $ listDirectoryAscendingByTime $ rootPath <> pathName
+        liftIO $ createDirectoryIfMissing True $ rootPath <> pathName
         let h0 = "<html lang=\"en-US\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"> <title>" <> pathName <> "</title>\n <link href=\"node_modules/filepond/dist/filepond.css\" rel=\"stylesheet\" />\n <script src=\"node_modules/filepond/dist/filepond.js\"></script>\n </head>\n <body>\n"
         let h1 = "<button onclick=\"history.back()\">Go Back</button><br><br>"
         let h2 = "<input type=\"file\" multiple><br><br><br>\n" 
         let h3 = if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> pathName <> "/" <> x <> "\"> " <> x <> "</a> <br>" <> "\n") fileList)
-        let h4 = "</body>\n <script> const inputElement = document.querySelector('input[type=\"file\"]'); const pond = FilePond.create( inputElement ); pond.setOptions({ server: \"/" <> pathName <> "\" }) </script> </html>\n" 
+        let h4 = "</body>\n <script> const inputElement = document.querySelector('input[type=\"file\"]'); const pond = FilePond.create( inputElement ); pond.setOptions({ server: \"" <> pathName <> "\" }) </script> </html>\n" 
         html $ DTL.pack $ h0 <> h1 <> h2 <> h3 <> h4
 
 generateTextHtml :: String -> ActionM ()
 generateTextHtml pathName = do
         liftIO $ print $ "get " <> pathName
-        fileList <- liftIO $ listDirectoryAscendingByTime $ rootPath <> "/" <> pathName <> "/"
-        liftIO $ createDirectoryIfMissing True $ rootPath <> "/" <> pathName
+        fileList <- liftIO $ listDirectoryAscendingByTime $ rootPath <> pathName
+        liftIO $ createDirectoryIfMissing True $ rootPath <> pathName
         let h0 = "<html lang=\"en-US\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"> <title>" <> pathName <> "</title>\n <link href=\"node_modules/filepond/dist/filepond.css\" rel=\"stylesheet\" />\n <script src=\"node_modules/filepond/dist/filepond.js\"></script>\n </head>\n <body>\n"
         let h1 = "<button onclick=\"history.back()\">Go Back</button><br><br>"
         let h2 = "<input type=\"file\" multiple><br><br><br>\n" 
         let h3 = if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> pathName <> "/" <> x <> "\"> " <> x <> "</a> <br>" <> "\n") fileList)
-        let h4 = "</body>\n <script> const inputElement = document.querySelector('input[type=\"file\"]'); const pond = FilePond.create( inputElement ); pond.setOptions({ server: \"/" <> pathName <> "\" }) </script> </html>\n" 
+        let h4 = "</body>\n <script> const inputElement = document.querySelector('input[type=\"file\"]'); const pond = FilePond.create( inputElement ); pond.setOptions({ server: \"" <> pathName <> "\" }) </script> </html>\n" 
         html $ DTL.pack $ h0 <> h1 <> h2 <> h3 <> h4
 
 {- there are three post ways, postAndShow is simple post whole file at once, postChunkedData is post with chunk, postChunkedDataFromFilePond is post with filepond, other function see previous version web6.hs -}
-{- postChunkedDataFromFilePond generateFilePondHtml "chunk" -}
-postChunkedDataFromFilePond :: (String -> ActionM ()) -> String -> ScottyM ()
-postChunkedDataFromFilePond afterPostGenerateHtml pathName =
-    post (capture $ "/" <> pathName) $ authCheck (redirect "/login") $ do
+{- postChunkedDataFromFilePond generateFilePondHtml "/chunk" -}
+postChunkedDataFromFilePond :: (String -> ActionM ()) -> String -> ActionM ()
+postChunkedDataFromFilePond afterPostGenerateHtml pathName = do
         liftIO $ print $ "post " <> pathName
         wb <- body -- this must happen before first 'rd'
         rd <- bodyReader
@@ -134,7 +132,7 @@ postChunkedDataFromFilePond afterPostGenerateHtml pathName =
                     chunk <- rd
                     return chunk
         chunk1 <- liftIO $ firstChunk
-        let filename = pathName <> "/" <> (DL.init $ DL.tail $ show $ D.drop 10 $ fst $ D.breakSubstring "\"\r\n" $ snd $ D.breakSubstring "filename" chunk1)
+        let filename = rootPath <> pathName <> "/" <> (DL.init $ DL.tail $ show $ D.drop 10 $ fst $ D.breakSubstring "\"\r\n" $ snd $ D.breakSubstring "filename" chunk1)
         let webKitFormBoundary = fst $ D.breakSubstring "\r\n" chunk1
         let realFileStart = D.drop 4 $ snd $ D.breakSubstring "\r\n\r\n" $ snd $ D.breakSubstring "filename" chunk1
         let step filename lastChunk = do 
@@ -183,14 +181,15 @@ getChunkedFile filePath = do
 
 {- getFileOrDirectory getChunkedFile generateHtmlForDirectory "docs/a" -}
 getFileOrDirectory :: (String -> ActionM ()) -> (String -> ActionM ()) -> String -> ActionM ()
-getFileOrDirectory fileAction directoryAction filePath = do
-    pathList <- traverse param $ DL.filter (/= "") $ DTL.splitOn "/:" $ DTL.pack filePath
-    let filePath = DL.init $ DL.foldl1 (<>) $ fmap (<> "/") pathList
-    if filePath `notElem` doNotShowPath then liftIO $ print $ "get " <> filePath
+getFileOrDirectory fileAction directoryAction routePattern = do
+    urlPathList <- traverse param $ DL.filter (/= "") $ DTL.splitOn "/:" $ DTL.pack routePattern
+    let urlPath = concat $ fmap ("/" <>) urlPathList
+    if urlPath `notElem` doNotShowPath then liftIO $ print $ "get " <> urlPath
     else return ()
     -- limit the access
-    if (head pathList) `notElem` accessPoint then text "not found"
+    if "/" <> (head urlPathList) `notElem` accessPoint then text "not found"
     else do
+        let filePath = rootPath <> urlPath
         isExist <- liftIO $ fileExist filePath
         if isExist then do
             fileStatus <- liftIO $ getFileStatus filePath 
@@ -200,18 +199,21 @@ getFileOrDirectory fileAction directoryAction filePath = do
 
 generateHomePageHtml :: String -> ActionM ()
 generateHomePageHtml rootPath = do
+    liftIO $ print "get /"
     let h0 = "<html lang=\"en-US\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"> <title> index </title>\n </head>\n <body>\n"
     let h1 = foldl1 (<>) (fmap (\x -> "<a href=\"" <> x  <> "\"> " <> x <> "</a> <br> <br> <br>" <> "\n") ["/paste", "/docs", "/config", "/code", "/upload", "/text", "/audio", "/video", "/picture", "/others", "/chunk"])
     html $ h0 <> h1
+
+checkLogin = authCheck (redirect "/login")
 
 main :: IO ()
 main = do
     initializeCookieDb sessionConfig
     scotty 3000 $ do
-        get "/" $ authCheck (redirect "/login") $ generateHomePageHtml rootPath
-        get "/video" $ authCheck (redirect "/login") $ generateVideoHtml "video"
-        get "/text" $ authCheck (redirect "/login") $ generateTextHtml "text"
-        get "/paste" $ authCheck (redirect "/login") $ generatePasteHtml "paste"
+        get "/" $ checkLogin $ generateHomePageHtml rootPath
+        get "/video" $ checkLogin $ generateVideoHtml "/video"
+        get "/text" $ checkLogin $ generateTextHtml "/text"
+        get "/paste" $ checkLogin $ generatePasteHtml "/paste"
         get "/denied" $ text "access denied"
         get "/login" $ do html $ DTL.pack $ unlines $
                             [ "<form method=\"POST\" action=\"/login\">"
@@ -228,10 +230,10 @@ main = do
             text "hi"
 
         {- get first level  -}
-        traverse (\path -> get (capture ("/" <> path)) $ authCheck (redirect "/login") $ generateFilePondHtml path) ["upload", "audio", "picture", "others", "chunk"]
+        traverse (\path -> get (capture path) $ checkLogin $ generateFilePondHtml path) ["/upload", "/audio", "/picture", "/others", "/chunk"]
 
         {- get arbitrary level -}
-        traverse (\path -> get (capture path) $ authCheck (redirect "/login") $ getFileOrDirectory getChunkedFile generateHtmlForDirectory path) pathLevel
+        traverse (\path -> get (capture path) $ checkLogin $ getFileOrDirectory getChunkedFile generateHtmlForDirectory path) urlPathLevel
     
         post "/login" $ do
             liftIO $ print $ "post /login"
@@ -244,29 +246,28 @@ main = do
                     redirect "/"
                 else text "invalid user or wrong password"
 
-        post "/paste" $ authCheck (redirect "/login") $ do
-            liftIO $ print $ "post /paste"
-            binaryData <- param "paste"
-            liftIO $ print binaryData
+        post "/paste" $ checkLogin $ do
+            binaryData <- param "/paste"
+            let strData = BSC.unpack binaryData
+            liftIO $ print $ "post /paste with " <> strData
             if BSC.null binaryData then liftIO $ print "empty submit"
             else liftIO $ insertFileWithByteString (rootPath <> "/paste/paste.txt") $ binaryData <> (BSC.pack "\r\n\r\n")
-            generatePasteHtml "paste"
+            generatePasteHtml "/paste"
 
         post "/video" $ authCheck (redirect "/login") $ do
-            liftIO $ print $ "post /video"
-            binaryData <- param "video"
-            liftIO $ print binaryData
+            binaryData <- param "/video"
+            let strData = BSC.unpack binaryData
+            liftIO $ print $ "post /video with " <> strData
             if BSC.null binaryData then liftIO $ print "empty submit"
             else do
                 _d <- liftIO $ getCurrentTime
                 let _t = addUTCTime (60*60*8 :: NominalDiffTime) _d
                 let _date = fmap (\x -> if x == ' ' then '.' else x) $ DL.take 19 $ show _t
                 {- apt install ffmpeg, to fix malformed AAC bitstream for youtube-dl -}
-                liftIO $ callCommand ("cd video; youtube-dl --no-mtime -o '" <> _date <> ".%(ext)s' " <> (BSC.unpack binaryData))
-            generateVideoHtml "video"
+                liftIO $ callCommand ("cd video; youtube-dl --no-mtime -o '" <> _date <> ".%(ext)s' " <> strData)
+            generateVideoHtml "/video"
 
-
-        postChunkedDataFromFilePond generateTextHtml "text"
+        post "/text" $ authCheck (redirect "/login") $ postChunkedDataFromFilePond generateTextHtml "/text"
 
         {- post "/text" $ authCheck (redirect "/login") $ do -}
             {- binaryTitleData <- param "title" -}
@@ -277,5 +278,6 @@ main = do
 
 
         {- post first level -}
-        traverse (postChunkedDataFromFilePond generateFilePondHtml) ["upload", "audio", "picture", "others", "chunk"]
+        traverse (\path -> post (capture path) $ authCheck (redirect "/login") $ postChunkedDataFromFilePond generateFilePondHtml path) ["/upload", "/audio", "/picture", "/others", "/chunk"]
+
         return ()
