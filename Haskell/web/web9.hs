@@ -8,8 +8,9 @@ import Web.Scotty
 import Web.Scotty.Login.Session
 import Web.Scotty.Cookie
 import Web.Scotty.TLS
-import Control.Monad.IO.Class
 import Control.Monad
+import Control.Monad.IO.Class
+import Control.Monad.Trans.Cont
 import Control.Exception
 import System.Environment
 import System.Directory
@@ -134,8 +135,39 @@ generateTextHtml pathName = do
 
 {- there are three post ways, postAndShow is simple post whole file at once, postChunkedData is post with chunk, postChunkedDataFromFilePond is post with filepond, other function see previous version web6.hs -}
 {- postChunkedDataFromFilePond generateFilePondHtml "/chunk" -}
-postChunkedDataFromFilePond :: (String -> ActionM ()) -> String -> ActionM ()
-postChunkedDataFromFilePond afterPostGenerateHtml pathName = do
+
+{- postChunkedDataFromFilePond :: (String -> ActionM ()) -> String -> ActionM () -}
+{- postChunkedDataFromFilePond afterPostGenerateHtml pathName = do -}
+        {- liftIO $ print $ "post " <> pathName -}
+        {- wb <- body -- this must happen before first 'rd' -}
+        {- rd <- bodyReader -}
+        {- let firstChunk = do -}
+                    {- chunk <- rd -}
+                    {- return chunk -}
+        {- chunk1 <- liftIO $ firstChunk -}
+        {- let filename = rootPath <> pathName <> "/" <> (DL.init $ DL.tail $ show $ D.drop 10 $ fst $ D.breakSubstring "\"\r\n" $ snd $ D.breakSubstring "filename" chunk1) -}
+        {- let webKitFormBoundary = fst $ D.breakSubstring "\r\n" chunk1 -}
+        {- let realFileStart = D.drop 4 $ snd $ D.breakSubstring "\r\n\r\n" $ snd $ D.breakSubstring "filename" chunk1 -}
+        {- let step filename lastChunk = do  -}
+              {- chunk <- rd -}
+              {- let len = D.length chunk -}
+              {- if len > 0  -}
+                {- then do -}
+                    {- D.appendFile filename lastChunk -}
+                    {- step filename chunk -}
+                {- else return lastChunk -}
+
+        {- liftIO $ print $ "uploading file " <> filename -}
+        {- liftIO $ writeFile filename "" -}
+        {- lastChunk <- liftIO $ step filename realFileStart -}
+        {- let realFileEnd = fst $ D.breakSubstring ("\r\n" <> webKitFormBoundary) lastChunk -}
+        {- liftIO $ D.appendFile filename realFileEnd -}
+        {- afterPostGenerateHtml pathName -}
+
+{- https://www.haskellforall.com/2012/12/the-continuation-monad.html -}
+{- runContT (postChunkedDataFromFilePond pathName) generateFilePondHtml -}
+postChunkedDataFromFilePond :: String -> ContT () ActionM String
+postChunkedDataFromFilePond pathName = ContT $ \afterPostGenerateHtml -> do
         liftIO $ print $ "post " <> pathName
         wb <- body -- this must happen before first 'rd'
         rd <- bodyReader
@@ -161,6 +193,7 @@ postChunkedDataFromFilePond afterPostGenerateHtml pathName = do
         let realFileEnd = fst $ D.breakSubstring ("\r\n" <> webKitFormBoundary) lastChunk
         liftIO $ D.appendFile filename realFileEnd
         afterPostGenerateHtml pathName
+
 
 generateHtmlForDirectory :: String -> ActionM ()
 generateHtmlForDirectory pathName = do
@@ -302,7 +335,9 @@ main = do
                 liftIO $ callCommand ("cd video; youtube-dl --no-mtime -o '" <> _date <> ".%(ext)s' " <> strData)
             generateVideoHtml "/video"
 
-        post "/text" $ authCheck (redirect "/login") $ postChunkedDataFromFilePond generateTextHtml "/text"
+        {- post "/text" $ authCheck (redirect "/login") $ postChunkedDataFromFilePond generateTextHtml "/text" -}
+        post "/text" $ authCheck (redirect "/login") $ runContT (postChunkedDataFromFilePond "/text") generateTextHtml 
+
         {- post "/text" $ authCheck (redirect "/login") $ do -}
             {- binaryTitleData <- param "title" -}
             {- binaryContentData <- param "content" -}
@@ -311,6 +346,7 @@ main = do
             {- generatePasteHtml "paste" -}
 
         {- post first level -}
-        traverse (\path -> post (capture path) $ authCheck (redirect "/login") $ postChunkedDataFromFilePond generateFilePondHtml path) ["/upload", "/audio", "/picture", "/others", "/chunk"]
+        {- traverse (\path -> post (capture path) $ authCheck (redirect "/login") $ postChunkedDataFromFilePond generateFilePondHtml path) ["/upload", "/audio", "/picture", "/others", "/chunk"] -}
+        traverse (\path -> post (capture path) $ authCheck (redirect "/login") $ runContT (postChunkedDataFromFilePond path) generateFilePondHtml) ["/upload", "/audio", "/picture", "/others", "/chunk"]
 
         return ()
