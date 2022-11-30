@@ -7,6 +7,7 @@ import Network.Wai.Handler.Warp (run)
 import Web.Scotty
 import Web.Scotty.Login.Session
 import Web.Scotty.Cookie
+import Web.Scotty.TLS
 import Control.Monad.IO.Class
 import Control.Monad
 import Control.Exception
@@ -110,7 +111,8 @@ generateFilePondHtml pathName = do
         fileList <- liftIO $ listDirectoryAscendingByTime $ rootPath <> pathName
         liftIO $ createDirectoryIfMissing True $ rootPath <> pathName
         let h0 = "<html lang=\"en-US\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"> <title>" <> pathName <> "</title>\n <link href=\"node_modules/filepond/dist/filepond.css\" rel=\"stylesheet\" />\n <script src=\"node_modules/filepond/dist/filepond.js\"></script>\n </head>\n <body>\n"
-        let h1 = "<button onclick=\"history.back()\">Go Back</button><br><br>"
+        {- let h1 = "<button onclick=\"history.back()\">Go Back</button><br><br>" -}
+        let h1 = "<a href=\"/\">home</a><br><br>"
         let h2 = "<input type=\"file\" multiple><br><br><br>\n" 
         let h3 = if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> pathName <> "/" <> x <> "\"> " <> x <> "</a> <br>" <> "\n") fileList)
         let h4 = "</body>\n <script> const inputElement = document.querySelector('input[type=\"file\"]'); const pond = FilePond.create( inputElement ); pond.setOptions({ server: \"" <> pathName <> "\" }) </script> </html>\n" 
@@ -123,7 +125,8 @@ generateTextHtml pathName = do
         fileList <- liftIO $ listDirectoryAscendingByTime $ rootPath <> pathName
         liftIO $ createDirectoryIfMissing True $ rootPath <> pathName
         let h0 = "<html lang=\"en-US\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"> <title>" <> pathName <> "</title>\n <link href=\"node_modules/filepond/dist/filepond.css\" rel=\"stylesheet\" />\n <script src=\"node_modules/filepond/dist/filepond.js\"></script>\n </head>\n <body>\n"
-        let h1 = "<button onclick=\"history.back()\">Go Back</button><br><br>"
+        {- let h1 = "<button onclick=\"history.back()\">Go Back</button><br><br>" -}
+        let h1 = "<a href=\"/\">home</a><br><br>"
         let h2 = "<input type=\"file\" multiple><br><br><br>\n" 
         let h3 = if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> pathName <> "/" <> x <> "\"> " <> x <> "</a> <br>" <> "\n") fileList)
         let h4 = "</body>\n <script> const inputElement = document.querySelector('input[type=\"file\"]'); const pond = FilePond.create( inputElement ); pond.setOptions({ server: \"" <> pathName <> "\" }) </script> </html>\n" 
@@ -166,7 +169,8 @@ generateHtmlForDirectory pathName = do
         let lastLevel = DTL.unpack $ DL.last $ DTL.splitOn "/" $ DTL.pack pathName
         fileList <- liftIO $ listDirectory pathName
         let h0 = "<html lang=\"en-US\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"> <title>" <> pathName <> "</title>\n </head>\n <body>\n"
-        let h1 = "<button onclick=\"history.back()\">Go Back</button><br><br>"
+        {- let h1 = "<button onclick=\"history.back()\">Go Back</button><br><br>" -}
+        let h1 = "<a href=\"/\">home</a><br><br>"
         let h2 = if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> lastLevel <> "/" <> x <> "\"> " <> x <> "</a> <br>" <> "\n") fileList)
         let h3 = "</body>\n </html>\n" 
         html $ DTL.pack $ h0 <> h1 <> h2 <> h3
@@ -227,13 +231,14 @@ checkLogin url = authCheck $ redirect $ "/login?from=" <> url
 main :: IO ()
 main = do
     initializeCookieDb sessionConfig
-    scotty 3000 $ do
+    {- scotty 3000 $ do -}
+    scottyTLS 3000 "server.key" "server.crt" $ do
         get "/" $ checkLogin "/" $ generateHomePageHtml rootPath
         get "/video" $ checkLogin "/video" $ generateVideoHtml "/video"
         get "/text" $ checkLogin "/text" $ generateTextHtml "/text"
         get "/paste" $ checkLogin "/paste" $ generatePasteHtml "/paste"
         get "/denied" $ text "access denied"
-        get "/login" $ do 
+        get "/login" $ (authCheck $ do 
             addHeader "Content-Type" "text/html; charset=utf-8"
             (from :: String) <- param "from"
             liftIO $ print $ "from " <> from
@@ -244,6 +249,7 @@ main = do
                             , "<input type=\"hidden\" name=\"from\" value=\"" <> from <> "\">"
                             , "<input type=\"submit\" name=\"login\" value=\"login\">"
                             , "</form>" ]
+            ) $ redirect "/"
     
         get "/test" $ do 
             addHeader "Content-Type" "text/html; charset=utf-8"

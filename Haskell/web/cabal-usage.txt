@@ -1,3 +1,23 @@
+cd web; git clone https://github.com/scotty-web/scotty-tls.git
+vim upload-files/upload-files.cabal
+build-depends add `scotty-tls`
+
+openssl req -nodes -newkey rsa:2048 -keyout example.key -out example.csr -subj "/C=GB/ST=London/L=London/O=Acme Widgets/OU=IT Department/CN=192.168.0.1"
+openssl x509 -req -days 365 -in example.csr -signkey example.key -out example.crt
+cp example.key server.key
+cp example.crt server.crt
+cabal clean
+cabal v2-run upload-files/
+
+then you can visit https://192.168.0.1,
+
+create a very simple crt
+https://github.com/scotty-web/scotty-tls
+
+visit ip with ssl cert, 
+https://stackoverflow.com/questions/2043617/is-it-possible-to-have-ssl-certificate-for-ip-address-not-domain-name
+use ip in CN field
+-----------------------
 mkdir upload-files
 cd upload-files
 cabal init # with --lib will generate a library, default is execute
