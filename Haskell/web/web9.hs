@@ -199,12 +199,14 @@ generateHtmlForDirectory :: String -> ActionM ()
 generateHtmlForDirectory pathName = do
         addHeader "Content-Type" "text/html; charset=utf-8"
         -- it's important, only the last level in the html, when you in chunk directory, and html has chunk/a, click it, it will visit chunk/chunk/a
+        -- so use absolute path /chunk/a, or just relative path just the last level a in the html
         let lastLevel = DTL.unpack $ DL.last $ DTL.splitOn "/" $ DTL.pack pathName
-        fileList <- liftIO $ listDirectory pathName
+        fileList <- liftIO $ listDirectory $ rootPath <> pathName
         let h0 = "<html lang=\"en-US\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"> <title>" <> pathName <> "</title>\n </head>\n <body>\n"
         {- let h1 = "<button onclick=\"history.back()\">Go Back</button><br><br>" -}
         let h1 = "<a href=\"/\">home</a><br><br>"
-        let h2 = if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> lastLevel <> "/" <> x <> "\"> " <> x <> "</a> <br>" <> "\n") fileList)
+        {- let h2 = if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> lastLevel <> "/" <> x <> "\"> " <> x <> "</a> <br>" <> "\n") fileList) -}
+        let h2 = if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> pathName <> "/" <> x <> "\"> " <> x <> "</a> <br>" <> "\n") fileList)
         let h3 = "</body>\n </html>\n" 
         html $ DTL.pack $ h0 <> h1 <> h2 <> h3
 
@@ -241,12 +243,14 @@ getFileOrDirectory fileAction directoryAction urlPath = do
     let urlPathList = DL.filter (/= "") $ DTL.splitOn "/" $ DTL.pack urlPath
     if "/" <> (head urlPathList) `notElem` accessPoint then text "not found"
     else do
-        let filePath = rootPath <> urlPath
-        isExist <- liftIO $ fileExist filePath
+        {- let filePath = rootPath <> urlPath -}
+        {- isExist <- liftIO $ fileExist filePath -}
+        isExist <- liftIO $ fileExist $ rootPath <> urlPath
         if isExist then do
-            fileStatus <- liftIO $ getFileStatus filePath 
-            if isDirectory fileStatus then directoryAction filePath
-            else fileAction filePath
+            fileStatus <- liftIO $ getFileStatus $ rootPath <> urlPath
+            {- if isDirectory fileStatus then directoryAction filePath -}
+            if isDirectory fileStatus then directoryAction urlPath
+            else fileAction $ rootPath <> urlPath
         else text "not found"
 
 generateHomePageHtml :: String -> ActionM ()
