@@ -76,6 +76,15 @@ getFileOrDirectory fileAction directoryAction urlPath = do
         else text "not found"
 
 {- passing two continuations into one ContT is hard -}
+one continuation as outsider paramerter, one as inside ContT
+f :: String -> (String -> IO ()) -> ContT () IO String
+f a k1 = ContT $ \k2 -> do
+    ...
+    if (doSomething a) then k1 a
+    else k2 a
+
+runContT (f "hello" k1) k2
+
 {- runContT (getFileOrDirectory "/a/b" getChunkedFile) generateHtmlForDirectory -}
 getFileOrDirectory :: String -> (String -> ActionM ()) -> ContT () ActionM String
 getFileOrDirectory urlPath fileAction = ContT $ \directoryAction -> do
