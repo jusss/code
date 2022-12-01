@@ -235,8 +235,28 @@ routePatternToUrlPath routePattern = do
     return urlPath
 
 {- getFileOrDirectory getChunkedFile generateHtmlForDirectory "/a/b" -}
-getFileOrDirectory :: (String -> ActionM ()) -> (String -> ActionM ()) -> String -> ActionM ()
-getFileOrDirectory fileAction directoryAction urlPath = do
+{- getFileOrDirectory :: (String -> ActionM ()) -> (String -> ActionM ()) -> String -> ActionM () -}
+{- getFileOrDirectory fileAction directoryAction urlPath = do -}
+    {- if urlPath `notElem` doNotShowPath then liftIO $ print $ "get " <> urlPath -}
+    {- else return () -}
+    {- -- limit the access -}
+    {- let urlPathList = DL.filter (/= "") $ DTL.splitOn "/" $ DTL.pack urlPath -}
+    {- if "/" <> (head urlPathList) `notElem` accessPoint then text "not found" -}
+    {- else do -}
+        {- [> let filePath = rootPath <> urlPath <] -}
+        {- [> isExist <- liftIO $ fileExist filePath <] -}
+        {- isExist <- liftIO $ fileExist $ rootPath <> urlPath -}
+        {- if isExist then do -}
+            {- fileStatus <- liftIO $ getFileStatus $ rootPath <> urlPath -}
+            {- [> if isDirectory fileStatus then directoryAction filePath <] -}
+            {- if isDirectory fileStatus then directoryAction urlPath -}
+            {- else fileAction $ rootPath <> urlPath -}
+        {- else text "not found" -}
+
+{- passing two continuations into one ContT is hard -}
+{- runContT (getFileOrDirectory "/a/b" getChunkedFile) generateHtmlForDirectory -}
+getFileOrDirectory :: String -> (String -> ActionM ()) -> ContT () ActionM String
+getFileOrDirectory urlPath fileAction = ContT $ \directoryAction -> do
     if urlPath `notElem` doNotShowPath then liftIO $ print $ "get " <> urlPath
     else return ()
     -- limit the access
@@ -252,6 +272,9 @@ getFileOrDirectory fileAction directoryAction urlPath = do
             if isDirectory fileStatus then directoryAction urlPath
             else fileAction $ rootPath <> urlPath
         else text "not found"
+
+
+
 
 generateHomePageHtml :: String -> ActionM ()
 generateHomePageHtml rootPath = do
@@ -302,7 +325,8 @@ main = do
         {- get arbitrary level -}
         traverse (\routePattern -> get (capture routePattern) $ do
             urlPath <- routePatternToUrlPath routePattern
-            checkLogin (DTL.pack urlPath) $ getFileOrDirectory getChunkedFile generateHtmlForDirectory urlPath) routePatternList
+            {- checkLogin (DTL.pack urlPath) $ getFileOrDirectory getChunkedFile generateHtmlForDirectory urlPath) routePatternList -}
+            checkLogin (DTL.pack urlPath) $ runContT (getFileOrDirectory urlPath getChunkedFile) generateHtmlForDirectory) routePatternList
     
         post "/login" $ do
             liftIO $ print $ "post /login"
