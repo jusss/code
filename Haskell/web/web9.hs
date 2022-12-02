@@ -34,6 +34,7 @@ import qualified Data.ByteString.Lazy as DB
 import qualified Data.ByteString.Lazy.UTF8 as DBLU
 import qualified Data.ByteString.Char8 as BSC
 import Network.Wai.Middleware.Gzip (gzip, def, gzipFiles, GzipFiles(GzipCompress))
+import Language.Javascript.JSaddle.String
 
 {- no more html file, just html strings for directory -}
 {- there're urlPath like /a/b and filePath like rootPath <> urlPath -}
@@ -134,36 +135,6 @@ generateTextHtml pathName = do
         html $ DTL.pack $ h0 <> h1 <> h2 <> h3 <> h4
 
 {- there are three post ways, postAndShow is simple post whole file at once, postChunkedData is post with chunk, postChunkedDataFromFilePond is post with filepond, other function see previous version web6.hs -}
-{- postChunkedDataFromFilePond generateFilePondHtml "/chunk" -}
-
-{- postChunkedDataFromFilePond :: (String -> ActionM ()) -> String -> ActionM () -}
-{- postChunkedDataFromFilePond afterPostGenerateHtml pathName = do -}
-        {- liftIO $ print $ "post " <> pathName -}
-        {- wb <- body -- this must happen before first 'rd' -}
-        {- rd <- bodyReader -}
-        {- let firstChunk = do -}
-                    {- chunk <- rd -}
-                    {- return chunk -}
-        {- chunk1 <- liftIO $ firstChunk -}
-        {- let filename = rootPath <> pathName <> "/" <> (DL.init $ DL.tail $ show $ D.drop 10 $ fst $ D.breakSubstring "\"\r\n" $ snd $ D.breakSubstring "filename" chunk1) -}
-        {- let webKitFormBoundary = fst $ D.breakSubstring "\r\n" chunk1 -}
-        {- let realFileStart = D.drop 4 $ snd $ D.breakSubstring "\r\n\r\n" $ snd $ D.breakSubstring "filename" chunk1 -}
-        {- let step filename lastChunk = do  -}
-              {- chunk <- rd -}
-              {- let len = D.length chunk -}
-              {- if len > 0  -}
-                {- then do -}
-                    {- D.appendFile filename lastChunk -}
-                    {- step filename chunk -}
-                {- else return lastChunk -}
-
-        {- liftIO $ print $ "uploading file " <> filename -}
-        {- liftIO $ writeFile filename "" -}
-        {- lastChunk <- liftIO $ step filename realFileStart -}
-        {- let realFileEnd = fst $ D.breakSubstring ("\r\n" <> webKitFormBoundary) lastChunk -}
-        {- liftIO $ D.appendFile filename realFileEnd -}
-        {- afterPostGenerateHtml pathName -}
-
 {- https://www.haskellforall.com/2012/12/the-continuation-monad.html -}
 {- runContT (postChunkedDataFromFilePond pathName) generateFilePondHtml -}
 postChunkedDataFromFilePond :: String -> ContT () ActionM String
@@ -194,7 +165,6 @@ postChunkedDataFromFilePond pathName = ContT $ \afterPostGenerateHtml -> do
         liftIO $ D.appendFile filename realFileEnd
         afterPostGenerateHtml pathName
 
-
 generateHtmlForDirectory :: String -> ActionM ()
 generateHtmlForDirectory pathName = do
         addHeader "Content-Type" "text/html; charset=utf-8"
@@ -211,9 +181,9 @@ generateHtmlForDirectory pathName = do
         html $ DTL.pack $ h0 <> h1 <> h2 <> h3
 
 getChunkedFile :: String -> ActionM ()
-getChunkedFile filePath = do
+getChunkedFile urlPath = do
         addHeader "Content-Type" "text/plain; charset=utf-8"
-        handle <- liftIO $ openBinaryFile filePath ReadMode
+        handle <- liftIO $ openBinaryFile (rootPath <> urlPath) ReadMode
         stream (\write flush ->
             let mediaStream handle = do 
                                         bytestring <- D.hGet handle 100000
@@ -228,30 +198,71 @@ getChunkedFile filePath = do
                                               mediaStream handle
             in mediaStream handle)
 
+getTextFile :: String -> ActionM ()
+getTextFile urlPath = do
+        addHeader "Content-Type" "text/html; charset=utf-8"
+        let fileName = DTL.unpack $ DL.last $ DTL.splitOn "/" $ DTL.pack urlPath
+        let urlDirectory = concat $ fmap (("/" <> ) . DTL.unpack) $ DL.init $ DL.filter (/= "") $ DTL.splitOn "/" $ DTL.pack urlPath
+        let h0 = "<html lang=\"zh-CN\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">  <title>" <> fileName <> "</title>\n </head>\n <body>\n"
+        let h1 = "<a href=\"/\">home</a><br><br>"
+        let hb = "<a href=\"" <> urlDirectory <> "\">back</a><br><br>"
+        let hf = "<form action=\"" <> urlPath <> "\"  method=\"post\">  <input type=\"hidden\" name=\"mode\" value=\"append\"> <button name=\"" <> urlPath <> "\" value=\"edit\">edit</button></form>"
+        let h2 = "<form id='myForm' enctype=\"multipart/form-data\" action=\"" <> urlPath <> "\" method=\"post\">"
+        let h2_ = "<input type=\"hidden\" name=\"mode\" value=\"append\">"
+        let h3 = "<textarea id=\"formData\" rows=\"6\" cols=\"36\" name=\"" <> urlPath <> "\"></textarea> <br> <input onclick=\"clearForm()\" type=\"submit\" value=\"Submit\"> </form> <br>"
+        let h4 = "<script> function clearForm() { var fm = document.getElementById('myForm')[0]; fm.submit(); fm.reset(); document.getElementById('formData').value = '';}; if (window.history.replaceState) {windows.history.replaceState(null, null, window.location.href)} </script>"
+        binaryData <- liftIO $ D.readFile $ rootPath <> urlPath
+        let h5 = concat $ fmap (<> "<br>") $ lines $ DT.unpack $ DTE.decodeUtf8With lenientDecode binaryData
+        let h6 = "</body>\n </html>\n" 
+        html $ DTL.pack $ h0 <> h1 <> hb <> hf <> h2 <> h2_ <> h3 <> h4 <> h5 <> h6
+
+charToJSString :: Char -> String
+charToJSString char = case char of '\r' -> "\\r"
+                                   '\n' -> "\\n"
+                                   '\0' -> "\\0"
+                                   '\\' -> "\\"
+                                   '\'' -> "\\'"
+                                   '\"' -> "\\\""
+                                   '\v' -> "\\v"
+                                   '\t' -> "\\t"
+                                   '\b' -> "\\b"
+                                   '\f' -> "\\f"
+                                   char -> [char]
+
+getEditTextFile :: String -> ActionM ()
+getEditTextFile urlPath = do
+        binaryData <- liftIO $ D.readFile $ rootPath <> urlPath
+        let content = DT.unpack $ DTE.decodeUtf8With lenientDecode binaryData
+
+        {- there are two line breaks, one is character '\r' in file, another is "\r" in string -}
+
+        {- "/text/a.bc: JSString \"test\\r\\nabc\\r\\n\"" -}
+        {- concatMap (\x -> if x == '\r' then "\\r" else [x]) "a\r\nb" == "a\\r\nb" -}
+        {- there're 13 case, https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String#escape_sequences -}
+
+        {- let jsString = show $ textToStr $ DTE.decodeUtf8With lenientDecode binaryData -}
+        let jsString = concatMap charToJSString content
+
+        liftIO $ print $ urlPath <> ": " <> jsString
+
+        addHeader "Content-Type" "text/html; charset=utf-8"
+        let fileName = DTL.unpack $ DL.last $ DTL.splitOn "/" $ DTL.pack urlPath
+        let h0 = "<html lang=\"zh-CN\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">  <title>" <> fileName <> "</title>\n </head>\n <body>\n"
+        let h1 = "<a href=\"/\">home</a><br><br>"
+        let h2 = "<form id='editForm' enctype=\"multipart/form-data\" action=\"" <> urlPath <> "\" method=\"post\">"
+        let h2_ = "<input type=\"hidden\" name=\"mode\" value=\"write\">"
+        let h3 = "<textarea id=\"formData\" rows=\"6\" cols=\"36\" name=\"" <> urlPath <> "\"></textarea> <br> <input onclick=\"clearForm()\" type=\"submit\" value=\"Submit\"> </form> <br>"
+        let h4 = "<script> document.addEventListener('DOMContentLoaded', (event) => {document.getElementById('formData').value = '" <> jsString <> "'});function clearForm() { var fm = document.getElementById('editForm')[0]; fm.submit();fm.reset(); document.getElementById('formData').value = '';};  </script>"
+        {- let h4 = "<script> document.getElementById('formData').value = \"abc\";function clearForm() { var fm = document.getElementById('myForm')[0]; fm.submit(); fm.reset();}; if (window.history.replaceState) {windows.history.replaceState(null, null, window.location.href)} </script>" -}
+        liftIO $ print h4
+        let h5 = "</body>\n </html>\n" 
+        html $ DTL.pack $ h0 <> h1 <> h2 <> h2_ <> h3 <> h4 <> h5
+
 routePatternToUrlPath :: String -> ActionM String
 routePatternToUrlPath routePattern = do
     urlPathList <- traverse param $ DL.filter (/= "") $ DTL.splitOn "/:" $ DTL.pack routePattern
     let urlPath = concat $ fmap ("/" <>) urlPathList
     return urlPath
-
-{- getFileOrDirectory getChunkedFile generateHtmlForDirectory "/a/b" -}
-{- getFileOrDirectory :: (String -> ActionM ()) -> (String -> ActionM ()) -> String -> ActionM () -}
-{- getFileOrDirectory fileAction directoryAction urlPath = do -}
-    {- if urlPath `notElem` doNotShowPath then liftIO $ print $ "get " <> urlPath -}
-    {- else return () -}
-    {- -- limit the access -}
-    {- let urlPathList = DL.filter (/= "") $ DTL.splitOn "/" $ DTL.pack urlPath -}
-    {- if "/" <> (head urlPathList) `notElem` accessPoint then text "not found" -}
-    {- else do -}
-        {- [> let filePath = rootPath <> urlPath <] -}
-        {- [> isExist <- liftIO $ fileExist filePath <] -}
-        {- isExist <- liftIO $ fileExist $ rootPath <> urlPath -}
-        {- if isExist then do -}
-            {- fileStatus <- liftIO $ getFileStatus $ rootPath <> urlPath -}
-            {- [> if isDirectory fileStatus then directoryAction filePath <] -}
-            {- if isDirectory fileStatus then directoryAction urlPath -}
-            {- else fileAction $ rootPath <> urlPath -}
-        {- else text "not found" -}
 
 {- passing two continuations into one ContT is hard -}
 {- runContT (getFileOrDirectory "/a/b" getChunkedFile) generateHtmlForDirectory -}
@@ -263,18 +274,12 @@ getFileOrDirectory urlPath fileAction = ContT $ \directoryAction -> do
     let urlPathList = DL.filter (/= "") $ DTL.splitOn "/" $ DTL.pack urlPath
     if "/" <> (head urlPathList) `notElem` accessPoint then text "not found"
     else do
-        {- let filePath = rootPath <> urlPath -}
-        {- isExist <- liftIO $ fileExist filePath -}
         isExist <- liftIO $ fileExist $ rootPath <> urlPath
         if isExist then do
             fileStatus <- liftIO $ getFileStatus $ rootPath <> urlPath
-            {- if isDirectory fileStatus then directoryAction filePath -}
             if isDirectory fileStatus then directoryAction urlPath
-            else fileAction $ rootPath <> urlPath
+            else fileAction urlPath
         else text "not found"
-
-
-
 
 generateHomePageHtml :: String -> ActionM ()
 generateHomePageHtml rootPath = do
@@ -291,7 +296,6 @@ checkLogin url = authCheck $ redirect $ "/login?from=" <> url
 main :: IO ()
 main = do
     initializeCookieDb sessionConfig
-    {- scotty 3000 $ do -}
     scottyTLS 3000 "server.key" "server.crt" $ do
         get "/" $ checkLogin "/" $ generateHomePageHtml rootPath
         get "/video" $ checkLogin "/video" $ generateVideoHtml "/video"
@@ -322,10 +326,15 @@ main = do
         {- get first level  -}
         traverse (\path -> get (capture path) $ checkLogin (DTL.pack path) $ generateFilePondHtml path) ["/upload", "/audio", "/picture", "/others", "/chunk"]
 
+        {- get arbitrary level under /text -}
+        traverse (\routePattern -> get (capture $ "/text" <> routePattern) $ do
+            _urlPath <- routePatternToUrlPath routePattern
+            let urlPath = "/text" <> _urlPath
+            checkLogin (DTL.pack urlPath) $ runContT (getFileOrDirectory urlPath getTextFile) generateHtmlForDirectory) routePatternList
+
         {- get arbitrary level -}
         traverse (\routePattern -> get (capture routePattern) $ do
             urlPath <- routePatternToUrlPath routePattern
-            {- checkLogin (DTL.pack urlPath) $ getFileOrDirectory getChunkedFile generateHtmlForDirectory urlPath) routePatternList -}
             checkLogin (DTL.pack urlPath) $ runContT (getFileOrDirectory urlPath getChunkedFile) generateHtmlForDirectory) routePatternList
     
         post "/login" $ do
@@ -363,8 +372,37 @@ main = do
                 liftIO $ callCommand ("cd video; youtube-dl --no-mtime -o '" <> _date <> ".%(ext)s' " <> strData)
             generateVideoHtml "/video"
 
-        {- post "/text" $ authCheck (redirect "/login") $ postChunkedDataFromFilePond generateTextHtml "/text" -}
         post "/text" $ authCheck (redirect "/login") $ runContT (postChunkedDataFromFilePond "/text") generateTextHtml 
+
+
+        {- post arbitrary level under /text -}
+        traverse (\routePattern -> post (capture $ "/text" <> routePattern) $ do
+            _urlPath <- routePatternToUrlPath routePattern
+            let urlPath = "/text" <> _urlPath
+            checkLogin (DTL.pack urlPath) $ do
+                binaryData <- param (DTL.pack urlPath)
+                (fileMode :: String) <- param "mode"
+                liftIO $ print $ "mode " <> fileMode
+                let strData = BSC.unpack binaryData
+                liftIO $ print $ "post " <> urlPath <> " with " <> strData
+                if BSC.null binaryData then liftIO $ print "empty submit"
+                else if strData == "edit" then do
+                    getEditTextFile urlPath
+                    {- liftIO $ writeFile (rootPath <> urlPath) "" -}
+                else if fileMode == "append" then do 
+                    liftIO $ insertFileWithByteString (rootPath <> urlPath) $ binaryData <> (BSC.pack "\r\n")
+                    getTextFile urlPath
+                else do
+                    liftIO $ writeFile (rootPath <> urlPath) ""
+                    liftIO $ D.writeFile (rootPath <> urlPath) binaryData
+                    getTextFile urlPath
+                return ()
+            ) routePatternList
+
+
+
+
+
 
         {- post "/text" $ authCheck (redirect "/login") $ do -}
             {- binaryTitleData <- param "title" -}
