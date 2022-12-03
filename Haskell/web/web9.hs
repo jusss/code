@@ -112,7 +112,7 @@ generateFilePondHtml pathName = do
         liftIO $ print $ "get " <> pathName
         fileList <- liftIO $ listDirectoryAscendingByTime $ rootPath <> pathName
         liftIO $ createDirectoryIfMissing True $ rootPath <> pathName
-        let h0 = "<html lang=\"en-US\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"> <title>" <> pathName <> "</title>\n <link href=\"node_modules/filepond/dist/filepond.css\" rel=\"stylesheet\" />\n <script src=\"node_modules/filepond/dist/filepond.js\"></script>\n </head>\n <body>\n"
+        let h0 = "<html lang=\"en-US\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"> <title>" <> pathName <> "</title>\n <link href=\"/node_modules/filepond/dist/filepond.css\" rel=\"stylesheet\" />\n <script src=\"/node_modules/filepond/dist/filepond.js\"></script>\n </head>\n <body>\n"
         {- let h1 = "<button onclick=\"history.back()\">Go Back</button><br><br>" -}
         let h1 = "<a href=\"/\">home</a><br><br>"
         let h2 = "<input type=\"file\" multiple><br><br><br>\n" 
@@ -121,18 +121,22 @@ generateFilePondHtml pathName = do
         html $ DTL.pack $ h0 <> h1 <> h2 <> h3 <> h4
 
 generateTextHtml :: String -> ActionM ()
-generateTextHtml pathName = do
+generateTextHtml urlPath = do
         addHeader "Content-Type" "text/html; charset=utf-8"
-        liftIO $ print $ "get " <> pathName
-        fileList <- liftIO $ listDirectoryAscendingByTime $ rootPath <> pathName
-        liftIO $ createDirectoryIfMissing True $ rootPath <> pathName
-        let h0 = "<html lang=\"en-US\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"> <title>" <> pathName <> "</title>\n <link href=\"node_modules/filepond/dist/filepond.css\" rel=\"stylesheet\" />\n <script src=\"node_modules/filepond/dist/filepond.js\"></script>\n </head>\n <body>\n"
+        liftIO $ print $ "get " <> urlPath
+        fileList <- liftIO $ listDirectoryAscendingByTime $ rootPath <> urlPath
+        liftIO $ createDirectoryIfMissing True $ rootPath <> urlPath
+        let h0 = "<html lang=\"en-US\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"> <title>" <> urlPath <> "</title>\n <link href=\"/node_modules/filepond/dist/filepond.css\" rel=\"stylesheet\" />\n <script src=\"/node_modules/filepond/dist/filepond.js\"></script>\n </head>\n <body>\n"
         {- let h1 = "<button onclick=\"history.back()\">Go Back</button><br><br>" -}
         let h1 = "<a href=\"/\">home</a><br><br>"
+
+        {- let hf = "<form action=\"" <> urlPath <> "\"  method=\"post\"> <label for=\"fileName\">New File:</label> <input type=\"text\" name=\"newFile\"><input type=\"submit\" value=\"Create\"></form>" -}
+        let hf = "<form action=\"" <> urlPath <> "/create" <> "\"  method=\"post\"> <label for=\"fileName\">New File:</label> <input type=\"text\" name=\"newFile\" value=\"\"><input type=\"submit\" value=\"Create\"></form>"
+
         let h2 = "<input type=\"file\" multiple><br><br><br>\n" 
-        let h3 = if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> pathName <> "/" <> x <> "\"> " <> x <> "</a> <br>" <> "\n") fileList)
-        let h4 = "</body>\n <script> const inputElement = document.querySelector('input[type=\"file\"]'); const pond = FilePond.create( inputElement ); pond.setOptions({ server: \"" <> pathName <> "\" }) </script> </html>\n" 
-        html $ DTL.pack $ h0 <> h1 <> h2 <> h3 <> h4
+        let h3 = if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> urlPath <> "/" <> x <> "\"> " <> x <> "</a> <br>" <> "\n") fileList)
+        let h4 = "</body>\n <script> const inputElement = document.querySelector('input[type=\"file\"]'); const pond = FilePond.create( inputElement ); pond.setOptions({ server: \"" <> urlPath <> "\" }) </script> </html>\n" 
+        html $ DTL.pack $ h0 <> h1 <> hf <> h2 <> h3 <> h4
 
 {- there are three post ways, postAndShow is simple post whole file at once, postChunkedData is post with chunk, postChunkedDataFromFilePond is post with filepond, other function see previous version web6.hs -}
 {- https://www.haskellforall.com/2012/12/the-continuation-monad.html -}
@@ -372,8 +376,20 @@ main = do
                 liftIO $ callCommand ("cd video; youtube-dl --no-mtime -o '" <> _date <> ".%(ext)s' " <> strData)
             generateVideoHtml "/video"
 
-        post "/text" $ authCheck (redirect "/login") $ runContT (postChunkedDataFromFilePond "/text") generateTextHtml 
+        post "/text" $ authCheck (redirect "/login") $ runContT (postChunkedDataFromFilePond "/text") generateTextHtml
 
+        post "/text/create" $ authCheck (redirect "/login") $ do
+            binaryData <- param "newFile"
+            if BSC.null binaryData then liftIO $ print "emtype fileName"
+            else do
+                let strData = BSC.unpack binaryData
+                let filePath = rootPath <> "/text/" <> strData
+                if (DL.last strData) == '/' then liftIO $ createDirectoryIfMissing True filePath
+                else do
+                    isExist <- liftIO $ fileExist $ filePath
+                    if isExist then text "file existed!"
+                    else liftIO $ D.writeFile filePath ""
+            redirect "/text"
 
         {- post arbitrary level under /text -}
         traverse (\routePattern -> post (capture $ "/text" <> routePattern) $ do
@@ -399,20 +415,7 @@ main = do
                 return ()
             ) routePatternList
 
-
-
-
-
-
-        {- post "/text" $ authCheck (redirect "/login") $ do -}
-            {- binaryTitleData <- param "title" -}
-            {- binaryContentData <- param "content" -}
-            {- if BSC.null binaryData then liftIO $ print "empty submit" -}
-            {- else liftIO $ insertFileWithByteString (rootPath <> "/paste/paste.txt") $ binaryData <> (BSC.pack "\r\n\r\n") -}
-            {- generatePasteHtml "paste" -}
-
         {- post first level -}
-        {- traverse (\path -> post (capture path) $ authCheck (redirect "/login") $ postChunkedDataFromFilePond generateFilePondHtml path) ["/upload", "/audio", "/picture", "/others", "/chunk"] -}
         traverse (\path -> post (capture path) $ authCheck (redirect "/login") $ runContT (postChunkedDataFromFilePond path) generateFilePondHtml) ["/upload", "/audio", "/picture", "/others", "/chunk"]
 
         return ()
