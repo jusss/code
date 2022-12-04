@@ -150,7 +150,7 @@ generateTextHtml urlPath = do
         let hb = "<a href=\"" <> urlDirectory <> "\">back</a><br><br>"
         let hf = "<form action=\"" <> "/text" <> "/create" <> "\"  method=\"post\"> <label for=\"fileName\">New File:</label> <input type=\"text\" name=\"fileName\" value=\"\">  <input type=\"hidden\" name=\"urlPath\" value=\"" <> urlPath <> "\">  <input type=\"submit\" value=\"Create\"></form>"
         let h2 = "<form enctype=\"multipart/form-data\" action=\"" <> urlPath <> "\" method=\"post\"><input type=\"file\" name=\"" <> urlPath <> "\" multiple> <input type=\"submit\" value=\"Upload\"> </form> <br>"
-        let h3 = if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> urlPath <> "/" <> x <> "\"> " <> x <> "</a> <br>" <> "\n") fileList)
+        let h3 = if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> urlPath <> "/" <> x <> "?contentType=html" <> "\"> " <> x <> "</a> <br>" <> "\n") fileList)
         let h4 = "</body></html>" 
         html $ DTL.pack $ h0 <> h1 <> hb <> hf <> h2 <> h3 <> h4
 
@@ -206,18 +206,6 @@ generateHtmlForDirectory pathName = do
         let h3 = "</body>\n </html>\n" 
         html $ DTL.pack $ h0 <> h1 <> h2 <> h3
 
-
-{- generateHtmlForTextDirectory :: String -> ActionM () -}
-{- generateHtmlForTextDirectory pathName = do -}
-        {- addHeader "Content-Type" "text/html; charset=utf-8" -}
-        {- fileList <- liftIO $ listDirectory $ rootPath <> pathName -}
-        {- let h0 = "<html lang=\"en-US\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"> <title>" <> pathName <> "</title>\n </head>\n <body>\n" -}
-        {- let h1 = "<a href=\"/\">home</a><br><br>" -}
-        {- let h2 = if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> pathName <> "/" <> x <> "\"> " <> x <> "</a> <br>" <> "\n") fileList) -}
-        {- let h3 = "</body>\n </html>\n"  -}
-        {- html $ DTL.pack $ h0 <> h1 <> h2 <> h3 -}
-
-
 getChunkedFile :: String -> ActionM ()
 getChunkedFile urlPath = do
         addHeader "Content-Type" "text/plain; charset=utf-8"
@@ -239,6 +227,9 @@ getChunkedFile urlPath = do
 getTextFile :: String -> ActionM ()
 getTextFile urlPath = do
         addHeader "Content-Type" "text/html; charset=utf-8"
+        {- timestamp for preventing iframe cache -}
+        _timestamp <- liftIO $ getPOSIXTime
+        let timestamp = show _timestamp
         let fileName = DTL.unpack $ DL.last $ DTL.splitOn "/" $ DTL.pack urlPath
         let urlDirectory = concat $ fmap (("/" <> ) . DTL.unpack) $ DL.init $ DL.filter (/= "") $ DTL.splitOn "/" $ DTL.pack urlPath
         let h0 = "<html lang=\"zh-CN\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">  <title>" <> fileName <> "</title>\n </head>\n <body>\n"
@@ -248,24 +239,36 @@ getTextFile urlPath = do
         let h2 = "<form id='myForm' enctype=\"multipart/form-data\" action=\"" <> "/text/edit" <> "\" method=\"post\">"
         let h2_ = "<input type=\"hidden\" name=\"urlPath\" value=\"" <> urlPath <> "\"><input type=\"hidden\" name=\"mode\" value=\"append\">"
         let h3 = "<textarea id=\"formData\" rows=\"6\" cols=\"36\" name=\"data\"></textarea> <br> <input onclick=\"clearForm()\" type=\"submit\" value=\"Submit\"> </form> <br>"
-        let h4 = "<script> function clearForm() { var fm = document.getElementById('myForm')[0]; fm.submit(); fm.reset(); document.getElementById('formData').value = '';}; if (window.history.replaceState) {windows.history.replaceState(null, null, window.location.href)} </script>"
-        binaryData <- liftIO $ D.readFile $ rootPath <> urlPath
-        let h5 = concat $ fmap (<> "<br>") $ lines $ DT.unpack $ DTE.decodeUtf8With lenientDecode binaryData
+        {- binaryData <- liftIO $ D.readFile $ rootPath <> urlPath -}
+        {- let h4 = concat $ fmap (<> "<br>") $ lines $ DT.unpack $ DTE.decodeUtf8With lenientDecode binaryData -}
+        let h4 = "<iframe src=\"" <> urlPath <> "?contentType=plain&timestamp=" <> timestamp <> "\"  width=\"100%\" height=\"100%\"   ></iframe>"
+
+        let h5 = "<script> function clearForm() { var fm = document.getElementById('myForm')[0]; fm.submit(); fm.reset(); document.getElementById('formData').value = '';}; if (window.history.replaceState) {windows.history.replaceState(null, null, window.location.href)} </script>"
         let h6 = "</body>\n </html>\n" 
         html $ DTL.pack $ h0 <> h1 <> hb <> hf <> h2 <> h2_ <> h3 <> h4 <> h5 <> h6
 
 charToJSString :: Char -> String
-charToJSString char = case char of '\r' -> "\\r"
+charToJSString character = case character of
+                                   '\r' -> "\\r"
                                    '\n' -> "\\n"
                                    '\0' -> "\\0"
-                                   '\\' -> "\\"
+                                   '\\' -> "\\\\"
                                    '\'' -> "\\'"
                                    '\"' -> "\\\""
                                    '\v' -> "\\v"
                                    '\t' -> "\\t"
                                    '\b' -> "\\b"
                                    '\f' -> "\\f"
-                                   char -> [char]
+                                   character -> [character]
+
+escapeHtmlCharInJSString :: Char -> String
+escapeHtmlCharInJSString character = case character of
+                                            '&' -> "&amp;"
+                                            '<' -> "&lt;"
+                                            '>' -> "&gt;"
+                                            '\"' -> "&quot;"
+                                            '\'' -> "&#039;"
+
 
 getEditTextFile :: String -> ActionM ()
 getEditTextFile urlPath = do
@@ -365,16 +368,16 @@ main = do
         traverse (\path -> get (capture path) $ checkLogin (DTL.pack path) $ generateFilePondHtml path) ["/upload", "/audio", "/picture", "/others", "/chunk"]
 
         {- get arbitrary level under /text -}
-        {- traverse (\routePattern -> get (capture $ "/text" <> routePattern) $ do -}
-            {- _urlPath <- routePatternToUrlPath routePattern -}
-            {- let urlPath = "/text" <> _urlPath -}
-            {- checkLogin (DTL.pack urlPath) $ runContT (getFileOrDirectory urlPath getTextFile) generateHtmlForDirectory) routePatternList -}
-
         traverse (\routePattern -> get (capture $ "/text" <> routePattern) $ do
             _urlPath <- routePatternToUrlPath routePattern
             let urlPath = "/text" <> _urlPath
-            checkLogin (DTL.pack urlPath) $ runContT (getFileOrDirectory urlPath getTextFile) generateTextHtml) routePatternList
-
+            checkLogin (DTL.pack urlPath) $ do
+                (contentType :: String) <- param "contentType"
+                if contentType == "html" then runContT (getFileOrDirectory urlPath getTextFile) generateTextHtml
+                else if contentType == "plain" then do
+                    addHeader "Content-Type" "text/plain; charset=utf-8"
+                    file (rootPath <> urlPath)
+                else text "wrong contentType" ) routePatternList
 
         {- get arbitrary level -}
         traverse (\routePattern -> get (capture routePattern) $ do
@@ -418,10 +421,6 @@ main = do
 
         {- post "/text" $ authCheck (redirect "/login") $ runContT (postChunkedDataFromFilePond "/text") generateTextHtml -}
         post "/text" $ authCheck (redirect "/login") $ postFiles "/text"
-        {- post "/text" $ authCheck (redirect "/login") $ do -}
-            {- _files <- files -}
-            {- traverse (\_file -> liftIO $ DB.writeFile (rootPath <> (DTL.unpack $ fst _file) <> "/" <> (BSC.unpack $ fileName $ snd _file)) (fileContent $ snd _file)) _files -}
-            {- redirect "/text" -}
 
         post "/text/create" $ authCheck (redirect "/login") $ do
             binaryData <- param "fileName"
@@ -436,7 +435,6 @@ main = do
                     if isExist then text "file existed!"
                     else liftIO $ D.writeFile filePath ""
             redirect $ DTL.pack urlPath
-
 
         post "/text/edit" $ authCheck (redirect "/login") $ do
                 urlData <- param "urlPath"
@@ -453,47 +451,17 @@ main = do
                     else if fileMode == "write" then do
                         liftIO $ writeFile (rootPath <> urlPath) ""
                         liftIO $ D.writeFile (rootPath <> urlPath) binaryData
-                        getTextFile urlPath
                     else if fileMode == "append" then do 
                         liftIO $ insertFileWithByteString (rootPath <> urlPath) $ binaryData <> (BSC.pack "\r\n")
-                        getTextFile urlPath
                     else text "invalid fileMode"
-                {- redirect $ DTL.pack urlPath -}
-
+                redirect $ (DTL.pack urlPath) <> "?contentType=html"
 
         {- post arbitrary level under /text -}
-        {- traverse (\routePattern -> post (capture $ "/text" <> routePattern) $ do -}
-            {- _urlPath <- routePatternToUrlPath routePattern -}
-            {- let urlPath = "/text" <> _urlPath -}
-            {- checkLogin (DTL.pack urlPath) $ do -}
-                {- binaryData <- param (DTL.pack urlPath) -}
-                {- (fileMode :: String) <- param "mode" -}
-                {- liftIO $ print $ "mode " <> fileMode -}
-                {- let strData = BSC.unpack binaryData -}
-                {- liftIO $ print $ "post " <> urlPath <> " with " <> strData -}
-                {- if BSC.null binaryData then liftIO $ print "empty submit" -}
-                {- else if strData == "edit" then do -}
-                    {- getEditTextFile urlPath -}
-                    {- [> liftIO $ writeFile (rootPath <> urlPath) "" <] -}
-                {- else if fileMode == "append" then do  -}
-                    {- liftIO $ insertFileWithByteString (rootPath <> urlPath) $ binaryData <> (BSC.pack "\r\n") -}
-                    {- getTextFile urlPath -}
-                {- else do -}
-                    {- liftIO $ writeFile (rootPath <> urlPath) "" -}
-                    {- liftIO $ D.writeFile (rootPath <> urlPath) binaryData -}
-                    {- getTextFile urlPath -}
-                {- return () -}
-            {- ) routePatternList -}
-
-
         traverse (\routePattern -> post (capture $ "/text" <> routePattern) $ do
             _urlPath <- routePatternToUrlPath routePattern
             let urlPath = "/text" <> _urlPath
             checkLogin (DTL.pack urlPath) $ postFiles urlPath
             ) routePatternList
-
-
-
 
         {- post first level -}
         traverse (\path -> post (capture path) $ authCheck (redirect "/login") $ runContT (postChunkedDataFromFilePond path) generateFilePondHtml) ["/upload", "/audio", "/picture", "/others", "/chunk"]
