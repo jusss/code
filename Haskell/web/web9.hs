@@ -150,7 +150,7 @@ generateTextHtml urlPath = do
         let hb = "<a href=\"" <> urlDirectory <> "\">back</a><br><br>"
         let hf = "<form action=\"" <> "/text" <> "/create" <> "\"  method=\"post\"> <label for=\"fileName\">New File:</label> <input type=\"text\" name=\"fileName\" value=\"\">  <input type=\"hidden\" name=\"urlPath\" value=\"" <> urlPath <> "\">  <input type=\"submit\" value=\"Create\"></form>"
         let h2 = "<form enctype=\"multipart/form-data\" action=\"" <> urlPath <> "\" method=\"post\"><input type=\"file\" name=\"" <> urlPath <> "\" multiple> <input type=\"submit\" value=\"Upload\"> </form> <br>"
-        let h3 = if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> urlPath <> "/" <> x <> "?contentType=html" <> "\"> " <> x <> "</a> <br>" <> "\n") fileList)
+        let h3 = if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> urlPath <> "/" <> x <> "?contentType=html&fileMode=read" <> "\"> " <> x <> "</a> <br>" <> "\n") fileList)
         let h4 = "</body></html>" 
         html $ DTL.pack $ h0 <> h1 <> hb <> hf <> h2 <> h3 <> h4
 
@@ -230,19 +230,31 @@ getTextFile urlPath = do
         {- timestamp for preventing iframe cache -}
         _timestamp <- liftIO $ getPOSIXTime
         let timestamp = show _timestamp
+        let urlPathWithWriteParam = urlPath <> "?contentType=plain&fileMode=write&timestamp=" <> timestamp
+        let urlPathWithAppendParam = urlPath <> "?contentType=plain&fileMode=append&timestamp=" <> timestamp
+        let urlPathWithReadParam = urlPath <> "?contentType=plain&fileMode=read&timestamp=" <> timestamp
+
         let fileName = DTL.unpack $ DL.last $ DTL.splitOn "/" $ DTL.pack urlPath
         let urlDirectory = concat $ fmap (("/" <> ) . DTL.unpack) $ DL.init $ DL.filter (/= "") $ DTL.splitOn "/" $ DTL.pack urlPath
         let h0 = "<html lang=\"zh-CN\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">  <title>" <> fileName <> "</title>\n </head>\n <body>\n"
         let h1 = "<a href=\"/\">home</a><br><br>"
         let hb = "<a href=\"" <> urlDirectory <> "\">back</a><br><br>"
-        let hf = "<form action=\"" <> "/text/edit" <> "\"  method=\"post\"> <input type=\"hidden\" name=\"urlPath\" value=\"" <> urlPath <> "\"><input type=\"hidden\" name=\"mode\" value=\"edit\"><input type=\"hidden\" name=\"data\" value=\"\"><button name=\"" <> urlPath <> "\" value=\"edit\">edit</button></form>"
+
+        let hf = "<a href=\"" <> urlPathWithWriteParam <> "\">edit</a><br><br>"
+
+
+        {- let hf = "<form action=\"" <> "/text/edit" <> "\"  method=\"post\"> <input type=\"hidden\" name=\"urlPath\" value=\"" <> urlPath <> "\"><input type=\"hidden\" name=\"mode\" value=\"edit\"><input type=\"hidden\" name=\"data\" value=\"\"><button name=\"" <> urlPath <> "\" value=\"edit\">edit</button></form>" -}
+
         let h2 = "<form id='myForm' enctype=\"multipart/form-data\" action=\"" <> "/text/edit" <> "\" method=\"post\">"
         let h2_ = "<input type=\"hidden\" name=\"urlPath\" value=\"" <> urlPath <> "\"><input type=\"hidden\" name=\"mode\" value=\"append\">"
-        let h3 = "<textarea id=\"formData\" rows=\"6\" cols=\"36\" name=\"data\"></textarea> <br> <input onclick=\"clearForm()\" type=\"submit\" value=\"Submit\"> </form> <br>"
+        let h3 = "<textarea style=\"width: 100%; height: 20%;\" id=\"formData\" name=\"data\"></textarea> <br> <input onclick=\"clearForm()\" type=\"submit\" value=\"Submit\"> </form> <br>"
         {- binaryData <- liftIO $ D.readFile $ rootPath <> urlPath -}
         {- let h4 = concat $ fmap (<> "<br>") $ lines $ DT.unpack $ DTE.decodeUtf8With lenientDecode binaryData -}
-        let h4 = "<iframe src=\"" <> urlPath <> "?contentType=plain&timestamp=" <> timestamp <> "\"  width=\"100%\" height=\"100%\"   ></iframe>"
+        let h4 = "<iframe src=\"" <> urlPathWithReadParam <> "\"  width=\"100%\" height=\"100%\"   ></iframe>"
 
+        {- reading html text file with Hasekll and put it into textarea with js is a wrong way, lots of escape characters, the right way is using js to fetch the content of that text file as plain text and put it into textarea -}
+
+        {- let h5 = "<script> fetch(\"" <> urlPath <> "?contentType=plain&timestamp=" <> timestamp <> "\").then((r)=>{r.text().then((d)=>{  document.getElementById('formData').value = d })}); function clearForm() { var fm = document.getElementById('myForm')[0]; fm.submit(); fm.reset(); document.getElementById('formData').value = '';}; if (window.history.replaceState) {windows.history.replaceState(null, null, window.location.href)} </script>" -}
         let h5 = "<script> function clearForm() { var fm = document.getElementById('myForm')[0]; fm.submit(); fm.reset(); document.getElementById('formData').value = '';}; if (window.history.replaceState) {windows.history.replaceState(null, null, window.location.href)} </script>"
         let h6 = "</body>\n </html>\n" 
         html $ DTL.pack $ h0 <> h1 <> hb <> hf <> h2 <> h2_ <> h3 <> h4 <> h5 <> h6
@@ -272,8 +284,8 @@ escapeHtmlCharInJSString character = case character of
 
 getEditTextFile :: String -> ActionM ()
 getEditTextFile urlPath = do
-        binaryData <- liftIO $ D.readFile $ rootPath <> urlPath
-        let content = DT.unpack $ DTE.decodeUtf8With lenientDecode binaryData
+        {- binaryData <- liftIO $ D.readFile $ rootPath <> urlPath -}
+        {- let content = DT.unpack $ DTE.decodeUtf8With lenientDecode binaryData -}
 
         {- there are two line breaks, one is character '\r' in file, another is "\r" in string -}
 
@@ -282,9 +294,17 @@ getEditTextFile urlPath = do
         {- there're 13 case, https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String#escape_sequences -}
 
         {- let jsString = show $ textToStr $ DTE.decodeUtf8With lenientDecode binaryData -}
-        let jsString = concatMap charToJSString content
+        {- let jsString = concatMap charToJSString content -}
 
-        liftIO $ print $ urlPath <> ": " <> jsString
+        {- liftIO $ print $ urlPath <> ": " <> jsString -}
+
+
+        _timestamp <- liftIO $ getPOSIXTime
+        let timestamp = show _timestamp
+        let urlPathWithWriteParam = urlPath <> "?contentType=plain&fileMode=write&timestamp=" <> timestamp
+        let urlPathWithAppendParam = urlPath <> "?contentType=plain&fileMode=append&timestamp=" <> timestamp
+        let urlPathWithReadParam = urlPath <> "?contentType=plain&fileMode=read&timestamp=" <> timestamp
+
 
         addHeader "Content-Type" "text/html; charset=utf-8"
         let fileName = DTL.unpack $ DL.last $ DTL.splitOn "/" $ DTL.pack urlPath
@@ -292,10 +312,15 @@ getEditTextFile urlPath = do
         let h1 = "<a href=\"/\">home</a><br><br>"
         let h2 = "<form id='editForm' enctype=\"multipart/form-data\" action=\"" <> "/text/edit" <> "\" method=\"post\">"
         let h2_ = "<input type=\"hidden\" name=\"urlPath\" value=\"" <> urlPath <> "\"><input type=\"hidden\" name=\"mode\" value=\"write\">"
-        let h3 = "<textarea id=\"formData\" rows=\"36\" cols=\"56\" name=\"data\"></textarea> <br> <input onclick=\"clearForm()\" type=\"submit\" value=\"Submit\"> </form> <br>"
-        let h4 = "<script> document.addEventListener('DOMContentLoaded', (event) => {document.getElementById('formData').value = '" <> jsString <> "'});function clearForm() { var fm = document.getElementById('editForm')[0]; fm.submit();fm.reset(); document.getElementById('formData').value = '';};  </script>"
+        let h3 = "<textarea style=\"width: 100%; height: 90%;\"  id=\"formData\" name=\"data\"></textarea> <br> <input onclick=\"clearForm()\" type=\"submit\" value=\"Submit\"> </form> <br>"
+        {- let h4 = "<script> document.addEventListener('DOMContentLoaded', (event) => {document.getElementById('formData').value = '" <> jsString <> "'});function clearForm() { var fm = document.getElementById('editForm')[0]; fm.submit();fm.reset(); document.getElementById('formData').value = '';};  </script>" -}
         {- let h4 = "<script> document.getElementById('formData').value = \"abc\";function clearForm() { var fm = document.getElementById('myForm')[0]; fm.submit(); fm.reset();}; if (window.history.replaceState) {windows.history.replaceState(null, null, window.location.href)} </script>" -}
-        liftIO $ print h4
+
+
+        let h4 = "<script> fetch(\"" <> urlPathWithReadParam <> "\").then((r)=>{r.text().then((d)=>{  document.getElementById('formData').value = d })}); function clearForm() { var fm = document.getElementById('myForm')[0]; fm.submit(); fm.reset(); document.getElementById('formData').value = '';}; if (window.history.replaceState) {windows.history.replaceState(null, null, window.location.href)} </script>"
+
+
+        {- liftIO $ print h4 -}
         let h5 = "</body>\n </html>\n" 
         html $ DTL.pack $ h0 <> h1 <> h2 <> h2_ <> h3 <> h4 <> h5
 
@@ -373,7 +398,9 @@ main = do
             let urlPath = "/text" <> _urlPath
             checkLogin (DTL.pack urlPath) $ do
                 (contentType :: String) <- param "contentType"
-                if contentType == "html" then runContT (getFileOrDirectory urlPath getTextFile) generateTextHtml
+                (fileMode :: String) <- param "fileMode"
+                if (fileMode == "write") then getEditTextFile urlPath
+                else if contentType == "html" then runContT (getFileOrDirectory urlPath getTextFile) generateTextHtml
                 else if contentType == "plain" then do
                     addHeader "Content-Type" "text/plain; charset=utf-8"
                     file (rootPath <> urlPath)
@@ -454,7 +481,7 @@ main = do
                     else if fileMode == "append" then do 
                         liftIO $ insertFileWithByteString (rootPath <> urlPath) $ binaryData <> (BSC.pack "\r\n")
                     else text "invalid fileMode"
-                redirect $ (DTL.pack urlPath) <> "?contentType=html"
+                redirect $ (DTL.pack urlPath) <> "?contentType=html&fileMode=read"
 
         {- post arbitrary level under /text -}
         traverse (\routePattern -> post (capture $ "/text" <> routePattern) $ do
