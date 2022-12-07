@@ -135,22 +135,24 @@ generateTextHtmlWithFilePond urlPath = do
 
 generateTextHtml :: String -> ActionM ()
 generateTextHtml urlPath = do
-        _timestamp <- liftIO $ getPOSIXTime
-        let timestamp = show _timestamp
         addHeader "Content-Type" "text/html; charset=utf-8"
         liftIO $ print $ "get " <> urlPath
         fileList <- liftIO $ listDirectoryAscendingByTime $ rootPath <> urlPath
         liftIO $ createDirectoryIfMissing True $ rootPath <> urlPath
         let urlDirectory = if (length $ DL.filter (/= "") $ splitOn "/" urlPath) == 1 then "/" else concat $ fmap ("/" <> ) $ DL.init $ DL.filter (/= "") $ splitOn "/" urlPath
-        let urlDirectoryWithReadParam = urlDirectory <> "?contentType=html&fileMode=read&timestamp=" <> timestamp
         let h0 = "<html lang=\"zh-CN\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"> <title>" <> urlPath <> "</title>\n </head>\n <body>\n"
         let h1 = "<a href=\"/\">home</a><br><br>"
-        let hb = "<a href=\"" <> urlDirectoryWithReadParam <> "\">back</a><br><br>"
-        let hf = "<form action=\"" <> "/text" <> "/create" <> "\"  method=\"post\"> <label for=\"fileName\">New File:</label> <input type=\"text\" name=\"fileName\" value=\"\">  <input type=\"hidden\" name=\"urlPath\" value=\"" <> urlPath <> "\">  <input type=\"submit\" value=\"Create\"></form>"
-        let h2 = "<form enctype=\"multipart/form-data\" action=\"" <> urlPath <> "\" method=\"post\"><input type=\"file\" name=\"" <> urlPath <> "\" multiple> <input type=\"submit\" value=\"Upload\"> </form> <br>"
-        let h3 = if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> urlPath <> "/" <> x <> "?contentType=html&fileMode=read" <> "\"> " <> x <> "</a> <br>" <> "\n") fileList)
+        let hb = "<a href=\"" <> urlDirectory <> "\">back</a><br><br>"
+        let hf = "<form action=\"" <> urlPath <> "?fileMode=create" <> "\"  method=\"post\"> <label for=\"fileName\">New File:</label> <input type=\"text\" name=\"data\" value=\"\"> <input type=\"submit\" value=\"Create\"></form>"
+
+        let hf_ = "<form action=\"" <> urlPath <> "?fileMode=delete" <> "\"  method=\"post\"> <label for=\"fileName\">Delete File:</label> <input type=\"text\" name=\"data\" value=\"\"> <input type=\"submit\" value=\"Delete\"></form>"
+
+        let hf__ = "<form action=\"" <> urlPath <> "?fileMode=download" <> "\"  method=\"post\"> <label for=\"fileName\">Download File:</label> <input type=\"text\" name=\"data\" value=\"\"> <input type=\"submit\" value=\"Download\"></form>"
+
+        let h2 = "<form enctype=\"multipart/form-data\" action=\"" <> urlPath <> "?fileMode=upload" <> "\" method=\"post\"><input type=\"file\" name=\"" <> urlPath <> "\" multiple> <input type=\"submit\" value=\"Upload\"> </form> <br>"
+        let h3 = if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> urlPath <> "/" <> x <> "\"> " <> x <> "</a> <br>" <> "\n") fileList)
         let h4 = "</body></html>" 
-        html $ DTL.pack $ h0 <> h1 <> hb <> hf <> h2 <> h3 <> h4
+        html $ DTL.pack $ h0 <> h1 <> hb <> hf <> hf_ <> hf__ <> h2 <> h3 <> h4
 
 postFiles :: String -> ActionM ()
 postFiles urlPath = do
@@ -226,24 +228,19 @@ getTextFile urlPath = do
         {- timestamp for preventing iframe cache -}
         _timestamp <- liftIO $ getPOSIXTime
         let timestamp = show _timestamp
-        let urlPathWithWriteParam = urlPath <> "?contentType=plain&fileMode=write&timestamp=" <> timestamp
-        let urlPathWithAppendParam = urlPath <> "?contentType=plain&fileMode=append&timestamp=" <> timestamp
+        let urlPathWithWriteParam = urlPath <> "?fileMode=write&timestamp=" <> timestamp
+        let urlPathWithAppendParam = urlPath <> "?fileMode=append&timestamp=" <> timestamp
         let urlPathWithReadParam = urlPath <> "?contentType=plain&fileMode=read&timestamp=" <> timestamp
 
         let urlDirectory = if (length $ DL.filter (/= "") $ splitOn "/" urlPath) == 1 then "/" else concat $ fmap ("/" <> ) $ DL.init $ DL.filter (/= "") $ splitOn "/" urlPath
-
-        let urlDirectoryWithReadParam = urlDirectory <> "?contentType=html&fileMode=read&timestamp=" <> timestamp
         let fileName = DL.last $ splitOn "/" urlPath
-        {- let urlDirectory = concat $ fmap (("/" <> ) . DTL.unpack) $ DL.init $ DL.filter (/= "") $ DTL.splitOn "/" $ DTL.pack urlPath -}
         let h0 = "<html lang=\"zh-CN\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">  <title>" <> fileName <> "</title>\n </head>\n <body>\n"
         let h1 = "<a href=\"/\">home</a><br><br>"
-        let hb = "<a href=\"" <> urlDirectoryWithReadParam <> "\">back</a><br><br>"
+        let hb = "<a href=\"" <> urlDirectory <> "\">back</a><br><br>"
         let hf = "<a href=\"" <> urlPathWithWriteParam <> "\">edit</a><br><br>"
-        {- let hf = "<form action=\"" <> "/text/edit" <> "\"  method=\"post\"> <input type=\"hidden\" name=\"urlPath\" value=\"" <> urlPath <> "\"><input type=\"hidden\" name=\"mode\" value=\"edit\"><input type=\"hidden\" name=\"data\" value=\"\"><button name=\"" <> urlPath <> "\" value=\"edit\">edit</button></form>" -}
-
-        let h2 = "<form id='myForm' enctype=\"multipart/form-data\" action=\"" <> "/text/edit" <> "\" method=\"post\">"
-        let h2_ = "<input type=\"hidden\" name=\"urlPath\" value=\"" <> urlPath <> "\"><input type=\"hidden\" name=\"mode\" value=\"append\">"
+        let h2 = "<form id='myForm' enctype=\"multipart/form-data\" action=\"" <> urlPathWithAppendParam <> "\" method=\"post\">"
         let h3 = "<textarea style=\"width: 100%; height: 20%;\" id=\"formData\" name=\"data\"></textarea> <br> <input onclick=\"clearForm()\" type=\"submit\" value=\"Submit\"> </form> <br>"
+
         {- binaryData <- liftIO $ D.readFile $ rootPath <> urlPath -}
         {- let h4 = concat $ fmap (<> "<br>") $ lines $ DT.unpack $ DTE.decodeUtf8With lenientDecode binaryData -}
         let h4 = "<iframe src=\"" <> urlPathWithReadParam <> "\"  width=\"100%\" height=\"100%\"   ></iframe>"
@@ -252,33 +249,27 @@ getTextFile urlPath = do
         {- let h5 = "<script> fetch(\"" <> urlPath <> "?contentType=plain&timestamp=" <> timestamp <> "\").then((r)=>{r.text().then((d)=>{  document.getElementById('formData').value = d })}); function clearForm() { var fm = document.getElementById('myForm')[0]; fm.submit(); fm.reset(); document.getElementById('formData').value = '';}; if (window.history.replaceState) {windows.history.replaceState(null, null, window.location.href)} </script>" -}
         let h5 = "<script> function clearForm() { var fm = document.getElementById('myForm')[0]; fm.submit(); fm.reset(); document.getElementById('formData').value = '';}; if (window.history.replaceState) {windows.history.replaceState(null, null, window.location.href)} </script>"
         let h6 = "</body>\n </html>\n" 
-        html $ DTL.pack $ h0 <> h1 <> hb <> hf <> h2 <> h2_ <> h3 <> h4 <> h5 <> h6
+        html $ DTL.pack $ h0 <> h1 <> hb <> hf <> h2 <> h3 <> h4 <> h5 <> h6
 
 getEditTextFile :: String -> ActionM ()
 getEditTextFile urlPath = do
         _timestamp <- liftIO $ getPOSIXTime
         let timestamp = show _timestamp
-        let urlPathWithWriteParam = urlPath <> "?contentType=plain&fileMode=write&timestamp=" <> timestamp
-        let urlPathWithAppendParam = urlPath <> "?contentType=plain&fileMode=append&timestamp=" <> timestamp
         let urlPathWithReadParam = urlPath <> "?contentType=plain&fileMode=read&timestamp=" <> timestamp
-
-
         let urlDirectory = if (length $ DL.filter (/= "") $ splitOn "/" urlPath) == 1 then "/" else concat $ fmap ("/" <> ) $ DL.init $ DL.filter (/= "") $ splitOn "/" urlPath
-
-        let urlDirectoryWithReadParam = urlDirectory <> "?contentType=html&fileMode=read&timestamp=" <> timestamp
         addHeader "Content-Type" "text/html; charset=utf-8"
         let fileName = DL.last $ splitOn "/" urlPath
         let h0 = "<html lang=\"zh-CN\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">  <title>" <> fileName <> "</title>\n </head>\n <body>\n"
         let h1 = "<a href=\"/\">home</a><br><br>"
-        let hb = "<a href=\"" <> urlDirectoryWithReadParam <> "\">back</a><br><br>"
-        let h2 = "<form id='editForm' enctype=\"multipart/form-data\" action=\"" <> "/text/edit" <> "\" method=\"post\">"
-        let h2_ = "<input type=\"hidden\" name=\"urlPath\" value=\"" <> urlPath <> "\"><input type=\"hidden\" name=\"mode\" value=\"write\">"
+        let hb = "<a href=\"" <> urlDirectory <> "\">back</a><br><br>"
+        let h2 = "<form id='editForm' enctype=\"multipart/form-data\" action=\"" <> urlPath <> "?fileMode=write" <> "\" method=\"post\">"
         let h3 = "<textarea style=\"width: 100%; height: 90%;\"  id=\"formData\" name=\"data\"></textarea> <br> <input onclick=\"clearForm()\" type=\"submit\" value=\"Submit\"> </form> <br>"
         let h4 = "<script> fetch(\"" <> urlPathWithReadParam <> "\").then((r)=>{r.text().then((d)=>{  document.getElementById('formData').value = d })}); function clearForm() { var fm = document.getElementById('myForm')[0]; fm.submit(); fm.reset(); document.getElementById('formData').value = '';}; if (window.history.replaceState) {windows.history.replaceState(null, null, window.location.href)} </script>"
         let h5 = "</body>\n </html>\n" 
-        html $ DTL.pack $ h0 <> h1 <> hb <> h2 <> h2_ <> h3 <> h4 <> h5
+        html $ DTL.pack $ h0 <> h1 <> hb <> h2 <> h3 <> h4 <> h5
 
 routePatternToUrlPath :: String -> ActionM String
+routePatternToUrlPath "" = return ""
 routePatternToUrlPath routePattern = do
     urlPathList <- traverse param $ DL.filter (/= "") $ DTL.splitOn "/:" $ DTL.pack routePattern
     let urlPath = concat $ fmap ("/" <>) urlPathList
@@ -319,7 +310,6 @@ main = do
     scottyTLS 3000 "server.key" "server.crt" $ do
         get "/" $ checkLogin "/" $ generateHomePageHtml rootPath
         get "/video" $ checkLogin "/video" $ generateVideoHtml "/video"
-        get "/text" $ checkLogin "/text" $ generateTextHtml "/text"
         get "/paste" $ checkLogin "/paste" $ generatePasteHtml "/paste"
         get "/denied" $ text "access denied"
         get "/login" $ (authCheck $ do 
@@ -351,14 +341,14 @@ main = do
             _urlPath <- routePatternToUrlPath routePattern
             let urlPath = "/text" <> _urlPath
             checkLogin (DTL.pack urlPath) $ do
-                (contentType :: String) <- param "contentType"
-                (fileMode :: String) <- param "fileMode"
+                (contentType :: String) <- rescue (param "contentType") $ \exception -> return "html"
+                (fileMode :: String) <- rescue (param "fileMode") $ \exception -> return "read"
                 if (fileMode == "write") then getEditTextFile urlPath
                 else if contentType == "html" then runContT (getFileOrDirectory urlPath getTextFile) generateTextHtml
                 else if contentType == "plain" then do
                     addHeader "Content-Type" "text/plain; charset=utf-8"
                     file (rootPath <> urlPath)
-                else text "wrong contentType" ) routePatternList
+                else text "wrong contentType" ) ([""] <> routePatternList)
 
         {- get arbitrary level -}
         traverse (\routePattern -> get (capture routePattern) $ do
@@ -377,7 +367,7 @@ main = do
                     id <- addSession sessionConfig
                     liftIO $ print id
                     {- redirect "/" -}
-                    redirect $ DTL.pack (from <> "?contentType=html&fileMode=read")
+                    redirect $ DTL.pack from
                 else text "invalid user or wrong password"
 
         post "/paste" $ checkLogin "/paste" $ do
@@ -401,49 +391,61 @@ main = do
                 liftIO $ callCommand ("cd video; youtube-dl --no-mtime -o '" <> _date <> ".%(ext)s' " <> strData)
             generateVideoHtml "/video"
 
-        {- post "/text" $ authCheck (redirect "/login") $ runContT (postChunkedDataFromFilePond "/text") generateTextHtml -}
-        post "/text" $ authCheck (redirect "/login") $ postFiles "/text"
-
-        post "/text/create" $ authCheck (redirect "/login") $ do
-            binaryData <- param "fileName"
-            (urlPath :: String) <- param "urlPath"
-            if BSC.null binaryData then liftIO $ print "emtype fileName"
-            else do
-                let fileName = BSC.unpack binaryData
-                let filePath = rootPath <> urlPath <> "/" <> fileName
-                if (DL.last fileName) == '/' then liftIO $ createDirectoryIfMissing True filePath
-                else do
-                    isExist <- liftIO $ fileExist $ filePath
-                    if isExist then text "file existed!"
-                    else liftIO $ D.writeFile filePath ""
-            redirect $ DTL.pack urlPath
-
-        post "/text/edit" $ authCheck (redirect "/login") $ do
-                urlData <- param "urlPath"
-                binaryData <- param "data"
-                (fileMode :: String) <- param "mode"
-                let strData = BSC.unpack binaryData
-                let urlPath = BSC.unpack urlData
-                if (fileMode == "edit") then 
-                    getEditTextFile urlPath
-                else do
-                    liftIO $ print $ "mode " <> fileMode
-                    liftIO $ print $ "post " <> urlPath <> " with " <> (DL.take 12 strData)
-                    if BSC.null binaryData then liftIO $ print "empty submit"
-                    else if fileMode == "write" then do
-                        liftIO $ writeFile (rootPath <> urlPath) ""
-                        liftIO $ D.writeFile (rootPath <> urlPath) binaryData
-                    else if fileMode == "append" then do 
-                        liftIO $ insertFileWithByteString (rootPath <> urlPath) $ binaryData <> (BSC.pack "\r\n")
-                    else text "invalid fileMode"
-                redirect $ (DTL.pack urlPath) <> "?contentType=html&fileMode=read"
-
-        {- post arbitrary level under /text -}
+        {- post text or files at arbitrary level under /text -}
         traverse (\routePattern -> post (capture $ "/text" <> routePattern) $ do
             _urlPath <- routePatternToUrlPath routePattern
             let urlPath = "/text" <> _urlPath
-            checkLogin (DTL.pack urlPath) $ postFiles urlPath
-            ) routePatternList
+            checkLogin (DTL.pack urlPath) $ do
+                (fileMode :: String) <- param "fileMode"
+                binaryData <- rescue (param "data") $ \exception -> return ("placeholder" :: D.ByteString)
+                liftIO $ print $ "post " <> urlPath <> " with " <> fileMode
+                if BSC.null binaryData then liftIO $ print "empty submit"
+                else 
+                    case fileMode of
+                        "upload" -> postFiles urlPath
+                        "create" -> do
+                            let fileName = BSC.unpack binaryData
+                            let filePath = rootPath <> urlPath <> "/" <> fileName
+                            if (DL.last fileName) == '/' then liftIO $ createDirectoryIfMissing True filePath
+                            else do
+                                isExist <- liftIO $ fileExist $ filePath
+                                if isExist then text "file existed!"
+                                else liftIO $ D.writeFile filePath ""
+
+                        "edit" -> getEditTextFile urlPath
+                        "append" -> liftIO $ insertFileWithByteString (rootPath <> urlPath) $ binaryData <> (BSC.pack "\r\n")
+                        "write" -> (liftIO $ writeFile (rootPath <> urlPath) "") >> (liftIO $ D.writeFile (rootPath <> urlPath) binaryData)
+                        "delete" -> do
+                            let fileName = BSC.unpack binaryData
+                            let filePath = rootPath <> urlPath <> "/" <> fileName
+                            if (DL.last fileName) == '/' then liftIO $ removeDirectoryRecursive filePath
+                            else do
+                                isExist <- liftIO $ fileExist $ filePath
+                                if isExist then liftIO $ removeFile filePath
+                                else text "file do not existed!"
+
+                        "download" -> do
+                            let fileName = BSC.unpack binaryData
+                            let filePath = rootPath <> urlPath <> "/" <> fileName
+                            if (DL.last fileName) == '/' then text "directory can not be downloaded"
+                            else do
+                                isExist <- liftIO $ fileExist $ filePath
+                                if isExist then file filePath
+                                {- if isExist then liftIO $ redirect $ urlPath <> "/" <> fileName <> "?contentType=plain" -}
+                                else text "file do not existed!"
+
+                        {- "rename" -> do -}
+                            {- let fileName = BSC.unpack binaryData -}
+                            {- let filePath = rootPath <> urlPath <> "/" <> fileName -}
+                            {- if (DL.last fileName) == '/' then liftIO $ renamePath filePath -}
+                            {- else do -}
+                                {- isExist <- liftIO $ fileExist $ filePath -}
+                                {- if isExist then liftIO $ removeFile filePath -}
+                                {- else text "file do not existed!" -}
+
+                        x -> return ()
+                redirect $ (DTL.pack urlPath)
+            ) ([""] <> routePatternList)
 
         {- post first level -}
         traverse (\path -> post (capture path) $ authCheck (redirect "/login") $ runContT (postChunkedDataFromFilePond path) generateFilePondHtml) ["/upload", "/audio", "/picture", "/others", "/chunk"]
