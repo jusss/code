@@ -1,0 +1,63 @@
+for example, cabal project called scotty-tls
+
+1. scotty-tls/scotty-tls.cabal
+    library
+        exposed-modules: Web.Scotty.TLS
+
+2. create scotty-tls/Web/Scotty/TLS.hs
+    module Web.Scotty.TLS
+        ( scottyTLS
+        , scottyTLSSettings
+        , module Web.Scotty.Trans
+        ) where
+
+    import Control.Monad ((<=<))
+    import Control.Monad.IO.Class (MonadIO (liftIO))
+
+    scottyTLS :: ...
+    scottyTLS = ...
+
+that's for create a library for others to use,
+if you project is with `executable` then use 'other-modules' to instead of 'exposed-modules'
+
+1. ~/web# vim upload-files/upload-files.cabal 
+
+executable upload-files
+  main-is:             web12.hs
+  ghc-options: -threaded -rtsopts
+  other-modules:       Data.String.Split
+
+2. create Data/String/Split.hs
+
+mkdir -p upload-files/Data/String
+vim upload-files/Data/String/Split.hs
+module Data.String.Split
+    ( slice
+    , getIndexList
+    , splitOn
+    ) where
+
+import Data.List
+
+slice :: String -> (Int, Int) -> String
+slice alist (start, end) = drop start $ take end alist
+
+getIndexList :: String -> String -> [Int]
+getIndexList subList sourceList = fmap fst $ filter (isPrefixOf subList . snd) $ zip [0..] $ tails sourceList
+
+splitOn :: String -> String -> [String]
+splitOn subList sourceList = case getIndexList subList sourceList of
+    [] -> [sourceList]
+    indexList -> fmap (slice sourceList) $  [(0, head indexList)] <> (zip starts (tail indexList)) <> [(last starts, length sourceList)] where
+        starts = fmap (+ (length subList)) indexList
+
+{- main = print $ splitOn "/a/b" "this is a test /ab/c/a/b /c /a/b absurd" -}
+
+3. use it!
+
+~/web# vim upload-files/web12.hs
+import Data.String.Split (splitOn)
+main = print $ splitOn "a" "ab"
+
+~/web# cabal v2-run upload-files/
+

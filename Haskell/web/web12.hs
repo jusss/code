@@ -18,6 +18,7 @@ import System.IO
 import System.Process
 import System.Posix.Files
 import Data.Maybe
+import Data.String.Split (splitOn)
 import Data.Binary.Builder
 import Data.Text.Lazy.Encoding
 import qualified Data.Text.Encoding as DTE
@@ -140,11 +141,8 @@ generateTextHtml urlPath = do
         liftIO $ print $ "get " <> urlPath
         fileList <- liftIO $ listDirectoryAscendingByTime $ rootPath <> urlPath
         liftIO $ createDirectoryIfMissing True $ rootPath <> urlPath
-
-        let urlDirectory = if (length $ DL.filter (/= "") $ DTL.splitOn "/" $ DTL.pack urlPath) == 1 then "/" else concat $ fmap (("/" <> ) . DTL.unpack) $ DL.init $ DL.filter (/= "") $ DTL.splitOn "/" $ DTL.pack urlPath
-        
+        let urlDirectory = if (length $ DL.filter (/= "") $ splitOn "/" urlPath) == 1 then "/" else concat $ fmap ("/" <> ) $ DL.init $ DL.filter (/= "") $ splitOn "/" urlPath
         let urlDirectoryWithReadParam = urlDirectory <> "?contentType=html&fileMode=read&timestamp=" <> timestamp
-
         let h0 = "<html lang=\"zh-CN\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"> <title>" <> urlPath <> "</title>\n </head>\n <body>\n"
         let h1 = "<a href=\"/\">home</a><br><br>"
         let hb = "<a href=\"" <> urlDirectoryWithReadParam <> "\">back</a><br><br>"
@@ -196,7 +194,7 @@ generateHtmlForDirectory pathName = do
         addHeader "Content-Type" "text/html; charset=utf-8"
         -- it's important, only the last level in the html, when you in chunk directory, and html has chunk/a, click it, it will visit chunk/chunk/a
         -- so use absolute path /chunk/a, or just relative path just the last level a in the html
-        let lastLevel = DTL.unpack $ DL.last $ DTL.splitOn "/" $ DTL.pack pathName
+        {- let lastLevel = last $ splitOn "/" pathName -}
         fileList <- liftIO $ listDirectory $ rootPath <> pathName
         let h0 = "<html lang=\"en-US\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"> <title>" <> pathName <> "</title>\n </head>\n <body>\n"
         let h1 = "<a href=\"/\">home</a><br><br>"
@@ -231,9 +229,11 @@ getTextFile urlPath = do
         let urlPathWithWriteParam = urlPath <> "?contentType=plain&fileMode=write&timestamp=" <> timestamp
         let urlPathWithAppendParam = urlPath <> "?contentType=plain&fileMode=append&timestamp=" <> timestamp
         let urlPathWithReadParam = urlPath <> "?contentType=plain&fileMode=read&timestamp=" <> timestamp
-        let urlDirectory = if (length $ DL.filter (/= "") $ DTL.splitOn "/" $ DTL.pack urlPath) == 1 then "/" else concat $ fmap (("/" <> ) . DTL.unpack) $ DL.init $ DL.filter (/= "") $ DTL.splitOn "/" $ DTL.pack urlPath
+
+        let urlDirectory = if (length $ DL.filter (/= "") $ splitOn "/" urlPath) == 1 then "/" else concat $ fmap ("/" <> ) $ DL.init $ DL.filter (/= "") $ splitOn "/" urlPath
+
         let urlDirectoryWithReadParam = urlDirectory <> "?contentType=html&fileMode=read&timestamp=" <> timestamp
-        let fileName = DTL.unpack $ DL.last $ DTL.splitOn "/" $ DTL.pack urlPath
+        let fileName = DL.last $ splitOn "/" urlPath
         {- let urlDirectory = concat $ fmap (("/" <> ) . DTL.unpack) $ DL.init $ DL.filter (/= "") $ DTL.splitOn "/" $ DTL.pack urlPath -}
         let h0 = "<html lang=\"zh-CN\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">  <title>" <> fileName <> "</title>\n </head>\n <body>\n"
         let h1 = "<a href=\"/\">home</a><br><br>"
@@ -261,10 +261,13 @@ getEditTextFile urlPath = do
         let urlPathWithWriteParam = urlPath <> "?contentType=plain&fileMode=write&timestamp=" <> timestamp
         let urlPathWithAppendParam = urlPath <> "?contentType=plain&fileMode=append&timestamp=" <> timestamp
         let urlPathWithReadParam = urlPath <> "?contentType=plain&fileMode=read&timestamp=" <> timestamp
-        let urlDirectory = if (length $ DL.filter (/= "") $ DTL.splitOn "/" $ DTL.pack urlPath) == 1 then "/" else concat $ fmap (("/" <> ) . DTL.unpack) $ DL.init $ DL.filter (/= "") $ DTL.splitOn "/" $ DTL.pack urlPath
+
+
+        let urlDirectory = if (length $ DL.filter (/= "") $ splitOn "/" urlPath) == 1 then "/" else concat $ fmap ("/" <> ) $ DL.init $ DL.filter (/= "") $ splitOn "/" urlPath
+
         let urlDirectoryWithReadParam = urlDirectory <> "?contentType=html&fileMode=read&timestamp=" <> timestamp
         addHeader "Content-Type" "text/html; charset=utf-8"
-        let fileName = DTL.unpack $ DL.last $ DTL.splitOn "/" $ DTL.pack urlPath
+        let fileName = DL.last $ splitOn "/" urlPath
         let h0 = "<html lang=\"zh-CN\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">  <title>" <> fileName <> "</title>\n </head>\n <body>\n"
         let h1 = "<a href=\"/\">home</a><br><br>"
         let hb = "<a href=\"" <> urlDirectoryWithReadParam <> "\">back</a><br><br>"
@@ -322,7 +325,7 @@ main = do
         get "/login" $ (authCheck $ do 
             addHeader "Content-Type" "text/html; charset=utf-8"
             (from :: String) <- param "from"
-            liftIO $ print $ "from " <> from
+            liftIO $ print $ "get " <> from <> " as logout"
             html $ DTL.pack $ unlines $
                             [ "<form method=\"POST\" action=\"/login\">"
                             , "<label for=\"username\">User:</label> <input type=\"text\" name=\"username\"> <br> <br>"
@@ -365,15 +368,16 @@ main = do
         post "/login" $ do
             liftIO $ print $ "post /login"
             (from :: String) <- param "from"
-            liftIO $ print $ "from " <> from
-            (usn :: String) <- param "username"
+            liftIO $ print $ "login from " <> from
+            (user :: String) <- param "username"
             (pass :: String) <- param "password"
-            if usn == "user" && pass == "pass"
+            liftIO $ print $ "login as user " <> user <> ", password is " <> pass
+            if user == "user" && pass == "pass"
                 then do 
                     id <- addSession sessionConfig
                     liftIO $ print id
                     {- redirect "/" -}
-                    redirect $ DTL.pack from
+                    redirect $ DTL.pack (from <> "?contentType=html&fileMode=read")
                 else text "invalid user or wrong password"
 
         post "/paste" $ checkLogin "/paste" $ do
