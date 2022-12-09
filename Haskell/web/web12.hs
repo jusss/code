@@ -234,11 +234,18 @@ getTextFile urlPath = do
         let hp = "<a href=\"" <> urlPath <> "?fileMode=delete" <> "\" onclick=\"return confirm('Are you sure you want to delete it?');\">delete</a><br><br>"
         let h2 = "<form id='myForm' enctype=\"multipart/form-data\" action=\"" <> urlPathWithAppendParam <> "\" method=\"post\">"
         let h3 = "<textarea style=\"width: 100%; height: 20%;\" id=\"formData\" name=\"data\"></textarea> <br> <input onclick=\"clearForm()\" type=\"submit\" value=\"Submit\"> </form> <br>"
-        let h4 = "<iframe src=\"" <> urlPathWithReadParam <> "\"  width=\"100%\" height=\"100%\"   ></iframe>"
+
+        {- let h4 = "<iframe src=\"" <> urlPathWithReadParam <> "\"  width=\"100%\" height=\"100%\"   ></iframe>" -}
+        let h4 = "<div id=\"content\"></div>"
 
         {- reading html text file with Hasekll and put it into textarea with js is a wrong way, lots of escape characters, the right way is using js to fetch the content of that text file as plain text and put it into textarea -}
+
         {- let h5 = "<script> fetch(\"" <> urlPath <> "?contentType=plain&timestamp=" <> timestamp <> "\").then((r)=>{r.text().then((d)=>{  document.getElementById('formData').value = d })}); function clearForm() { var fm = document.getElementById('myForm')[0]; fm.submit(); fm.reset(); document.getElementById('formData').value = '';}; if (window.history.replaceState) {windows.history.replaceState(null, null, window.location.href)} </script>" -}
-        let h5 = "<script> function clearForm() { var fm = document.getElementById('myForm')[0]; fm.submit(); fm.reset(); document.getElementById('formData').value = '';}; if (window.history.replaceState) {windows.history.replaceState(null, null, window.location.href)} </script>"
+
+        {- let h5 = "<script> function clearForm() { var fm = document.getElementById('myForm')[0]; fm.submit(); fm.reset(); document.getElementById('formData').value = '';}; if (window.history.replaceState) {windows.history.replaceState(null, null, window.location.href)} </script>" -}
+
+        let h5 = "<script> fetch(\"" <> urlPathWithReadParam <> "\").then((r)=>{r.text().then((d)=>{  document.getElementById('content').innerText = d })});function clearForm() { var fm = document.getElementById('myForm')[0]; fm.submit(); fm.reset(); document.getElementById('formData').value = '';}; if (window.history.replaceState) {windows.history.replaceState(null, null, window.location.href)} </script>"
+
         let h6 = "</body>\n </html>\n" 
         html $ DTL.pack $ h0 <> h1 <> hb <> hf <> hp <> h2 <> h3 <> h4 <> h5 <> h6
 
