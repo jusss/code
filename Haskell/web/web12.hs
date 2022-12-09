@@ -94,15 +94,6 @@ generatePasteHtml pathName = do
         let h4 = "<script> function clearForm() { var fm = document.getElementById('myForm')[0]; fm.submit(); fm.reset(); document.getElementById('formData').value = '';}; if (window.history.replaceState) {windows.history.replaceState(null, null, window.location.href)} </script>"
         binaryData <- liftIO $ D.readFile $ rootPath <> pathName <> "/paste.txt"
         let h5 = concat $ fmap (<> "<br>") $ lines $ DT.unpack $ DTE.decodeUtf8With lenientDecode binaryData
-        {- let f = rootPath <> "/" <> pathName <> "/paste.txt" -}
-        {- strOrException <- catch (readFile f) -}
-                            {- (\e -> do  -}
-                                    {- let err = show (e :: IOException) -}
-                                    {- hPutStr stderr ("Warning: Couldn't open " ++ f ++ ": " ++ err) -}
-                                    {- return "") -}
-        {- strOrException <- catch (readFile $ rootPath <> "/" <> pathName <> "/paste.txt") (\e -> return $ show (e :: IOException)) -}
-        {- print strOrException -}
-        {- let h5 = strOrException -}
         let h6 = "</body>\n </html>\n" 
         html $ DTL.pack $ h0 <> h1 <> h2 <> h3 <> h4 <> h5 <> h6
 
@@ -222,6 +213,9 @@ getChunkedFile urlPath = do
                                               mediaStream handle
             in mediaStream handle)
 
+backUrlPath :: String -> String
+backUrlPath urlPath = if (length $ DL.filter (/= "") $ splitOn "/" urlPath) == 1 then "/" else concat $ fmap ("/" <> ) $ DL.init $ DL.filter (/= "") $ splitOn "/" urlPath
+
 getTextFile :: String -> ActionM ()
 getTextFile urlPath = do
         addHeader "Content-Type" "text/html; charset=utf-8"
@@ -231,32 +225,29 @@ getTextFile urlPath = do
         let urlPathWithWriteParam = urlPath <> "?fileMode=write&timestamp=" <> timestamp
         let urlPathWithAppendParam = urlPath <> "?fileMode=append&timestamp=" <> timestamp
         let urlPathWithReadParam = urlPath <> "?contentType=plain&fileMode=read&timestamp=" <> timestamp
-
-        let urlDirectory = if (length $ DL.filter (/= "") $ splitOn "/" urlPath) == 1 then "/" else concat $ fmap ("/" <> ) $ DL.init $ DL.filter (/= "") $ splitOn "/" urlPath
+        let urlDirectory = backUrlPath urlPath
         let fileName = DL.last $ splitOn "/" urlPath
         let h0 = "<html lang=\"zh-CN\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">  <title>" <> fileName <> "</title>\n </head>\n <body>\n"
         let h1 = "<a href=\"/\">home</a><br><br>"
         let hb = "<a href=\"" <> urlDirectory <> "\">back</a><br><br>"
         let hf = "<a href=\"" <> urlPathWithWriteParam <> "\">edit</a><br><br>"
+        let hp = "<a href=\"" <> urlPath <> "?fileMode=delete" <> "\" onclick=\"return confirm('Are you sure you want to delete it?');\">delete</a><br><br>"
         let h2 = "<form id='myForm' enctype=\"multipart/form-data\" action=\"" <> urlPathWithAppendParam <> "\" method=\"post\">"
         let h3 = "<textarea style=\"width: 100%; height: 20%;\" id=\"formData\" name=\"data\"></textarea> <br> <input onclick=\"clearForm()\" type=\"submit\" value=\"Submit\"> </form> <br>"
-
-        {- binaryData <- liftIO $ D.readFile $ rootPath <> urlPath -}
-        {- let h4 = concat $ fmap (<> "<br>") $ lines $ DT.unpack $ DTE.decodeUtf8With lenientDecode binaryData -}
         let h4 = "<iframe src=\"" <> urlPathWithReadParam <> "\"  width=\"100%\" height=\"100%\"   ></iframe>"
 
         {- reading html text file with Hasekll and put it into textarea with js is a wrong way, lots of escape characters, the right way is using js to fetch the content of that text file as plain text and put it into textarea -}
         {- let h5 = "<script> fetch(\"" <> urlPath <> "?contentType=plain&timestamp=" <> timestamp <> "\").then((r)=>{r.text().then((d)=>{  document.getElementById('formData').value = d })}); function clearForm() { var fm = document.getElementById('myForm')[0]; fm.submit(); fm.reset(); document.getElementById('formData').value = '';}; if (window.history.replaceState) {windows.history.replaceState(null, null, window.location.href)} </script>" -}
         let h5 = "<script> function clearForm() { var fm = document.getElementById('myForm')[0]; fm.submit(); fm.reset(); document.getElementById('formData').value = '';}; if (window.history.replaceState) {windows.history.replaceState(null, null, window.location.href)} </script>"
         let h6 = "</body>\n </html>\n" 
-        html $ DTL.pack $ h0 <> h1 <> hb <> hf <> h2 <> h3 <> h4 <> h5 <> h6
+        html $ DTL.pack $ h0 <> h1 <> hb <> hf <> hp <> h2 <> h3 <> h4 <> h5 <> h6
 
 getEditTextFile :: String -> ActionM ()
 getEditTextFile urlPath = do
         _timestamp <- liftIO $ getPOSIXTime
         let timestamp = show _timestamp
         let urlPathWithReadParam = urlPath <> "?contentType=plain&fileMode=read&timestamp=" <> timestamp
-        let urlDirectory = if (length $ DL.filter (/= "") $ splitOn "/" urlPath) == 1 then "/" else concat $ fmap ("/" <> ) $ DL.init $ DL.filter (/= "") $ splitOn "/" urlPath
+        let urlDirectory = backUrlPath urlPath
         addHeader "Content-Type" "text/html; charset=utf-8"
         let fileName = DL.last $ splitOn "/" urlPath
         let h0 = "<html lang=\"zh-CN\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">  <title>" <> fileName <> "</title>\n </head>\n <body>\n"
@@ -343,12 +334,15 @@ main = do
             checkLogin (DTL.pack urlPath) $ do
                 (contentType :: String) <- rescue (param "contentType") $ \exception -> return "html"
                 (fileMode :: String) <- rescue (param "fileMode") $ \exception -> return "read"
-                if (fileMode == "write") then getEditTextFile urlPath
-                else if contentType == "html" then runContT (getFileOrDirectory urlPath getTextFile) generateTextHtml
-                else if contentType == "plain" then do
-                    addHeader "Content-Type" "text/plain; charset=utf-8"
-                    file (rootPath <> urlPath)
-                else text "wrong contentType" ) ([""] <> routePatternList)
+                case fileMode of
+                    "write" -> getEditTextFile urlPath
+                    "delete" -> (liftIO $ removeFile $ rootPath <> urlPath) >> (redirect $ DTL.pack $ backUrlPath urlPath)
+                    x -> case contentType of
+                            "html" -> runContT (getFileOrDirectory urlPath getTextFile) generateTextHtml
+                            "plain" -> (addHeader "Content-Type" "text/plain; charset=utf-8") >> file (rootPath <> urlPath)
+                            _ -> text "wrong contentType"
+
+            ) ([""] <> routePatternList)
 
         {- get arbitrary level -}
         traverse (\routePattern -> get (capture routePattern) $ do
@@ -414,7 +408,8 @@ main = do
 
                         "edit" -> getEditTextFile urlPath
                         "append" -> liftIO $ insertFileWithByteString (rootPath <> urlPath) $ binaryData <> (BSC.pack "\r\n")
-                        "write" -> (liftIO $ writeFile (rootPath <> urlPath) "") >> (liftIO $ D.writeFile (rootPath <> urlPath) binaryData)
+                        {- "write" -> (liftIO $ writeFile (rootPath <> urlPath) "") >> (liftIO $ D.writeFile (rootPath <> urlPath) binaryData) -}
+                        "write" -> liftIO $ (writeFile (rootPath <> urlPath) "") >> (D.writeFile (rootPath <> urlPath) binaryData)
                         "delete" -> do
                             let fileName = BSC.unpack binaryData
                             let filePath = rootPath <> urlPath <> "/" <> fileName
@@ -423,7 +418,6 @@ main = do
                                 isExist <- liftIO $ fileExist $ filePath
                                 if isExist then liftIO $ removeFile filePath
                                 else text "file do not existed!"
-
                         "download" -> do
                             let fileName = BSC.unpack binaryData
                             let filePath = rootPath <> urlPath <> "/" <> fileName
