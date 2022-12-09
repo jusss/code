@@ -148,7 +148,13 @@ generateTextHtml urlPath = do
 postFiles :: String -> ActionM ()
 postFiles urlPath = do
     _files <- files
-    traverse (\_file -> liftIO $ DB.writeFile (rootPath <> (DTL.unpack $ fst _file) <> "/" <> (BSC.unpack $ fileName $ snd _file)) (fileContent $ snd _file)) _files
+    {- traverse (\_file -> liftIO $ DB.writeFile (rootPath <> (DTL.unpack $ fst _file) <> "/" <> (BSC.unpack $ fileName $ snd _file)) (fileContent $ snd _file)) _files -}
+    traverse (\_file -> do
+        let uploadUrlPath = DTL.unpack $ fst _file
+        let uploadFileName = BSC.unpack $ fileName $ snd _file
+        if uploadFileName == "\"\"" then liftIO $ print "upload empty file"
+        else liftIO $ DB.writeFile (rootPath <> uploadUrlPath <> "/" <> uploadFileName) (fileContent $ snd _file)
+        ) _files
     redirect $ DTL.pack urlPath
 
 {- there are three post ways, postAndShow is simple post whole file at once, postChunkedData is post with chunk, postChunkedDataFromFilePond is post with filepond, other function see previous version web6.hs -}
