@@ -120,7 +120,7 @@ generateTextHtmlWithFilePond urlPath = do
         let h1 = "<a href=\"/\">home</a><br><br>"
         let hf = "<form action=\"" <> urlPath <> "/create" <> "\"  method=\"post\"> <label for=\"fileName\">New File:</label> <input type=\"text\" name=\"newFile\" value=\"\"><input type=\"submit\" value=\"Create\"></form>"
         let h2 = "<input type=\"file\" multiple><br><br><br><br><br><br>\n" 
-        let h3 = if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> urlPath <> "/" <> x <> "\"> " <> x <> "</a> <br>" <> "\n") fileList)
+        let h3 = if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> urlPath <> "/" <> x <> "\"> " <> x <> "</a> <br><br>" <> "\n") fileList)
         let h4 = "</body>\n <script> const inputElement = document.querySelector('input[type=\"file\"]'); const pond = FilePond.create( inputElement ); pond.setOptions({ server: \"" <> urlPath <> "\" }) </script> </html>\n" 
         html $ DTL.pack $ h0 <> h1 <> hf <> h2 <> h3 <> h4
 
@@ -132,7 +132,7 @@ generateTextHtml urlPath = do
         liftIO $ createDirectoryIfMissing True $ rootPath <> urlPath
         let urlDirectory = if (length $ DL.filter (/= "") $ splitOn "/" urlPath) == 1 then "/" else concat $ fmap ("/" <> ) $ DL.init $ DL.filter (/= "") $ splitOn "/" urlPath
         let h0 = "<html lang=\"zh-CN\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"> <title>" <> urlPath <> "</title>\n </head>\n <body>\n"
-        let h1 = "<a href=\"/\">home</a><br><br>"
+        let h1 = "<a href=\"/\">home</a> &nbsp &nbsp &nbsp "
         let hb = "<a href=\"" <> urlDirectory <> "\">back</a><br><br>"
         let hf = "<form action=\"" <> urlPath <> "?fileMode=create" <> "\"  method=\"post\"> <label for=\"fileName\">New File:</label> <input type=\"text\" name=\"data\" value=\"\"> <input type=\"submit\" value=\"Create\"></form>"
 
@@ -141,7 +141,7 @@ generateTextHtml urlPath = do
         let hf__ = "<form action=\"" <> urlPath <> "?fileMode=download" <> "\"  method=\"post\"> <label for=\"fileName\">Download File:</label> <input type=\"text\" name=\"data\" value=\"\"> <input type=\"submit\" value=\"Download\"></form>"
 
         let h2 = "<form enctype=\"multipart/form-data\" action=\"" <> urlPath <> "?fileMode=upload" <> "\" method=\"post\"><input type=\"file\" name=\"" <> urlPath <> "\" multiple> <input type=\"submit\" value=\"Upload\"> </form> <br>"
-        let h3 = if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> urlPath <> "/" <> x <> "\"> " <> x <> "</a> <br>" <> "\n") fileList)
+        let h3 = if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> urlPath <> "/" <> x <> "\"> " <> x <> "</a> <br> <br>" <> "\n") fileList)
         let h4 = "</body></html>" 
         html $ DTL.pack $ h0 <> h1 <> hb <> hf <> hf_ <> hf__ <> h2 <> h3 <> h4
 
@@ -152,7 +152,10 @@ postFiles urlPath = do
     traverse (\_file -> do
         let uploadUrlPath = DTL.unpack $ fst _file
         let uploadFileName = BSC.unpack $ fileName $ snd _file
-        if uploadFileName == "\"\"" then liftIO $ print "upload empty file"
+        if uploadFileName == "\"\"" then 
+            {- finish -}
+            liftIO $ print "upload empty file"
+            {- early exit here -}
         else liftIO $ DB.writeFile (rootPath <> uploadUrlPath <> "/" <> uploadFileName) (fileContent $ snd _file)
         ) _files
     redirect $ DTL.pack urlPath
@@ -234,12 +237,12 @@ getTextFile urlPath = do
         let urlDirectory = backUrlPath urlPath
         let fileName = DL.last $ splitOn "/" urlPath
         let h0 = "<html lang=\"zh-CN\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">  <title>" <> fileName <> "</title>\n </head>\n <body>\n"
-        let h1 = "<a href=\"/\">home</a><br><br>"
-        let hb = "<a href=\"" <> urlDirectory <> "\">back</a><br><br>"
-        let hf = "<a href=\"" <> urlPathWithWriteParam <> "\">edit</a><br><br>"
+        let h1 = "<a href=\"/\">home</a> &nbsp &nbsp &nbsp"
+        let hb = "<a href=\"" <> urlDirectory <> "\">back</a> &nbsp &nbsp &nbsp"
+        let hf = "<a href=\"" <> urlPathWithWriteParam <> "\">edit</a> &nbsp &nbsp &nbsp"
         let hp = "<a href=\"" <> urlPath <> "?fileMode=delete" <> "\" onclick=\"return confirm('Are you sure you want to delete it?');\">delete</a><br><br>"
         let h2 = "<form id='myForm' enctype=\"multipart/form-data\" action=\"" <> urlPathWithAppendParam <> "\" method=\"post\">"
-        let h3 = "<textarea style=\"width: 100%; height: 20%;\" id=\"formData\" name=\"data\"></textarea> <br> <input onclick=\"clearForm()\" type=\"submit\" value=\"Submit\"> </form> <br>"
+        let h3 = "<textarea style=\"width: 100%; height: 16%;\" id=\"formData\" name=\"data\"></textarea> <br> <input onclick=\"clearForm()\" type=\"submit\" value=\"Submit\"> </form> <br>"
 
         {- let h4 = "<iframe src=\"" <> urlPathWithReadParam <> "\"  width=\"100%\" height=\"100%\"   ></iframe>" -}
         let h4 = "<div id=\"content\"></div>"
@@ -264,8 +267,9 @@ getEditTextFile urlPath = do
         addHeader "Content-Type" "text/html; charset=utf-8"
         let fileName = DL.last $ splitOn "/" urlPath
         let h0 = "<html lang=\"zh-CN\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">  <title>" <> fileName <> "</title>\n </head>\n <body>\n"
-        let h1 = "<a href=\"/\">home</a><br><br>"
-        let hb = "<a href=\"" <> urlDirectory <> "\">back</a><br><br>"
+        let h1 = "<a href=\"/\">home</a> &nbsp &nbsp &nbsp"
+        {- let hb = "<a href=\"" <> urlDirectory <> "\">back</a><br><br>" -}
+        let hb = "<a href=\"" <> urlPath <> "\">back</a><br><br>"
         let h2 = "<form id='editForm' enctype=\"multipart/form-data\" action=\"" <> urlPath <> "?fileMode=write" <> "\" method=\"post\">"
         let h3 = "<textarea style=\"width: 100%; height: 90%;\"  id=\"formData\" name=\"data\"></textarea> <br> <input onclick=\"clearForm()\" type=\"submit\" value=\"Submit\"> </form> <br>"
         let h4 = "<script> fetch(\"" <> urlPathWithReadParam <> "\").then((r)=>{r.text().then((d)=>{  document.getElementById('formData').value = d })}); function clearForm() { var fm = document.getElementById('myForm')[0]; fm.submit(); fm.reset(); document.getElementById('formData').value = '';}; if (window.history.replaceState) {windows.history.replaceState(null, null, window.location.href)} </script>"
@@ -385,7 +389,7 @@ main = do
             else liftIO $ insertFileWithByteString (rootPath <> "/paste/paste.txt") $ binaryData <> (BSC.pack "\r\n\r\n")
             generatePasteHtml "/paste"
 
-        post "/video" $ authCheck (redirect "/login") $ do
+        post "/video" $ checkLogin "/video" $ do
             binaryData <- param "/video"
             let strData = BSC.unpack binaryData
             liftIO $ print $ "post /video with " <> strData
@@ -455,6 +459,6 @@ main = do
             ) ([""] <> routePatternList)
 
         {- post first level -}
-        traverse (\path -> post (capture path) $ authCheck (redirect "/login") $ runContT (postChunkedDataFromFilePond path) generateFilePondHtml) ["/upload", "/audio", "/picture", "/others", "/chunk"]
+        traverse (\path -> post (capture path) $ checkLogin (DTL.pack path) $ runContT (postChunkedDataFromFilePond path) generateFilePondHtml) ["/upload", "/audio", "/picture", "/others", "/chunk"]
 
         return ()
