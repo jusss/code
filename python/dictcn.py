@@ -2,8 +2,7 @@
 from bs4 import BeautifulSoup 
 import requests
 
-def translate():
-    word = input('input: ')
+def translate(word):
     url = "http://dict.cn/" + word.replace(" ", "%20")
     
     response = requests.get(url)
@@ -23,4 +22,7 @@ def translate():
         print("not existed")
 
 while True:
-    translate()
+    word = input('input: ')
+    if word == '':
+        break
+    translate(word)
