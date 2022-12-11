@@ -1,18 +1,26 @@
+#!/bin/python3
 from bs4 import BeautifulSoup 
 import requests
-url = "http://dict.cn/"
-word = input('input: ')
-a = requests.get(url + word)
-#print(a.text)
 
+def translate():
+    word = input('input: ')
+    url = "http://dict.cn/" + word.replace(" ", "%20")
+    
+    response = requests.get(url)
+    bs = BeautifulSoup(response.text,"html.parser")
+    
+    # print(bs)
+    # print(bs.find(id="content"))
+    
+    try:
+        print(bs.find_all("bdo")[0].get_text(), end='')
+    except:
+        pass
+    
+    try:
+        print(bs.find_all("li")[0].get_text())
+    except Exception as e:
+        print("not existed")
 
-bs = BeautifulSoup(a.text,"html.parser")
-#print(bs.find(id="content"))
-try:
-    _result = bs.find_all("li")[0]
-    result =  _result.get_text()
-except Exception as e:
-    result = "non existed"
-
-print(result)
-#print(type(result))
+while True:
+    translate()
