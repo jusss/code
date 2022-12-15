@@ -40,7 +40,7 @@ import Network.Wai.Middleware.Gzip (gzip, def, gzipFiles, GzipFiles(GzipCompress
 {- there're urlPath like /a/b and filePath like rootPath <> urlPath -}
 rootPath = "/root/web"
 accessPoint = ["/paste", "/docs", "/config", "/code", "/upload", "/text", "/audio", "/video", "/picture", "/others", "/chunk", "/node_modules"]
-routePatternList = scanl1 (<>) $ fmap (("/:" <>) . ("l" <>) . show) [1..9]
+routePatternList = scanl1 (<>) $ fmap (("/:" <>) . ("l" <>) . show) [1..99]
 {- do not show visit path on console -}
 doNotShowPath = ["/favicon.ico", "/node_modules/filepond/dist/filepond.css", "/node_modules/filepond/dist/filepond.js"]
 
