@@ -1,6 +1,6 @@
 in upload-files.cabal it may have two executable sections
 
-executable upload-files
+executable web
   main-is:             web12.hs
   ghc-options: -threaded -rtsopts
   other-modules:       Data.String.Split
@@ -22,5 +22,5 @@ executable upload-files-another
   default-language:    Haskell2010
 
 then you can use 'cabal v2-run upload-files-another' to run web12-another.hs
-'cabal v2-run upload-files' to run web12.hs
+'cabal v2-run web' to run web12.hs
 
