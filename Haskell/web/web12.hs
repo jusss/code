@@ -18,6 +18,8 @@ import System.IO
 import System.Process
 import System.Posix.Files
 import Data.Maybe
+import qualified Data.Map.Internal as DMI
+import Data.Char
 import Data.String.Split (splitOn)
 import Data.Binary.Builder
 import Data.Text.Lazy.Encoding
@@ -204,9 +206,22 @@ generateHtmlForDirectory pathName = do
         let h3 = "</body>\n </html>\n" 
         html $ DTL.pack $ h0 <> h1 <> h2 <> h3
 
+{- since iOS won't preview mp4 file, so comment it for just download -}
+headerContentType = DMI.fromList [("jpg", "image/jpeg"), ("jpeg", "image/jpeg"), ("png", "image/png"),
+                        {- ("mp4", "video/mp4"), ("m4a", "video/mp4"), ("mkv", "video/x-matroska"), -}
+                        {- ("webm", "video/webm"), ("mov", "video/quicktime"), ("avi", "video/x-msvideo"), -}
+                        {- ("aac", "audio/aac"), ("ogg", "audio/ogg"), ("wav", "audio/wav"), -}
+                        ("pdf", "application/pdf"),
+                        ("txt", "text/plain; charset=utf-8")]
+
 getChunkedFile :: String -> ActionM ()
 getChunkedFile urlPath = do
-        addHeader "Content-Type" "text/plain; charset=utf-8"
+        let fileSuffix = fmap toLower $ DL.last $ splitOn "." $ DL.last $ splitOn "/" urlPath
+
+        case DMI.lookup fileSuffix headerContentType of
+            Just x -> (addHeader "Content-Type" x) >> (addHeader "Content-Disposition" "inline")
+            Nothing -> addHeader "Content-Disposition" "attachment"
+
         handle <- liftIO $ openBinaryFile (rootPath <> urlPath) ReadMode
         stream (\write flush ->
             let mediaStream handle = do 
@@ -240,6 +255,7 @@ getTextFile urlPath = do
         let h1 = "<a href=\"/\">home</a> &nbsp &nbsp &nbsp"
         let hb = "<a href=\"" <> urlDirectory <> "\">back</a> &nbsp &nbsp &nbsp"
         let hf = "<a href=\"" <> urlPathWithWriteParam <> "\">edit</a> &nbsp &nbsp &nbsp"
+        let hf_ = "<a href=\"" <> urlPath <> "?fileMode=download" <> "\">download</a> &nbsp &nbsp &nbsp" 
         let hp = "<a href=\"" <> urlPath <> "?fileMode=delete" <> "\" onclick=\"return confirm('Are you sure you want to delete it?');\">delete</a><br><br>"
         let h2 = "<form id='myForm' enctype=\"multipart/form-data\" action=\"" <> urlPathWithAppendParam <> "\" method=\"post\">"
         let h3 = "<textarea style=\"width: 100%; height: 16%;\" id=\"formData\" name=\"data\"></textarea> <br> <input onclick=\"clearForm()\" type=\"submit\" value=\"Submit\"> </form> <br>"
@@ -256,7 +272,7 @@ getTextFile urlPath = do
         let h5 = "<script> fetch(\"" <> urlPathWithReadParam <> "\").then((r)=>{r.text().then((d)=>{  document.getElementById('content').innerText = d })});function clearForm() { var fm = document.getElementById('myForm')[0]; fm.submit(); fm.reset(); document.getElementById('formData').value = '';}; if (window.history.replaceState) {windows.history.replaceState(null, null, window.location.href)} </script>"
 
         let h6 = "</body>\n </html>\n" 
-        html $ DTL.pack $ h0 <> h1 <> hb <> hf <> hp <> h2 <> h3 <> h4 <> h5 <> h6
+        html $ DTL.pack $ h0 <> h1 <> hb <> hf <> hf_ <> hp <> h2 <> h3 <> h4 <> h5 <> h6
 
 getEditTextFile :: String -> ActionM ()
 getEditTextFile urlPath = do
@@ -354,6 +370,12 @@ main = do
                 case fileMode of
                     "write" -> getEditTextFile urlPath
                     "delete" -> (liftIO $ removeFile $ rootPath <> urlPath) >> (redirect $ DTL.pack $ backUrlPath urlPath)
+                    "download" -> do
+                        let fileName = DL.last $ splitOn "/" urlPath
+                        let filePath = rootPath <> urlPath
+                        addHeader "Content-Disposition" $ "attachment; filename=\"" <> (DTL.pack fileName) <> "\""
+                        file filePath
+
                     x -> case contentType of
                             "html" -> runContT (getFileOrDirectory urlPath getTextFile) generateTextHtml
                             "plain" -> (addHeader "Content-Type" "text/plain; charset=utf-8") >> file (rootPath <> urlPath)
@@ -441,7 +463,9 @@ main = do
                             if (DL.last fileName) == '/' then text "directory can not be downloaded"
                             else do
                                 isExist <- liftIO $ fileExist $ filePath
-                                if isExist then file filePath
+                                if isExist then do
+                                    addHeader "Content-Disposition" $ "attachment; filename=\"" <> (DTL.pack fileName) <> "\""
+                                    file filePath
                                 {- if isExist then liftIO $ redirect $ urlPath <> "/" <> fileName <> "?contentType=plain" -}
                                 else text "file do not existed!"
 
