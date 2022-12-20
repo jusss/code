@@ -207,10 +207,14 @@ generateHtmlForDirectory pathName = do
         html $ DTL.pack $ h0 <> h1 <> h2 <> h3
 
 {- since iOS won't preview mp4 file, so comment it for just download -}
+headerContentTypeForiOS = DMI.fromList [("jpg", "image/jpeg"), ("jpeg", "image/jpeg"), ("png", "image/png"),
+                        ("pdf", "application/pdf"),
+                        ("txt", "text/plain; charset=utf-8")]
+
 headerContentType = DMI.fromList [("jpg", "image/jpeg"), ("jpeg", "image/jpeg"), ("png", "image/png"),
-                        {- ("mp4", "video/mp4"), ("m4a", "video/mp4"), ("mkv", "video/x-matroska"), -}
-                        {- ("webm", "video/webm"), ("mov", "video/quicktime"), ("avi", "video/x-msvideo"), -}
-                        {- ("aac", "audio/aac"), ("ogg", "audio/ogg"), ("wav", "audio/wav"), -}
+                        ("mp4", "video/mp4"), ("m4a", "video/mp4"), ("mkv", "video/x-matroska"),
+                        ("webm", "video/webm"), ("mov", "video/quicktime"), ("avi", "video/x-msvideo"),
+                        ("aac", "audio/aac"), ("ogg", "audio/ogg"), ("wav", "audio/wav"),
                         ("pdf", "application/pdf"),
                         ("txt", "text/plain; charset=utf-8")]
 
@@ -218,8 +222,17 @@ getChunkedFile :: String -> ActionM ()
 getChunkedFile urlPath = do
         let fileSuffix = fmap toLower $ DL.last $ splitOn "." $ DL.last $ splitOn "/" urlPath
 
-        case DMI.lookup fileSuffix headerContentType of
-            Just x -> (addHeader "Content-Type" x) >> (addHeader "Content-Disposition" "inline")
+        userAgent <- header "User-Agent"
+        {- liftIO $ print userAgent -}
+
+        case userAgent of
+            Just x -> case "Mac OS X" `DTL.isInfixOf` x of
+                        True -> case DMI.lookup fileSuffix headerContentTypeForiOS of
+                                    Just x -> (addHeader "Content-Type" x) >> (addHeader "Content-Disposition" "inline")
+                                    Nothing -> addHeader "Content-Disposition" "attachment"
+                        False -> case DMI.lookup fileSuffix headerContentType of
+                                    Just x -> (addHeader "Content-Type" x) >> (addHeader "Content-Disposition" "inline")
+                                    Nothing -> addHeader "Content-Disposition" "attachment"
             Nothing -> addHeader "Content-Disposition" "attachment"
 
         handle <- liftIO $ openBinaryFile (rootPath <> urlPath) ReadMode
