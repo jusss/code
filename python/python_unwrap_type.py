@@ -177,6 +177,11 @@ list2string = lambda x: "".join(x)
 
 findElementInList = lambda element, alist: [y for x, y in zip(alist, list(range(len(alist))) if x == element]
 
+# Reader f >>= g == \x -> g (f x) x
+# Bind Infix (f >>= g) >>= h == foldl1 (>>=) [f, g, h]
+# f (a (f (b (f (z (f (g x))))))) == foldr (.) id (map (f .) [a, b, z, g]) == foldr ($) x (map (f .) [a, b, z, g]) == f . a . f. b. f. z. f. g
+
+
 # fmap :: (a->b) -> (e->a) -> (e->b)
 # fmap :: (a->(b->c)) -> (e->a) -> e -> b->c
 # fmap (+) (+1)
