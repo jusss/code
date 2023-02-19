@@ -1,0 +1,5 @@
+cabal v2-run your-project-name-not-file-name -- para1 para2
+
+your-project.cabal main-is will point the file name you want to run
+executable your-project is the name of your project
+

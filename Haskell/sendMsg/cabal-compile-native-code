@@ -1,0 +1,12 @@
+in the T.hs
+
+module Main(main) where
+...
+
+main = ...
+
+cabal v2-build or cabal v2-build project-name will compile and output binary program
+
+in your.cabal,
+executable project-name-same-like-folder-name
+main-is point to T.hs so cabal run and build will find it
