@@ -1,0 +1,56 @@
+docker pull alpine
+docker run -itd alpine /bin/sh
+docker ps 
+docker exec -it $DOCKER_ID /bin/sh
+apk add git
+git clone https://github.com/klappvisor/haskell-telegram-api.git
+git clone https://github.com/jusss/code.git -b bla2
+put that haskell-telegram-api and sendMsg under forBuild directory
+and create cabal.project under forBuild
+copy that telegram-api.cabal's depends to sendMsg.cabal's depends
+and change that servant-client == 0.16 to >= 0.16 in both
+
+apk add --no-cache musl-dev zlib-dev libc-dev zlib-static
+
+vim ../haskell-telegram-api/src/Servant/Client/MultipartFormData.hs 
+change requestToClientRequest to defaultMakeClientRequest, since servant 0.17 change its name
+import Servant.Client hiding ((//))
+
+hiding operator need two (())
+
+cabal v2-build  --enable-executable-static
+
+
+# replace apk source
+sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories
+
+apk add cabal vim
+
+cabal update
+
+vim .cabal/config
+repository mirrors.tuna.tsinghua.edu.cn
+  url: http://mirrors.tuna.tsinghua.edu.cn/hackage
+  secure: True
+
+comment official repo
+cabal update
+
+cabal v2-build --enable-executable-static --enable-executable-stripping
+
+or 
+
+in sendMsg.cabal
+
+executable sendMsg
+    main-is:         TelegramSendMsg.hs
+    ghc-options: -optl-static
+
+then cabal v2-build
+
+after done
+check
+ldd /root/forBuild/dist-newstyle/build/x86_64-linux/ghc-9.0.2/sendMsg-0.1.0.0/x/sendMsg/build/sendMsg/sendMsg
+
+docker cp 6103955170ec:/root/forBuild/dist-newstyle/build/x86_64-linux/ghc-9.0.2/sendMsg-0.1.0.0/x/sendMsg/build/sendMsg/sendMsg ./sendMsg/
+
