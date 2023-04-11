@@ -30,7 +30,8 @@ main = do
             let _t = addUTCTime (60*60*8 :: NominalDiffTime) _d
             let _date = fmap (\x -> if x == ' ' then '.' else x) $ DL.take 19 $ show _t
             text $ DTL.pack $ addr <> "/video/" <> _date <> ".mp4"
-            liftIO $ callCommand ("cd video; youtube-dl --no-mtime -o '" <> _date <> ".%(ext)s' " <> urlData)
+            {- liftIO $ callCommand ("cd video; youtube-dl --no-mtime -o '" <> _date <> ".%(ext)s' " <> urlData) -}
+            liftIO $ callCommand ("cd video;  yt-dlp " <> urlData <> " --cookies-from-browser \"chrome:/root/.config/chromium/Default::twitter\" -o '" <> _date <> ".%(ext)s' ")
 
         get "/video/:file" $ do
             _file <- param "file"
