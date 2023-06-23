@@ -208,6 +208,47 @@ findElementInList = lambda elem, alist: [p for e, p in zip(alist, range(len(alis
 
 # print(findElementInList('a', "abcdaewa"))
 
+dict_to_tuple_list = lambda _dict: [(k, v) for k, v in _dict.items()]
+tuple_list_to_dict = lambda _tuple_list: dict(_tuple_list)
+
+duplicate = lambda n, x: [x for i in range(n)]
+generate_range = lambda xs: list(range(xs[0],xs[1]+1))
+
+string2list = lambda x: [i for i in x]
+list2string = lambda x: "".join(x)
+
+# Reader f >>= g == \x -> g (f x) x
+# Bind Infix (f >>= g) >>= h == foldl1 (>>=) [f, g, h]
+# f (a (f (b (f (g x))))) == foldr (.) id (map (f .) [a, b, z, g]) == foldr ($) x (map (f .) [a, b, z, g]) == f . a . f . b . f . z . f . g
+
+def chunksOf(n, alist):
+    def wrapper(n, alist, blist):
+        if len(alist) < n:
+            if alist:
+                return blist + [alist]
+            return blist
+        return wrapper(n, alist[n:], blist + [alist[:n]])
+    return wrapper(n, alist, [])
+
+filter_list_by_index = lambda xs, n: [ x[0] for x in zip(xs, range(len(alist))) if x[1] != n ]
+filter_list_by_indexes = lambda xs, ns: [ x[0] for x in zip(xs, range(len(xs))) if x[1] not in ns ]
+
+def tuple_list_to_dict(_list):
+    _dict = {}
+    for k, v in _list:
+        if _dict.get(k):
+            _dict[k] = _dict[k] + v
+        else:
+            _dict[k] = v
+
+    return _dict
+
+def check_file_start_with(prefix, file_list):
+    # file_list = os.listdir(folder)
+    for n in file_list:
+        if n.startswith(prefix):
+            return True
+    return False
 
 
 
