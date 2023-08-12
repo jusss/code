@@ -99,6 +99,33 @@ generatePasteHtml pathName = do
         let h6 = "</body>\n </html>\n" 
         html $ DTL.pack $ h0 <> h1 <> h2 <> h3 <> h4 <> h5 <> h6
 
+generatePictureHtml :: String -> ActionM ()
+generatePictureHtml pathName = do
+        {- pics in picture/ and thumbs in picture/.thumb/ -}
+        {- apt install imagemagick; mkdir picture/.thumb -}
+        {- for i in *.jpg; do convert -thumbnail 360 $i .thumb/$i; done; -}
+        addHeader "Content-Type" "text/html; charset=utf-8"
+        liftIO $ print $ "get " <> pathName
+        liftIO $ createDirectoryIfMissing True $ rootPath <> pathName
+        _fileList <- liftIO $ listDirectoryAscendingByTime $ rootPath <> pathName
+        let fileList = DL.filter (\x -> not $ "." `DL.isPrefixOf` x) _fileList
+        liftIO $ createDirectoryIfMissing True $ rootPath <> pathName <> "/.thumb"
+        _thumbFileList <- liftIO $ listDirectoryAscendingByTime $ rootPath <> pathName <> "/.thumb"
+        let thumbFileList = DL.filter (\x -> not $ "." `DL.isPrefixOf` x) _thumbFileList
+        let missingThumb = fileList DL.\\ thumbFileList
+        if null missingThumb then liftIO $ print "all thumbnail generated" else liftIO $ callCommand ("cd picture; for i in " <> (foldl1 (\x -> \y -> x <> " " <> y) missingThumb) <> "; do convert -thumbnail 112x112 $i .thumb/$i; done;")
+
+        let original_pic_list = DL.filter (\x -> not $ "." `DL.isPrefixOf` x) fileList
+        let h0 = "<html lang=\"en-US\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"> <title>" <> pathName <> "</title>\n <link href=\"/node_modules/filepond/dist/filepond.css\" rel=\"stylesheet\" />\n <script src=\"/node_modules/filepond/dist/filepond.js\"></script>\n </head>\n <body>\n"
+        let h1 = "<a href=\"/\">home</a><br><br>"
+        let h2 = "<input type=\"file\" multiple><br><br><br>\n" 
+        {- let h3 = if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> pathName <> "/" <> x <> "\"> " <> x <> "</a> <br>" <> "\n") fileList) -}
+        let h3 = "<style> .wrapper {display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap:1px;} @media (max-width: 768px) { .wrapper {grid-template-columns: repeat(3, 1fr);}} </style>"
+        let h4 = "<div class=\"wrapper\">"
+        let h5 = if null fileList then "" else foldl1 (<>) (fmap (\x -> "<div><a href=\"" <> pathName <> "/" <> x <> "\"><img src=\"" <> pathName <> "/.thumb/" <> x <> "\">" <> "</a></div>" <> "\n") original_pic_list)
+        let h6 = "</div></body>\n <script> const inputElement = document.querySelector('input[type=\"file\"]'); const pond = FilePond.create( inputElement ); pond.setOptions({ server: \"" <> pathName <> "\" }) </script> </html>\n" 
+        html $ DTL.pack $ h0 <> h1 <> h2 <> h3 <> h4 <> h5 <> h6
+
 generateFilePondHtml :: String -> ActionM ()
 generateFilePondHtml pathName = do
         addHeader "Content-Type" "text/html; charset=utf-8"
@@ -348,6 +375,7 @@ main = do
         get "/" $ checkLogin "/" $ generateHomePageHtml rootPath
         get "/video" $ checkLogin "/video" $ generateVideoHtml "/video"
         get "/paste" $ checkLogin "/paste" $ generatePasteHtml "/paste"
+        get "/picture" $ checkLogin "/picture" $ generatePictureHtml "/picture"
         get "/denied" $ text "access denied"
         get "/login" $ (authCheck $ do 
             addHeader "Content-Type" "text/html; charset=utf-8"
@@ -371,7 +399,7 @@ main = do
             text "hi"
 
         {- get first level  -}
-        traverse (\path -> get (capture path) $ checkLogin (DTL.pack path) $ generateFilePondHtml path) ["/upload", "/audio", "/picture", "/others", "/chunk"]
+        traverse (\path -> get (capture path) $ checkLogin (DTL.pack path) $ generateFilePondHtml path) ["/upload", "/audio",  "/others", "/chunk"]
 
         {- get arbitrary level under /text -}
         traverse (\routePattern -> get (capture $ "/text" <> routePattern) $ do
@@ -436,6 +464,12 @@ main = do
                 {- apt install ffmpeg, to fix malformed AAC bitstream for youtube-dl -}
                 liftIO $ callCommand ("cd video; youtube-dl --no-mtime -o '" <> _date <> ".%(ext)s' " <> strData)
             generateVideoHtml "/video"
+
+        post "/url" $ do
+            url <- param "/url"
+            let urlData = BSC.unpack url
+            liftIO $ print urlData
+            text "I got it"
 
         {- post text or files at arbitrary level under /text -}
         traverse (\routePattern -> post (capture $ "/text" <> routePattern) $ do
