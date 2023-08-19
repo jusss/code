@@ -1,7 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 import Network.Wai
-import Network.Wai.Parse
+import Network.Wai.Parse hiding (parseContentType)
+import Network.Multipart
 import Network.HTTP.Types
 import Network.Wai.Handler.Warp (run)
 import Web.Scotty
@@ -126,6 +127,22 @@ generatePictureHtml pathName = do
         let h6 = "</div></body>\n <script> const inputElement = document.querySelector('input[type=\"file\"]'); const pond = FilePond.create( inputElement ); pond.setOptions({ server: \"" <> pathName <> "\" }) </script> </html>\n" 
         html $ DTL.pack $ h0 <> h1 <> h2 <> h3 <> h4 <> h5 <> h6
 
+generateUploadWithChunkHtml :: String -> ActionM ()
+generateUploadWithChunkHtml pathName = do
+        addHeader "Content-Type" "text/html; charset=utf-8"
+        addHeader "Transfer-Encoding" "chunked"
+        liftIO $ print $ "get " <> pathName
+        fileList <- liftIO $ listDirectoryAscendingByTime $ rootPath <> pathName
+        liftIO $ createDirectoryIfMissing True $ rootPath <> pathName
+        {- multipart/form-data will make webKitFormBoundary in body, multiple files post only once with chunked, multiple IO String read -}
+        let h1 = "<html lang=\"en-US\"> <head> <title>" <> pathName <> "</title><body>"
+        let h2 = "<a href=\"/\">home</a><br><br>"
+        let h3 = "<form enctype=\"multipart/form-data\" action=\"" <> pathName <> "\" method=\"post\">"
+        let h4 = "<input type=\"file\" name=\"" <> pathName <> "\" multiple=\"multiple\"><input type=\"submit\" value=\"Submit\"></form>"
+        let h5 = if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> pathName <> "/" <> x <> "\"> " <> x <> "</a> <br>" <> "\n") fileList)
+        let h6 = "</body></html>"
+        (html .DTL.pack) $ h1 <> h2 <> h3 <> h4 <> h5 <> h6
+
 generateFilePondHtml :: String -> ActionM ()
 generateFilePondHtml pathName = do
         addHeader "Content-Type" "text/html; charset=utf-8"
@@ -189,6 +206,28 @@ postFiles urlPath = do
         ) _files
     redirect $ DTL.pack urlPath
 
+getMultiPart :: MultiPart -> [BodyPart]
+getMultiPart (MultiPart x) = x
+
+readFromBodyPartWriteFile :: String -> BodyPart -> IO ()
+readFromBodyPartWriteFile pathName (BodyPart headers bytestring) = do
+    let _filename = DL.init $ DL.tail $ DTL.unpack $ DL.last $ DTL.splitOn "filename=" $ DTL.pack $ (DMI.fromList headers) DMI.! (HeaderName "Content-Disposition")
+    let filename = rootPath <> pathName <> "/" <> _filename
+    print $ "post file " <> filename
+    DB.writeFile filename DB.empty
+    DB.appendFile filename bytestring
+
+postChunkedData :: String -> ContT () ActionM String
+postChunkedData pathName = ContT $ \afterPostGenerateHtml -> do
+        ct <- header "Content-Type"
+        ct_ <- liftIO $ parseContentType $ DTL.unpack $ fromJust ct
+        let bm = (DMI.fromList $ ctParameters ct_) DMI.! "boundary"
+        wb <- body
+        let msg = parseMultipartBody bm wb
+        liftIO $ traverse (readFromBodyPartWriteFile pathName) $ getMultiPart msg
+        liftIO $ print $ "post " <> pathName
+        afterPostGenerateHtml pathName
+
 {- there are three post ways, postAndShow is simple post whole file at once, postChunkedData is post with chunk, postChunkedDataFromFilePond is post with filepond, other function see previous version web6.hs -}
 {- https://www.haskellforall.com/2012/12/the-continuation-monad.html -}
 {- runContT (postChunkedDataFromFilePond pathName) generateFilePondHtml -}
@@ -229,6 +268,7 @@ generateHtmlForDirectory pathName = do
         fileList <- liftIO $ listDirectory $ rootPath <> pathName
         let h0 = "<html lang=\"en-US\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"> <title>" <> pathName <> "</title>\n </head>\n <body>\n"
         let h1 = "<a href=\"/\">home</a><br><br>"
+        {- let h2 = if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> pathName <> "/" <> BSC.unpack (urlEncode True (BSC.pack x)) <> "\"> " <> x <> "</a> <br>" <> "\n") fileList) -}
         let h2 = if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> pathName <> "/" <> x <> "\"> " <> x <> "</a> <br>" <> "\n") fileList)
         let h3 = "</body>\n </html>\n" 
         html $ DTL.pack $ h0 <> h1 <> h2 <> h3
@@ -338,6 +378,14 @@ routePatternToUrlPath routePattern = do
     urlPathList <- traverse param $ DL.filter (/= "") $ DTL.splitOn "/:" $ DTL.pack routePattern
     let urlPath = concat $ fmap ("/" <>) urlPathList
     return urlPath
+    
+    {- liftIO $ print $ "routePattern is " <> routePattern -}
+    {- urlPathList <- traverse param $ DL.filter (/= "") $ DTL.splitOn "/:" $ DTL.pack routePattern -}
+    {- let urlPath = concat $ fmap("/" <>) $ fmap (BSC.unpack . urlDecode True . BSC.pack) urlPathList -}
+    {- [> let urlPath = BSC.unpack $ urlDecode True (BSC.pack (concat $ fmap ("/" <>) urlPathList)) <] -}
+    {- liftIO $ print $ "urlPath is " <> urlPath -}
+    {- return urlPath -}
+
 
 {- passing two continuations into one ContT is hard -}
 {- runContT (getFileOrDirectory "/a/b" getChunkedFile) generateHtmlForDirectory -}
@@ -399,7 +447,8 @@ main = do
             text "hi"
 
         {- get first level  -}
-        traverse (\path -> get (capture path) $ checkLogin (DTL.pack path) $ generateFilePondHtml path) ["/upload", "/audio",  "/others", "/chunk"]
+        traverse (\path -> get (capture path) $ checkLogin (DTL.pack path) $ generateFilePondHtml path) ["/upload", "/audio", "/chunk"]
+        traverse (\path -> get (capture path) $ checkLogin (DTL.pack path) $ generateUploadWithChunkHtml path) ["/others"]
 
         {- get arbitrary level under /text -}
         traverse (\routePattern -> get (capture $ "/text" <> routePattern) $ do
@@ -436,6 +485,9 @@ main = do
             (user :: String) <- param "username"
             (pass :: String) <- param "password"
             liftIO $ print $ "login as user " <> user <> ", password is " <> pass
+            _d <- liftIO $ getCurrentTime
+            let _t = addUTCTime (60*60*8 :: NominalDiffTime) _d
+            let _date = fmap (\x -> if x == ' ' then '.' else x) $ DL.take 19 $ show _t
             if user == "user" && pass == "pass"
                 then do 
                     id <- addSession sessionConfig
@@ -530,6 +582,7 @@ main = do
             ) ([""] <> routePatternList)
 
         {- post first level -}
-        traverse (\path -> post (capture path) $ checkLogin (DTL.pack path) $ runContT (postChunkedDataFromFilePond path) generateFilePondHtml) ["/upload", "/audio", "/picture", "/others", "/chunk"]
+        traverse (\path -> post (capture path) $ checkLogin (DTL.pack path) $ runContT (postChunkedDataFromFilePond path) generateFilePondHtml) ["/upload", "/audio", "/picture", "/chunk"]
+        traverse (\path -> post (capture path) $ checkLogin (DTL.pack path) $ runContT (postChunkedData path) generateUploadWithChunkHtml) [ "/others"]
 
         return ()
