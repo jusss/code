@@ -28,6 +28,8 @@ import qualified Data.Text.Encoding as DTE
 import Data.Text.Encoding.Error
 import Data.Time.Clock
 import Data.Time.Clock.POSIX
+import Data.UUID.V4
+import qualified Data.UUID as DU
 import qualified System.Posix.IO as SPI
 import qualified Data.List as DL
 import qualified Data.Text as DT
@@ -209,6 +211,28 @@ postFiles urlPath = do
 getMultiPart :: MultiPart -> [BodyPart]
 getMultiPart (MultiPart x) = x
 
+
+{- [> lazy chunk <] -}
+{- readFromBodyPartWriteFile :: String -> BodyPart -> IO () -}
+{- readFromBodyPartWriteFile pathName (BodyPart headers bytestring) = do -}
+    {- let _filename = DL.init $ DL.tail $ DTL.unpack $ DL.last $ DTL.splitOn "filename=" $ DTL.pack $ (DMI.fromList headers) DMI.! (HeaderName "Content-Disposition") -}
+    {- let filename = rootPath <> pathName <> "/" <> _filename -}
+    {- print $ "post file " <> filename -}
+    {- DB.writeFile filename DB.empty -}
+    {- DB.appendFile filename bytestring -}
+
+{- postChunkedData :: String -> ContT () ActionM String -}
+{- postChunkedData pathName = ContT $ \afterPostGenerateHtml -> do -}
+        {- ct <- header "Content-Type" -}
+        {- ct_ <- liftIO $ parseContentType $ DTL.unpack $ fromJust ct -}
+        {- let bm = (DMI.fromList $ ctParameters ct_) DMI.! "boundary" -}
+        {- wb <- body -}
+        {- let msg = parseMultipartBody bm wb -}
+        {- liftIO $ traverse (readFromBodyPartWriteFile pathName) $ getMultiPart msg -}
+        {- liftIO $ print $ "post " <> pathName -}
+        {- afterPostGenerateHtml pathName -}
+
+{- strict upload and lazy parse -}
 readFromBodyPartWriteFile :: String -> BodyPart -> IO ()
 readFromBodyPartWriteFile pathName (BodyPart headers bytestring) = do
     let _filename = DL.init $ DL.tail $ DTL.unpack $ DL.last $ DTL.splitOn "filename=" $ DTL.pack $ (DMI.fromList headers) DMI.! (HeaderName "Content-Disposition")
@@ -217,16 +241,73 @@ readFromBodyPartWriteFile pathName (BodyPart headers bytestring) = do
     DB.writeFile filename DB.empty
     DB.appendFile filename bytestring
 
+readAndWrite :: IO D.ByteString -> String -> String -> String -> IO ()
+readAndWrite readSource filename bm pathName = do
+        chunk <- readSource
+        D.appendFile filename chunk
+        let size = D.length chunk
+        if size > 0 then do
+            readAndWrite readSource filename bm pathName
+        else do
+            _all <- DB.readFile filename
+            let msg = parseMultipartBody bm _all
+            traverse (readFromBodyPartWriteFile pathName) $ getMultiPart msg
+            return ()
+
 postChunkedData :: String -> ContT () ActionM String
 postChunkedData pathName = ContT $ \afterPostGenerateHtml -> do
         ct <- header "Content-Type"
         ct_ <- liftIO $ parseContentType $ DTL.unpack $ fromJust ct
         let bm = (DMI.fromList $ ctParameters ct_) DMI.! "boundary"
-        wb <- body
-        let msg = parseMultipartBody bm wb
-        liftIO $ traverse (readFromBodyPartWriteFile pathName) $ getMultiPart msg
+        rd <- bodyReader
+        uuid <- liftIO nextRandom
+        let filename = DU.toString uuid
+        liftIO $ readAndWrite rd filename bm pathName
+        liftIO $ removeFile filename
         liftIO $ print $ "post " <> pathName
         afterPostGenerateHtml pathName
+
+{- [> strict chunk <] -}
+{- tokenise x y = h : if D.null t then [] else tokenise x (D.drop (D.length x) t) -}
+    {- where (h,t) = D.breakSubstring x y -}
+
+{- readFromBodyPartWriteFile :: String -> BodyPart -> IO () -}
+{- readFromBodyPartWriteFile pathName (BodyPart headers bytestring) = do -}
+    {- let _filename = DL.init $ DL.tail $ DTL.unpack $ DL.last $ DTL.splitOn "filename=" $ DTL.pack $ (DMI.fromList headers) DMI.! (HeaderName "Content-Disposition") -}
+    {- let filename = rootPath <> pathName <> "/" <> _filename -}
+    {- print $ "post file " <> filename -}
+    {- D.writeFile filename D.empty -}
+    {- D.appendFile filename $ DB.toStrict bytestring -}
+
+{- readPostDataAndWrite :: IO D.ByteString -> D.ByteString -> Int -> String -> String -> IO Int -}
+{- readPostDataAndWrite readSource lastChunk acc bm pathName = do -}
+    {- let breaker = BSC.pack $ "--" <> bm -}
+    {- _chunk <- readSource -}
+    {- let chunk = lastChunk <> _chunk -}
+    {- let size = D.length _chunk -}
+    {- if size > 0 -}
+    {- then do -}
+        {- let msg = parseMultipartBody bm $ DB.fromStrict chunk -}
+        {- if DL.null (getMultiPart msg) then -}
+            {- readPostDataAndWrite readSource chunk acc bm pathName -}
+        {- else do -}
+            {- traverse (readFromBodyPartWriteFile pathName) $ getMultiPart msg -}
+            {- let r = tokenise breaker chunk -}
+            {- if (DL.length r) > 2 then -}
+                {- readPostDataAndWrite readSource (breaker <> (DL.last r)) acc bm pathName -}
+            {- else -}
+                {- readPostDataAndWrite readSource D.empty acc bm pathName -}
+    {- else return acc -}
+
+{- postChunkedData :: String -> ContT () ActionM String -}
+{- postChunkedData pathName = ContT $ \afterPostGenerateHtml -> do -}
+        {- ct <- header "Content-Type" -}
+        {- ct_ <- liftIO $ parseContentType $ DTL.unpack $ fromJust ct -}
+        {- let bm = (DMI.fromList $ ctParameters ct_) DMI.! "boundary" -}
+        {- rd <- bodyReader -}
+        {- len <- liftIO $ readPostDataAndWrite rd D.empty 0 bm pathName -}
+        {- liftIO $ print $ "post " <> pathName -}
+        {- afterPostGenerateHtml pathName -}
 
 {- there are three post ways, postAndShow is simple post whole file at once, postChunkedData is post with chunk, postChunkedDataFromFilePond is post with filepond, other function see previous version web6.hs -}
 {- https://www.haskellforall.com/2012/12/the-continuation-monad.html -}
