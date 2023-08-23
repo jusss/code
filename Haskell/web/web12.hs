@@ -3,7 +3,7 @@
 import Network.Wai
 import Network.Wai.Parse hiding (parseContentType)
 import Network.Multipart
-import Network.HTTP.Types
+import Network.HTTP.Types hiding (urlEncode)
 import Network.Wai.Handler.Warp (run)
 import Web.Scotty
 import Web.Scotty.Login.Session
@@ -32,6 +32,7 @@ import Data.UUID.V4
 import qualified Data.UUID as DU
 import qualified System.Posix.IO as SPI
 import qualified Data.List as DL
+import qualified Data.List.Split as DLS
 import qualified Data.Text as DT
 import qualified Data.Text.IO as DTI
 import qualified Data.Text.Lazy as DTL
@@ -40,6 +41,7 @@ import qualified Data.ByteString.Lazy as DB
 import qualified Data.ByteString.Lazy.UTF8 as DBLU
 import qualified Data.ByteString.Char8 as BSC
 import Network.Wai.Middleware.Gzip (gzip, def, gzipFiles, GzipFiles(GzipCompress))
+import Network.HTTP.Base (urlEncode)
 
 {- no more html file, just html strings for directory -}
 {- there're urlPath like /a/b and filePath like rootPath <> urlPath -}
@@ -48,6 +50,9 @@ accessPoint = ["/paste", "/docs", "/config", "/code", "/upload", "/text", "/audi
 routePatternList = scanl1 (<>) $ fmap (("/:" <>) . ("l" <>) . show) [1..99]
 {- do not show visit path on console -}
 doNotShowPath = ["/favicon.ico", "/node_modules/filepond/dist/filepond.css", "/node_modules/filepond/dist/filepond.js"]
+
+{- encode /a/b/c for non-ascii characters -}
+urlPathEncode urlPath = DL.foldl1 (\x -> \y -> x <> "/" <> y) $ fmap urlEncode $ DLS.splitOn "/" urlPath
 
 {- in order to show text with utf8 in get request,  -}
 {- addHeader "Content-Type" "text/plain; charset=utf-8", for file -}
@@ -69,6 +74,10 @@ listDirectoryAscendingByTime path = do
     let fl = reverse $ fst <$> (DL.sortOn snd $ zipWith (,) filelist tl)
     return fl
 
+listFileHtml pathName fileList = 
+    if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> (urlPathEncode $ pathName <> "/" <> x) <> "\"> " <> x <> "</a> <br>" <> "\n") fileList)
+
+
 generateVideoHtml :: String -> ActionM ()
 generateVideoHtml pathName = do
         addHeader "Content-Type" "text/html; charset=utf-8"
@@ -79,7 +88,7 @@ generateVideoHtml pathName = do
         let h1 = "<a href=\"/\">home</a><br><br>"
         let h2 = "<form id='myForm' enctype=\"multipart/form-data\" action=\"" <> pathName <> "\" method=\"post\">"
         let h3 = "<textarea id=\"formData\" rows=\"6\" cols=\"36\" name=\"" <> pathName <> "\"></textarea> <br> <input onclick=\"clearForm()\" type=\"submit\" value=\"Submit\"> </form> <br>"
-        let h4 = if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> pathName <> "/" <> x <> "\"> " <> x <> "</a> <br>" <> "\n") fileList)
+        let h4 = listFileHtml pathName fileList
         let h5 = "<script> function clearForm() { var fm = document.getElementById('myForm')[0]; fm.submit(); fm.reset(); document.getElementById('formData').value = '';}; if (window.history.replaceState) {windows.history.replaceState(null, null, window.location.href)} </script>"
         let h6 = "</body>\n </html>\n" 
         html $ DTL.pack $ h0 <> h1 <> h2 <> h3 <> h4 <> h5 <> h6
@@ -141,7 +150,7 @@ generateUploadWithChunkHtml pathName = do
         let h2 = "<a href=\"/\">home</a><br><br>"
         let h3 = "<form enctype=\"multipart/form-data\" action=\"" <> pathName <> "\" method=\"post\">"
         let h4 = "<input type=\"file\" name=\"" <> pathName <> "\" multiple=\"multiple\"><input type=\"submit\" value=\"Submit\"></form>"
-        let h5 = if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> pathName <> "/" <> x <> "\"> " <> x <> "</a> <br>" <> "\n") fileList)
+        let h5 = listFileHtml pathName fileList
         let h6 = "</body></html>"
         (html .DTL.pack) $ h1 <> h2 <> h3 <> h4 <> h5 <> h6
 
@@ -154,7 +163,7 @@ generateFilePondHtml pathName = do
         let h0 = "<html lang=\"en-US\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"> <title>" <> pathName <> "</title>\n <link href=\"/node_modules/filepond/dist/filepond.css\" rel=\"stylesheet\" />\n <script src=\"/node_modules/filepond/dist/filepond.js\"></script>\n </head>\n <body>\n"
         let h1 = "<a href=\"/\">home</a><br><br>"
         let h2 = "<input type=\"file\" multiple><br><br><br>\n" 
-        let h3 = if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> pathName <> "/" <> x <> "\"> " <> x <> "</a> <br>" <> "\n") fileList)
+        let h3 = listFileHtml pathName fileList
         let h4 = "</body>\n <script> const inputElement = document.querySelector('input[type=\"file\"]'); const pond = FilePond.create( inputElement ); pond.setOptions({ server: \"" <> pathName <> "\" }) </script> </html>\n" 
         html $ DTL.pack $ h0 <> h1 <> h2 <> h3 <> h4
 
@@ -168,7 +177,8 @@ generateTextHtmlWithFilePond urlPath = do
         let h1 = "<a href=\"/\">home</a><br><br>"
         let hf = "<form action=\"" <> urlPath <> "/create" <> "\"  method=\"post\"> <label for=\"fileName\">New File:</label> <input type=\"text\" name=\"newFile\" value=\"\"><input type=\"submit\" value=\"Create\"></form>"
         let h2 = "<input type=\"file\" multiple><br><br><br><br><br><br>\n" 
-        let h3 = if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> urlPath <> "/" <> x <> "\"> " <> x <> "</a> <br><br>" <> "\n") fileList)
+        {- let h3 = if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> urlPath <> "/" <> x <> "\"> " <> x <> "</a> <br><br>" <> "\n") fileList) -}
+        let h3 = listFileHtml urlPath fileList
         let h4 = "</body>\n <script> const inputElement = document.querySelector('input[type=\"file\"]'); const pond = FilePond.create( inputElement ); pond.setOptions({ server: \"" <> urlPath <> "\" }) </script> </html>\n" 
         html $ DTL.pack $ h0 <> h1 <> hf <> h2 <> h3 <> h4
 
@@ -189,7 +199,9 @@ generateTextHtml urlPath = do
         let hf__ = "<form action=\"" <> urlPath <> "?fileMode=download" <> "\"  method=\"post\"> <label for=\"fileName\">Download File:</label> <input type=\"text\" name=\"data\" value=\"\"> <input type=\"submit\" value=\"Download\"></form>"
 
         let h2 = "<form enctype=\"multipart/form-data\" action=\"" <> urlPath <> "?fileMode=upload" <> "\" method=\"post\"><input type=\"file\" name=\"" <> urlPath <> "\" multiple> <input type=\"submit\" value=\"Upload\"> </form> <br>"
-        let h3 = if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> urlPath <> "/" <> x <> "\"> " <> x <> "</a> <br> <br>" <> "\n") fileList)
+        {- let h3 = if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> urlPath <> "/" <> x <> "\"> " <> x <> "</a> <br> <br>" <> "\n") fileList) -}
+
+        let h3 = listFileHtml urlPath fileList
         let h4 = "</body></html>" 
         html $ DTL.pack $ h0 <> h1 <> hb <> hf <> hf_ <> hf__ <> h2 <> h3 <> h4
 
@@ -340,6 +352,7 @@ postChunkedDataFromFilePond pathName = ContT $ \afterPostGenerateHtml -> do
         liftIO $ D.appendFile filename realFileEnd
         afterPostGenerateHtml pathName
 
+
 generateHtmlForDirectory :: String -> ActionM ()
 generateHtmlForDirectory pathName = do
         addHeader "Content-Type" "text/html; charset=utf-8"
@@ -350,7 +363,8 @@ generateHtmlForDirectory pathName = do
         let h0 = "<html lang=\"en-US\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"> <title>" <> pathName <> "</title>\n </head>\n <body>\n"
         let h1 = "<a href=\"/\">home</a><br><br>"
         {- let h2 = if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> pathName <> "/" <> BSC.unpack (urlEncode True (BSC.pack x)) <> "\"> " <> x <> "</a> <br>" <> "\n") fileList) -}
-        let h2 = if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> pathName <> "/" <> x <> "\"> " <> x <> "</a> <br>" <> "\n") fileList)
+        {- let h2 = if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> (urlPathEncode $ pathName <> "/" <> x) <> "\"> " <> x <> "</a> <br>" <> "\n") fileList) -}
+        let h2 = listFileHtml pathName fileList
         let h3 = "</body>\n </html>\n" 
         html $ DTL.pack $ h0 <> h1 <> h2 <> h3
 
