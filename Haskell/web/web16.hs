@@ -186,11 +186,35 @@ generateTextHtmlWithFilePond urlPath = do
         let h4 = "</body>\n <script> const inputElement = document.querySelector('input[type=\"file\"]'); const pond = FilePond.create( inputElement ); pond.setOptions({ server: \"" <> urlPath <> "\" }) </script> </html>\n" 
         html $ DTL.pack $ h0 <> h1 <> hf <> h2 <> h3 <> h4
 
+getFileList :: String -> IO [String]
+getFileList path = do
+        _fileList <- listDirectoryAscendingByTime path
+        _tf <- traverse doesDirectoryExist $ fmap ((path <> "/") <>) _fileList
+        let regularFileList = fmap fst $ filter ((/= True) . snd) $ zip _fileList _tf
+        let dirFileList = fmap (<> "/") $ fmap fst $ filter ((== True) . snd) $ zip _fileList _tf
+        {- liftIO $ print dirFileList -}
+        let fileList = dirFileList <> regularFileList
+        {- liftIO $ print fileList -}
+        return fileList
+
 generateTextHtml :: String -> ActionM ()
 generateTextHtml urlPath = do
         addHeader "Content-Type" "text/html; charset=utf-8"
         liftIO $ print $ "get " <> urlPath
-        fileList <- liftIO $ listDirectoryAscendingByTime $ rootPath <> urlPath
+
+        {- _fileList <- liftIO $ listDirectoryAscendingByTime $ rootPath <> urlPath -}
+
+        {- [> liftIO $ print $ fmap ((rootPath <> urlPath) <>) _fileList <] -}
+        {- _tf <- liftIO $ traverse doesDirectoryExist $ fmap ((rootPath <> urlPath <> "/") <>) _fileList -}
+        {- let regularFileList = fmap fst $ filter ((/= True) . snd) $ zip _fileList _tf -}
+        {- let dirFileList = fmap (<> "/") $ fmap fst $ filter ((== True) . snd) $ zip _fileList _tf -}
+        {- liftIO $ print dirFileList -}
+        {- let fileList = dirFileList <> regularFileList -}
+        {- liftIO $ print fileList -}
+
+        fileList <- liftIO $ getFileList $ rootPath <> urlPath
+
+
         liftIO $ createDirectoryIfMissing True $ rootPath <> urlPath
         let urlDirectory = if (length $ DL.filter (/= "") $ splitOn "/" urlPath) == 1 then "/" else concat $ fmap ("/" <> ) $ DL.init $ DL.filter (/= "") $ splitOn "/" urlPath
         let h0 = titleHtml urlPath
@@ -300,7 +324,10 @@ generateHtmlForDirectory pathName = do
         -- it's important, only the last level in the html, when you in chunk directory, and html has chunk/a, click it, it will visit chunk/chunk/a
         -- so use absolute path /chunk/a, or just relative path just the last level a in the html
         {- let lastLevel = last $ splitOn "/" pathName -}
-        fileList <- liftIO $ listDirectory $ rootPath <> pathName
+        {- fileList <- liftIO $ listDirectory $ rootPath <> pathName -}
+
+        fileList <- liftIO $ getFileList $ rootPath <> pathName
+
         let h0 = titleHtml pathName
         let h1 = homeHtml
         let h2 = listFileHtml pathName fileList
