@@ -121,7 +121,7 @@ generatePictureHtml pathName = do
         {- pics in picture/ and thumbs in picture/.thumb/ -}
         {- apt install imagemagick; mkdir picture/.thumb -}
         {- for i in *.jpg; do convert -thumbnail 360 $i .thumb/$i; done; -}
-        addHeader "Content-Type" "text/html; charset=utf-8"
+        {- addHeader "Content-Type" "text/html; charset=utf-8" -}
         liftIO $ print $ "get " <> pathName
         liftIO $ createDirectoryIfMissing True $ rootPath <> pathName
         _fileList <- liftIO $ listDirectoryAscendingByTime $ rootPath <> pathName
@@ -144,7 +144,7 @@ generatePictureHtml pathName = do
 
 generateUploadWithChunkHtml :: String -> ActionM ()
 generateUploadWithChunkHtml pathName = do
-        addHeader "Content-Type" "text/html; charset=utf-8"
+        {- addHeader "Content-Type" "text/html; charset=utf-8" -}
         addHeader "Transfer-Encoding" "chunked"
         liftIO $ print $ "get " <> pathName
         fileList <- liftIO $ listDirectoryAscendingByTime $ rootPath <> pathName
@@ -160,7 +160,7 @@ generateUploadWithChunkHtml pathName = do
 
 generateFilePondHtml :: String -> ActionM ()
 generateFilePondHtml pathName = do
-        addHeader "Content-Type" "text/html; charset=utf-8"
+        {- addHeader "Content-Type" "text/html; charset=utf-8" -}
         liftIO $ print $ "get " <> pathName
         fileList <- liftIO $ listDirectoryAscendingByTime $ rootPath <> pathName
         liftIO $ createDirectoryIfMissing True $ rootPath <> pathName
@@ -173,7 +173,7 @@ generateFilePondHtml pathName = do
 
 generateTextHtmlWithFilePond :: String -> ActionM ()
 generateTextHtmlWithFilePond urlPath = do
-        addHeader "Content-Type" "text/html; charset=utf-8"
+        {- addHeader "Content-Type" "text/html; charset=utf-8" -}
         liftIO $ print $ "get " <> urlPath
         fileList <- liftIO $ listDirectoryAscendingByTime $ rootPath <> urlPath
         liftIO $ createDirectoryIfMissing True $ rootPath <> urlPath
@@ -199,22 +199,9 @@ getFileList path = do
 
 generateTextHtml :: String -> ActionM ()
 generateTextHtml urlPath = do
-        addHeader "Content-Type" "text/html; charset=utf-8"
+        {- addHeader "Content-Type" "text/html; charset=utf-8" -}
         liftIO $ print $ "get " <> urlPath
-
-        {- _fileList <- liftIO $ listDirectoryAscendingByTime $ rootPath <> urlPath -}
-
-        {- [> liftIO $ print $ fmap ((rootPath <> urlPath) <>) _fileList <] -}
-        {- _tf <- liftIO $ traverse doesDirectoryExist $ fmap ((rootPath <> urlPath <> "/") <>) _fileList -}
-        {- let regularFileList = fmap fst $ filter ((/= True) . snd) $ zip _fileList _tf -}
-        {- let dirFileList = fmap (<> "/") $ fmap fst $ filter ((== True) . snd) $ zip _fileList _tf -}
-        {- liftIO $ print dirFileList -}
-        {- let fileList = dirFileList <> regularFileList -}
-        {- liftIO $ print fileList -}
-
         fileList <- liftIO $ getFileList $ rootPath <> urlPath
-
-
         liftIO $ createDirectoryIfMissing True $ rootPath <> urlPath
         let urlDirectory = if (length $ DL.filter (/= "") $ splitOn "/" urlPath) == 1 then "/" else concat $ fmap ("/" <> ) $ DL.init $ DL.filter (/= "") $ splitOn "/" urlPath
         let h0 = titleHtml urlPath
@@ -248,9 +235,6 @@ postFiles urlPath = do
         ) _files
     redirect $ DTL.pack urlPath
 
-getMultiPart :: MultiPart -> [BodyPart]
-getMultiPart (MultiPart x) = x
-
 {- strict upload and lazy parse -}
 readFromBodyPartWriteFile :: String -> BodyPart -> IO ()
 readFromBodyPartWriteFile pathName (BodyPart headers bytestring) = do
@@ -269,8 +253,8 @@ readAndWrite readSource filename bm pathName = do
             readAndWrite readSource filename bm pathName
         else do
             _all <- DB.readFile filename
-            let msg = parseMultipartBody bm _all
-            traverse (readFromBodyPartWriteFile pathName) $ getMultiPart msg
+            let MultiPart msg = parseMultipartBody bm _all
+            traverse (readFromBodyPartWriteFile pathName) msg
             return ()
 
 postChunkedData :: String -> ContT () ActionM String
