@@ -58,9 +58,9 @@ urlPathEncode urlPath = DL.foldl1 (\x -> \y -> x <> "/" <> y) $ fmap urlEncode $
 {- addHeader "Content-Type" "text/plain; charset=utf-8", for file -}
 {- addHeader "Content-Type" "text/html; charset=utf-8", for directory html string -}
 
--- the defaultSessionConfig is 120 sec to expire, change it to 1 day
+-- the defaultSessionConfig is 120 sec to expire, change it to 6 day
 sessionConfig :: SessionConfig
-sessionConfig = SessionConfig "sessions.sqlite3" 1200 86400 False
+sessionConfig = SessionConfig "sessions.sqlite3" 1200 600000 False
 
 insertFileWithByteString :: FilePath -> D.ByteString -> IO ()
 insertFileWithByteString filePath byteString = do 
