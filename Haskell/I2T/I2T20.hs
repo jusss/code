@@ -204,7 +204,8 @@ recvMsg token manager upId chatId socket defaultPrefix alistMap = do
         Left e -> do
             putStr "recvMsg error:"
             print e
-            exitWith $ ExitFailure 22 -- main can be IO () or IO a
+            {- exitWith $ ExitFailure 22 -- main can be IO () or IO a -}
+            recvMsg token manager Nothing chatId socket defaultPrefix Data.Map.Strict.empty
 
 findAlias :: Map Text Text -> Text -> Text
 findAlias alistMap x = if Data.Map.Strict.empty == alistMap then x else if x `notMember` alistMap then x else (alistMap ! x)
@@ -290,7 +291,7 @@ parseMsgLite nick x =
 
 relayIRC2Tele :: Token -> Manager -> ChatId -> Socket ->  Text -> [Text] -> Text -> Text -> (Text -> Text -> Maybe Text) -> IO a
 relayIRC2Tele token manager chatId socket nick nickList userCmd autoJoinChannelCmd parseMsg = do
-    msg <- recv socket 1024  -- msg :: ByteString
+    msg <- recv socket 4096  -- msg :: ByteString
     if | D.length msg == 0 -> do           --  irc disconnected
                         print "IRC Disconnected, Re-connecting"
                         -- sleep 15
@@ -298,8 +299,12 @@ relayIRC2Tele token manager chatId socket nick nickList userCmd autoJoinChannelC
                         exitWith $ ExitFailure 22 -- main can be IO () or IO a
        | otherwise -> do
             let msgList = L.filter (/= "") . T.splitOn "\r\n" . toText $ msg
-            if | L.any (T.isPrefixOf "PING") msgList -> -- contain PING msg
-                            sendAll socket (En.encodeUtf8 ("PO" <> (T.drop 2 . L.head . L.filter (T.isPrefixOf "PING") $ msgList) <> "\r\n"))
+            if | L.any (T.isPrefixOf "PING") msgList -> do -- contain PING msg
+                            {- ["PING :silver.libera.chat"] -}
+                            print msgList
+                            let pongMsg = "PO" <> (T.drop 2 . L.head . L.filter (T.isPrefixOf "PING") $ msgList) <> "\r\n"
+                            print pongMsg
+                            sendAll socket (En.encodeUtf8 pongMsg)
                | otherwise -> return ()
 
             if | L.any (T.isSuffixOf ":Nickname is already in use.") msgList -> do
@@ -337,9 +342,11 @@ runTCPClient host port client = withSocketsDo $ do
         return sock
 
 -- timer to detect if remote disconnect
-detectDisconnected :: Socket -> String -> IO ()
+detectDisconnected :: Socket -> Text -> IO ()
 detectDisconnected socket server = do
-    r <- E.try (sendAll socket . En.encodeUtf8 $ "PING " <> (pack server) <> "\r\n") :: IO (Either E.SomeException ())
+    let pingMsg = "PING " <> server <> "\r\n"
+    print pingMsg
+    r <- E.try (sendAll socket $ En.encodeUtf8 pingMsg) :: IO (Either E.SomeException ())
     case r of
         Left ex -> do
                         print "Ping TimeOut, Remote Disconnected Without A Signal"
@@ -491,8 +498,12 @@ main = do
                 
                 -- t2IRC Telegram to IRC
                 t2IRC <- async (recvMsg token manager Nothing chatId socket nick Data.Map.Strict.empty)
+
                 -- pingMsg send PING per minute
-                pingMsg <- async (detectDisconnected socket server)
+                msg <- recv socket 102400  -- msg :: ByteString
+                let realServer = L.head $ T.splitOn " " . toText $ msg
+                pingMsg <- async (detectDisconnected socket realServer)
+
                 if | mode == "normal" -> do
                         -- irc2T IRC to Telegram
                         irc2T <- async (relayIRC2Tele token manager chatId socket nick nickList userCmd autoJoinChannelCmd parseMsgNormal)
