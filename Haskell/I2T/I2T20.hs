@@ -155,8 +155,8 @@ g Nothing = Just ""
 
 
 -- relay Telegram bot messages to IRC
-recvMsg :: Token -> Manager -> Maybe Int -> ChatId -> Socket -> T.Text -> T.Text -> Map T.Text T.Text -> IO ()
-recvMsg token manager upId chatId socket defaultPrefix userNick alistMap = do
+recvMsg :: Token -> Manager -> Maybe Int -> ChatId -> Socket -> T.Text -> T.Text -> Map T.Text T.Text -> Bool -> IO ()
+recvMsg token manager upId chatId socket defaultPrefix userNick alistMap filterFirstMsg = do
   -- sleep 3
   -- getUpdates :: Token -> Maybe Int -> Maybe Int -> Maybe Int -> Manager-> IO (Either ClientError UpdatesResponse)
   resultEither <- getUpdates token upId (Just 100) (Just 0) manager
@@ -168,44 +168,48 @@ recvMsg token manager upId chatId socket defaultPrefix userNick alistMap = do
             -- m :: [Update]
             if L.null m then do
                         sleep 1
-                        recvMsg token manager upId chatId socket defaultPrefix userNick alistMap
+                        recvMsg token manager upId chatId socket defaultPrefix userNick alistMap filterFirstMsg
             else do
                 -- updateId :: [Int]
                 let updateId = fmap update_id  m
                 let latestId = last updateId
                 if (Just latestId == upId) then do
                             sleep 1
-                            recvMsg token manager (Just latestId) chatId socket defaultPrefix userNick alistMap
+                            recvMsg token manager (Just latestId) chatId socket defaultPrefix userNick alistMap filterFirstMsg
                             -- now telegram api send and recv both are async, IRC send is non-blocked, only IRC recv is blocked.
                 else do
                             -- t2i :: Text
                             let t2i = fromJust . last . getResult $ m
                             putStr "recv from Telegram: "
                             print t2i
-                            
-                            if | "" == t2i ->  print "read Nothing from Telegram"
-                               | T.isPrefixOf "/prefix " t2i -> if | (L.length . T.words $ t2i) == 2 -> -- /prefix #channel or /prefix nick
-                                                                     recvMsg token manager (Just latestId) chatId socket (T.drop 8 t2i) userNick alistMap
-                                                                   | (L.length . T.words $ t2i) > 2 -> -- /prefix #channel nick or /prefix #channel nick1 nick2
-                                                                     recvMsg token manager (Just latestId) chatId socket ((L.head . L.tail . T.words $ t2i) <> " :" <> (T.unwords . L.drop 2 . T.words $ t2i)) userNick alistMap
-                                                                   | otherwise -> recvMsg token manager (Just latestId) chatId socket defaultPrefix userNick alistMap -- just /prefix  
-    
-                               | not (T.isPrefixOf "/" t2i) -> if | T.any (== ' ') t2i ->  
-                                                                    sendAll socket $ sendToChannel (T.unwords $ (findAlias alistMap . Prelude.head . T.words $ t2i) : (tail . T.words $ t2i)) defaultPrefix
-                                                                  | otherwise -> sendAll socket $ sendToChannel t2i defaultPrefix -- append prefix PRIVMSG
-                               | "/" == t2i -> sendAll socket $ sendToChannel t2i defaultPrefix
-                               -- /set a #channel nick1 nick2
-                               | T.isPrefixOf "/set " t2i -> recvMsg token manager (Just latestId) chatId socket defaultPrefix userNick $ Data.Map.Strict.insert (Prelude.head . T.words . T.drop 5 $ t2i) (T.unwords . Prelude.tail . T.words . T.drop 5 $ t2i) alistMap
-                               | "/unset" == t2i -> recvMsg token manager (Just latestId) chatId socket defaultPrefix userNick Data.Map.Strict.empty
-                               | otherwise -> sendAll socket $ En.encodeUtf8 (T.drop 1 $ t2i <> "\r\n")  -- raw messages like "/TIME" or "/JOIN #channel", just drop "/" and send the rest to irc server
-    
-                            recvMsg token manager (Just latestId) chatId socket defaultPrefix userNick alistMap
+
+                            if filterFirstMsg then
+                                recvMsg token manager (Just latestId) chatId socket defaultPrefix userNick alistMap False
+                            else do
+                                
+                                if | "" == t2i ->  print "read Nothing from Telegram"
+                                   | T.isPrefixOf "/prefix " t2i -> if | (L.length . T.words $ t2i) == 2 -> -- /prefix #channel or /prefix nick
+                                                                         recvMsg token manager (Just latestId) chatId socket (T.drop 8 t2i) userNick alistMap filterFirstMsg
+                                                                       | (L.length . T.words $ t2i) > 2 -> -- /prefix #channel nick or /prefix #channel nick1 nick2
+                                                                         recvMsg token manager (Just latestId) chatId socket ((L.head . L.tail . T.words $ t2i) <> " :" <> (T.unwords . L.drop 2 . T.words $ t2i)) userNick alistMap filterFirstMsg
+                                                                       | otherwise -> recvMsg token manager (Just latestId) chatId socket defaultPrefix userNick alistMap filterFirstMsg -- just /prefix  
+        
+                                   | not (T.isPrefixOf "/" t2i) -> if | T.any (== ' ') t2i ->  
+                                                                        sendAll socket $ sendToChannel (T.unwords $ (findAlias alistMap . Prelude.head . T.words $ t2i) : (tail . T.words $ t2i)) defaultPrefix
+                                                                      | otherwise -> sendAll socket $ sendToChannel t2i defaultPrefix -- append prefix PRIVMSG
+                                   | "/" == t2i -> sendAll socket $ sendToChannel t2i defaultPrefix
+                                   -- /set a #channel nick1 nick2
+                                   | T.isPrefixOf "/set " t2i -> recvMsg token manager (Just latestId) chatId socket defaultPrefix userNick ( Data.Map.Strict.insert (Prelude.head . T.words . T.drop 5 $ t2i) (T.unwords . Prelude.tail . T.words . T.drop 5 $ t2i) alistMap ) filterFirstMsg
+                                   | "/unset" == t2i -> recvMsg token manager (Just latestId) chatId socket defaultPrefix userNick Data.Map.Strict.empty filterFirstMsg
+                                   | otherwise -> sendAll socket $ En.encodeUtf8 (T.drop 1 $ t2i <> "\r\n")  -- raw messages like "/TIME" or "/JOIN #channel", just drop "/" and send the rest to irc server
+        
+                                recvMsg token manager (Just latestId) chatId socket defaultPrefix userNick alistMap filterFirstMsg
                         
         Left e -> do
             putStr "recvMsg error:"
             print e
             {- exitWith $ ExitFailure 22 -- main can be IO () or IO a -}
-            recvMsg token manager Nothing chatId socket userNick userNick Data.Map.Strict.empty
+            recvMsg token manager Nothing chatId socket userNick userNick Data.Map.Strict.empty True
 
 findAlias :: Map Text Text -> Text -> Text
 findAlias alistMap x = if Data.Map.Strict.empty == alistMap then x else if x `notMember` alistMap then x else (alistMap ! x)
@@ -497,7 +501,7 @@ main = do
                 sendAll socket $ En.encodeUtf8 autoJoinChannelCmd
                 
                 -- t2IRC Telegram to IRC
-                t2IRC <- async (recvMsg token manager Nothing chatId socket nick nick Data.Map.Strict.empty)
+                t2IRC <- async (recvMsg token manager Nothing chatId socket nick nick Data.Map.Strict.empty True)
 
                 -- pingMsg send PING per minute
                 msg <- recv socket 102400  -- msg :: ByteString
