@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 import Control.Monad (forever, liftM2)
 import Network.Socket
 import Network.Socket.ByteString (recv, recvFrom, sendAll, sendAllTo)
@@ -44,7 +45,7 @@ main = do
         {- traverse (\x -> print $ qname <$> question x) $ decode msg -}
 
 
-        eitherResult <- runExceptT $ do
+        eitherResult :: Either DNSError [String] <- runExceptT $ do
             {- IO only run Right way -}
             q <- ExceptT ((return . decode) msg :: IO (Either DNSError DNSMessage))
             let qnames = (unpack <$>) . (qname <$>) . question $ q
