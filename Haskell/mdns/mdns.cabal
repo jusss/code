@@ -17,9 +17,10 @@ build-type:          Simple
 extra-source-files:  CHANGELOG.md
 
 executable mdns
-  main-is:             dns-relay-client.hs
+  -- main-is:             dns-relay.hs
+  main-is:             dns-relay-client-blacklist.hs
   -- other-modules:
   -- other-extensions:
-  build-depends:       base >=4.13 && <4.14, network, dns, containers, bytestring
+  build-depends:       base >=4.13 && <4.14, network, dns, containers, bytestring, transformers
   -- hs-source-dirs:
   default-language:    Haskell2010
