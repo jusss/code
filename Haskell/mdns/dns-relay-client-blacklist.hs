@@ -28,14 +28,22 @@ blacklist = [
     ".xn--yets68azjb.cn",
     ".0ghijkl.com",
     ".maimn.com",
+    ".jhzpgw.com.",
+    ".xfkye.com.",
+    "uk.qwkte.com.",
+    "qye.zabaow.com.",
+    "kme.rbbrao.com.",
     ".shdndn2.cn"]
 
 main = do
     searchMap <- newMVar $ fromList [(0,SockAddrInet local_port $ tupleToHostAddress local_ip)]
 
+    -- as server, bind socket with special port then recvFrom socket to get data, client's ip and port, client port are constant in one connection time, reply to that constant port
     sock <- socket AF_INET Datagram 0
     bind sock $ SockAddrInet local_port $ tupleToHostAddress local_ip
 
+    -- as client, connect socket with remote ip and special port then send and recv with socket without port, but the client send port is constant in one connection time
+    -- server recv and send both need port, client recv and send do not need port
     sockDns <- socket AF_INET Datagram 0
     connect sockDns $ SockAddrInet remote_port $ tupleToHostAddress remote_ip
 
