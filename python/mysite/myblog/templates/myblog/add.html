@@ -1,0 +1,31 @@
+{% block title %} Post {% endblock %}
+{% block content %}
+<div class="row text-center vertical-middle-sm">
+    <h1> Post </h1>
+    <form class='form-horizontal' action='/myblog/add' method='post'> {% csrf_token %}
+        <div class='form-group'>
+            <label for='{{form.title.id_for_label}}' class='col-md-5 control-label'>title</label>
+            <div class='col-md-6 text-left'>{{form.title}}</div>
+        </div>
+        <div class='form-group'>
+            <label for='{{form.content.id_for_label}}' class='col-md-5 control-label'>content</label>
+            <div class='col-md-6 text-left'>{{form.content}}</div>
+        </div>
+        <input type="submit" value='Submit'>
+    </form>
+</div>
+{% endblock %}
+
+{% if blog_list %}
+<ur>
+{% for elem in blog_list %}
+<li>
+    <h3> {{elem.title}}</h3>
+    <p> {{ elem.content}}</p>
+</li>
+{% endfor %}
+</ur>
+{% else %}
+<p> no blog yet </p>
+{% endif %}
+        

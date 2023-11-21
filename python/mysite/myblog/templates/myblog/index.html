@@ -1,0 +1,19 @@
+{% if blog_list %}
+<ur>
+{% for elem in blog_list %}
+<li>
+    <h3> {{elem.title}}</h3>
+    <p> {{ elem.content}}</p>
+    <p> {{ elem.created_time}}</p>
+    <p> {{ elem.article_id}}</p>
+    <p> {{ elem.author}}</p>
+    <p> {{ elem.changed_time}}</p>
+</li>
+{% endfor %}
+</ur>
+{% else %}
+<p> no blog yet </p>
+{% endif %}
+<a href="/myblog/add">add</a><br>
+<a href="/myblog/logout">logout</a>
+        
