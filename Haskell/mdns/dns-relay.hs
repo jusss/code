@@ -13,8 +13,9 @@ import Data.ByteString.Char8 (unpack)
 
 local_ip = (0,0,0,0)
 local_port = 53
-remote_ip = (8,8,8,8)
+remote_ip = (192,168,0,1)
 remote_port = 53
+
 blacklist = [
     ".cnzz.com",
     "hm.baidu.com",
@@ -25,6 +26,17 @@ blacklist = [
     ".xn--yets68azjb.cn",
     ".0ghijkl.com",
     ".maimn.com",
+    ".jhzpgw.com.",
+    ".xfkye.com.",
+    "uk.qwkte.com.",
+    "qye.zabaow.com.",
+    "kme.rbbrao.com.",
+    ".qoqaoligei.com",
+    ".lzzyimg.com",
+    ".wujinpp.com",
+    ".1cpkcnm.com",
+    ".lmabc001.com",
+    ".taopianimage1.com",
     ".shdndn2.cn"]
 
 main = do
@@ -54,5 +66,13 @@ main = do
     forever $ do
         msg <- recv sockDns 10240
         {- print $ decode msg -}
-        traverse (\a -> print [(rrname x, rdata x) | x <- answer a]) $ decode msg
-        traverse (\x -> fmap (! x) (readMVar searchMap) >>= sendAllTo sock msg) $ fmap (identifier . header) $ decode msg
+        -- traverse (\a -> print [(rrname x, rdata x) | x <- answer a]) $ decode msg
+        -- traverse (\x -> fmap (! x) (readMVar searchMap) >>= sendAllTo sock msg) $ fmap (identifier . header) $ decode msg
+
+        let _r = decode msg
+        let _r1 = fmap (\a -> [(rrname x, rdata x) | x <- answer a]) $ _r
+        if _r1 /= Right [] then do
+            traverse print _r1
+            traverse (\x -> fmap (! x) (readMVar searchMap) >>= sendAllTo sock msg) $ fmap (identifier . header) $ _r
+        else
+            fmap Right (print "empty list from server")
