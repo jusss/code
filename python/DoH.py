@@ -21,7 +21,7 @@ google = [
         "googleapis.com",
         ]
 
-blacklist = ads + google
+blacklist = ads
 
 
 a=b'\0x00\0x02'
