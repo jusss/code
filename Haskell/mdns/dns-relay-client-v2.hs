@@ -83,12 +83,11 @@ lan_list = [
     ".doubanio."
     ]
 
-
 recvMsg :: String -> (ByteString -> ByteString) -> Socket -> Socket -> MVar (Map Identifier SockAddr) -> MVar (Map Identifier [String]) -> MVar (Map [String] ByteString) -> IO ()
 recvMsg prompt handle recvSock sock searchMap id_qnames qnames_response =
     forever $ do
         msg <- handle <$> recv recvSock 10240
-        runExceptT $ do
+        eitherResult <- runExceptT $ do
             {- IO only run Right way -}
             _r <- ExceptT ((return . decode) msg :: IO (Either DNSError DNSMessage))
             let _r1 = fmap (\x -> (rrname x, rdata x)) $ answer _r
@@ -98,19 +97,20 @@ recvMsg prompt handle recvSock sock searchMap id_qnames qnames_response =
                 liftIO $ traverse (\x -> putStr (prompt <> " server: ") >> print x) _r1
                 liftIO $ (\x -> fmap (! x) (readMVar searchMap) >>= sendAllTo sock msg) $ (identifier . header) $ _r
 
-                -- filter ipv6, cache ipv4 only, and the last response can not be CNAME 5 or only be 1
-                liftIO $ print $ fmap (\a -> rrtype a) $ answer _r
+                -- filter ipv6, cache ipv4 only, and the last response can not be CNAME 5 or only be A 1, Right [AAAA] is Right [TYPE 28], pattern synonym
+                let rrts = fmap rrtype $ answer _r
+                liftIO $ print rrts
 
-                -- Right [AAAA] is Right [28]
-                let rrtn = fmap (\a -> fromTYPE $ rrtype a) $ answer _r
-                liftIO $ print rrtn
-
-                if elem (28 :: Word16) rrtn then
+                if AAAA `elem` rrts then
                     liftIO (print "filter ipv6 ")
-                else if (last rrtn) == (5 :: Word16) then
+                else if (last rrts) == CNAME then
                     liftIO (print "filter CNAME")
                 else
                     liftIO $ (\x -> fmap (! x) (readMVar id_qnames) >>= (\qnames -> (fromList [(qnames, msg)] <>) <$> (takeMVar qnames_response)) >>= putMVar qnames_response) $ (identifier . header) $ _r
+
+        case eitherResult of 
+            Left x -> print eitherResult
+            Right y -> return ()
 
 main = do
     searchMap <- newMVar $ fromList [(0,SockAddrInet local_port $ tupleToHostAddress local_ip)]
