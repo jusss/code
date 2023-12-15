@@ -19,8 +19,13 @@ local_ip = (0,0,0,0)
 local_port = 53
 remote_ip = ()
 remote_port = 0
+-- lan_ip = ()
 lan_ip = (192,168,0,1)
 lan_port = 53
+
+-- enableCache = True
+enableCache = False
+
 blacklist = [
     ".cnzz.com",
     "hm.baidu.com",
@@ -61,6 +66,8 @@ lan_list = [
     "zhihu.com",
     "baidu.com",
     "91mjw.",
+    ".91mjw.",
+    ".bytecdntp.com.",
     "91pic.org",
     ".douban.",
     ".qq.com",
@@ -78,6 +85,13 @@ lan_list = [
     ".bilivideo.",
     ".hdslb.",
     ".cdn20.",
+    ".gov.cn",
+    "dict.cn",
+    ".cn.",
+    ".alicdn.",
+    "commonwealthproficient.com.",
+    "tendacn.com.",
+    "weibo.",
     ".sina.com",
     ".weibo.",
     ".doubanio."
@@ -97,16 +111,20 @@ recvMsg prompt handle recvSock sock searchMap id_qnames qnames_response =
                 liftIO $ traverse (\x -> putStr (prompt <> " server: ") >> print x) _r1
                 liftIO $ (\x -> fmap (! x) (readMVar searchMap) >>= sendAllTo sock msg) $ (identifier . header) $ _r
 
-                -- filter ipv6, cache ipv4 only, and the last response can not be CNAME 5 or only be A 1, Right [AAAA] is Right [TYPE 28], pattern synonym
-                let rrts = fmap rrtype $ answer _r
-                liftIO $ print rrts
-
-                if AAAA `elem` rrts then
-                    liftIO (print "filter ipv6 ")
-                else if (last rrts) == CNAME then
-                    liftIO (print "filter CNAME")
-                else
-                    liftIO $ (\x -> fmap (! x) (readMVar id_qnames) >>= (\qnames -> (fromList [(qnames, msg)] <>) <$> (takeMVar qnames_response)) >>= putMVar qnames_response) $ (identifier . header) $ _r
+                if enableCache then do
+                    -- filter ipv6, cache ipv4 only, and the last response can not be CNAME 5 or only be A 1, Right [AAAA] is Right [TYPE 28], pattern synonym
+                    let rrts = fmap rrtype $ answer _r
+                    liftIO $ print rrts
+    
+                    if AAAA `elem` rrts then
+                        -- liftIO (print "filter ipv6 ")
+                        return ()
+                    else if (last rrts) == CNAME then
+                        -- liftIO (print "filter CNAME")
+                        return ()
+                    else
+                        liftIO $ (\x -> fmap (! x) (readMVar id_qnames) >>= (\qnames -> (fromList [(qnames, msg)] <>) <$> (takeMVar qnames_response)) >>= putMVar qnames_response) $ (identifier . header) $ _r
+                else return ()
 
         case eitherResult of 
             Left x -> print eitherResult
@@ -142,7 +160,7 @@ main = do
             qd <- liftIO $ readMVar qnames_response
             if or [isInfixOf i _y | i <- blacklist, _y <- qnames] then do
                 return $ ("blacked: " <>) <$> qnames
-            else if member qnames qd then do
+            else if (member qnames qd) && enableCache  then do
                 -- change qid
                 let altered_response = (take 2 msg) <> (drop 2 (qd ! qnames))
                 liftIO $ sendAllTo sock altered_response addr
@@ -159,7 +177,7 @@ main = do
             else do
                 liftIO $ (fromList [(qid, addr)] <>) <$> (takeMVar searchMap) >>= putMVar searchMap >>= \x -> sendAll sockDns $ reverse msg
                 liftIO $ (fromList [(qid, qnames)] <>) <$> (takeMVar id_qnames) >>= putMVar id_qnames
-                return qnames
+                return $ ("remote: " <>) <$> qnames
         
         case eitherResult of 
             Left x -> print eitherResult
