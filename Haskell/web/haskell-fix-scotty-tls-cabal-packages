@@ -1,0 +1,37 @@
+root@moon:~/web# cat /root/.cabal/logs/ghc-8.8.4/scotty-tls-0.4.1-502d0fb1dce59a50164728cabeacb0410a860ebfd91ff9449ccb2e3a04622e9a.log 
+Configuring library for scotty-tls-0.4.1..
+Preprocessing library for scotty-tls-0.4.1..
+Building library for scotty-tls-0.4.1..
+[1 of 1] Compiling Web.Scotty.TLS   ( Web/Scotty/TLS.hs, dist/build/Web/Scotty/TLS.o )
+
+Web/Scotty/TLS.hs:17:47: error:
+    Module `Network.Wai.Handler.WarpTLS' does not export `certFile'
+   |
+17 | import           Network.Wai.Handler.WarpTLS (certFile, defaultTlsSettings,
+   |                                               ^^^^^^^^
+
+Web/Scotty/TLS.hs:18:47: error:
+    Module `Network.Wai.Handler.WarpTLS' does not export `keyFile'
+   |
+18 |                                               keyFile, runTLS, TLSSettings(..))
+   |                                               ^^^^^^^
+
+
+scotty-tls depends on warp-tls, and warp-tls v3.4.3 removed certFile and keyFile
+
+cd ~/.cabal/packages/hackage.haskell.org/scotty-tls/0.4.1/
+tar -xzvf scotty-tls-0.4.1.tar.gz
+vim scotty-tls-0.4.1/Web/Scotty/TLS.hs
+
+warp-tls changed how to construct a TLSSettings,
+the old one is `defaultTlsSettings { keyFile = key, certFile = cert }`
+the new one is `tlsSettings cert key`
+
+import           Network.Wai.Handler.WarpTLS (defaultTlsSettings, tlsSettings,runTLS, TLSSettings(..))
+scottyTLS port key cert = runTLS (tlsSettings cert key) ...
+scottyTTLS port key cert runToIO s = scottyAppT runToIO s >>= liftIO . runTLS (tlsSettings cert key) ...
+
+mv scotty-tls-0.4.1.tar.gz scotty-tls-0.4.1.tar.gz.backup
+tar -cvzf scotty-tls-0.4.1.tar.gz scotty-tls-0.4.1
+cd -
+cabal run web
