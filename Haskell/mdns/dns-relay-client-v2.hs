@@ -20,11 +20,11 @@ local_port = 53
 remote_ip = ()
 remote_port = 0
 -- lan_ip = ()
-lan_ip = (192,168,0,1)
+lan_ip = (114,114,114,114)
 lan_port = 53
 
 -- enableCache = True
-enableCache = False
+enableCache = True
 
 blacklist = [
     ".cnzz.com",
@@ -83,6 +83,9 @@ lan_list = [
     ".bilibili.com",
     ".bilicd1.",
     ".bilivideo.",
+    "bdstatic.com",
+    "baidu",
+    "bcebos.com",
     ".hdslb.",
     ".cdn20.",
     ".gov.cn",
@@ -114,7 +117,7 @@ recvMsg prompt handle recvSock sock searchMap id_qnames qnames_response =
                 if enableCache then do
                     -- filter ipv6, cache ipv4 only, and the last response can not be CNAME 5 or only be A 1, Right [AAAA] is Right [TYPE 28], pattern synonym
                     let rrts = fmap rrtype $ answer _r
-                    liftIO $ print rrts
+                    -- liftIO $ print rrts
     
                     if AAAA `elem` rrts then
                         -- liftIO (print "filter ipv6 ")
@@ -123,7 +126,7 @@ recvMsg prompt handle recvSock sock searchMap id_qnames qnames_response =
                         -- liftIO (print "filter CNAME")
                         return ()
                     else
-                        liftIO $ (\x -> fmap (! x) (readMVar id_qnames) >>= (\qnames -> (fromList [(qnames, msg)] <>) <$> (takeMVar qnames_response)) >>= putMVar qnames_response) $ (identifier . header) $ _r
+                        liftIO $ (\x -> fmap (! x) (readMVar id_qnames) >>= (\qnames -> (insert qnames msg) <$> (takeMVar qnames_response)) >>= putMVar qnames_response) $ (identifier . header) $ _r
                 else return ()
 
         case eitherResult of 
@@ -171,12 +174,12 @@ main = do
                 return []
 
             else if or [isInfixOf i _y | i <- lan_list, _y <- qnames] then do
-                liftIO $ (fromList [(qid, addr)] <>) <$> (takeMVar searchMap) >>= putMVar searchMap >>= \x -> sendAll sockDnsLan msg
-                liftIO $ (fromList [(qid, qnames)] <>) <$> (takeMVar id_qnames) >>= putMVar id_qnames
+                liftIO $ (insert qid addr) <$> (takeMVar searchMap) >>= putMVar searchMap >>= \x -> sendAll sockDnsLan msg
+                liftIO $ (insert qid qnames) <$> (takeMVar id_qnames) >>= putMVar id_qnames
                 return $ ("lan: " <>) <$> qnames
             else do
-                liftIO $ (fromList [(qid, addr)] <>) <$> (takeMVar searchMap) >>= putMVar searchMap >>= \x -> sendAll sockDns $ reverse msg
-                liftIO $ (fromList [(qid, qnames)] <>) <$> (takeMVar id_qnames) >>= putMVar id_qnames
+                liftIO $ (insert qid addr) <$> (takeMVar searchMap) >>= putMVar searchMap >>= \x -> sendAll sockDns $ reverse msg
+                liftIO $ (insert qid qnames) <$> (takeMVar id_qnames) >>= putMVar id_qnames
                 return $ ("remote: " <>) <$> qnames
         
         case eitherResult of 
