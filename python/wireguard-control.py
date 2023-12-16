@@ -22,6 +22,10 @@ sendMsg = lambda port: os.system('./sendMsg ' + str(port) + ' \"bot6:A\" 6')
 if __name__ == '__main__':
     previous_port = 0
     counter = 0
+    changePort("/etc/wireguard/wg0.conf", previous_port)
+    stop()
+    time.sleep(6)
+    start()
     while True:
         session = requests.Session()
         d3=session.post("https://x",data = {"username":"","password":""}, verify=False)
