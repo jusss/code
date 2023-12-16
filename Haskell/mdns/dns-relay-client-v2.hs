@@ -19,12 +19,11 @@ local_ip = (0,0,0,0)
 local_port = 53
 remote_ip = ()
 remote_port = 0
--- lan_ip = ()
 lan_ip = (114,114,114,114)
 lan_port = 53
 
--- enableCache = True
 enableCache = True
+-- enableCache = False
 
 blacklist = [
     ".cnzz.com",
@@ -55,10 +54,10 @@ blacklist = [
     "liangbingliang2.cn.",
     ".1bbpaqq.com.",
     "detectportal.firefox.com",
-    "prod.cloudops.mozgcp.net",
-    "push.services.mozilla.com",
-    "prod.mozaws.net",
-    "firefox.settings.services.mozilla.com",
+    -- "prod.cloudops.mozgcp.net",
+    -- "push.services.mozilla.com",
+    -- "prod.mozaws.net",
+    -- "firefox.settings.services.mozilla.com",
     ".shdndn2.cn"]
 
 -- lan_list for lan dns
@@ -164,10 +163,11 @@ main = do
             if or [isInfixOf i _y | i <- blacklist, _y <- qnames] then do
                 return $ ("blacked: " <>) <$> qnames
             else if (member qnames qd) && enableCache  then do
+                let _response = qd ! qnames
                 -- change qid
-                let altered_response = (take 2 msg) <> (drop 2 (qd ! qnames))
+                let altered_response = (take 2 msg) <> (drop 2 _response)
                 liftIO $ sendAllTo sock altered_response addr
-                cacheResponse <- ExceptT ((return . decode) (qd ! qnames) :: IO (Either DNSError DNSMessage))
+                cacheResponse <- ExceptT ((return . decode) _response :: IO (Either DNSError DNSMessage))
                 let _r1 = fmap (\x -> (rrname x, rdata x)) $ answer cacheResponse
                 liftIO $ traverse print (("cache: " <>) <$> qnames)
                 liftIO $ print _r1
