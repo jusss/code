@@ -12,7 +12,7 @@ import Control.Monad.IO.Class (liftIO)
 
 local_ip = (0,0,0,0)
 local_port = 0
-remote_ip = (1,1,1,1)
+remote_ip = (216,146,35,35)
 remote_port = 53
 
 main = do
