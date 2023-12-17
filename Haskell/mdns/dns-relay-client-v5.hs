@@ -16,6 +16,7 @@ import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Except
 import Data.Word
 import Data.Tuple (fst)
+import Data.IP.Internal
 
 -- this can run as a LAN dns relay server for other devices like iPad or Android Phone for filter ad
 
@@ -165,6 +166,16 @@ main = do
             if or [isInfixOf i _y | i <- blacklist, _y <- qnames] then do
                 liftIO $ putStr "blacked: "
                 liftIO $ print qnames
+
+                -- liftIO $ traverse (\x -> putStr "fake response: " >> print x >> sendAllTo sock (encode x) addr) $ fmap (\qu -> makeResponse qid qu $ anw qu) $ question q where
+                    -- anw qu = [ResourceRecord (qname qu) (qtype qu) (1 :: Word16) (21 :: Word32) (RD_A (read "127.0.0.1" :: IPv4))]
+
+                let fake_responses = fmap (\qu -> makeResponse qid qu $ anw qu) $ question q where
+                    anw qu = [ResourceRecord (qname qu) (qtype qu) (1 :: Word16) (21 :: Word32) (RD_A (read "127.0.0.1" :: IPv4))]
+                liftIO $ putStr "fake response: " >> print fake_responses
+                liftIO $ traverse (\fr -> sendAllTo sock fr addr) (encode <$> fake_responses)
+                return ()
+
             else if (member qnames qd) && enableCache  then do
                 let _response = qd ! qnames
                 cacheResponse <- ExceptT ((return . decode) _response :: IO (Either DNSError DNSMessage))
