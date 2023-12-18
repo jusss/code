@@ -25,7 +25,7 @@ main = do
     connect sockDns $ SockAddrInet remote_port $ tupleToHostAddress remote_ip
 
     forkIO $ forever $ do
-        (_msg, addr) <- recvFrom sock 10240
+        (_msg, addr) <- recvFrom sock 65507
         let msg = reverse _msg
         -- print $ decode msg
         -- let qnames = (unpack <$>) . (qname <$>) . question $ decode msg
@@ -33,7 +33,7 @@ main = do
         traverse (\a -> (fmap (<> a) (takeMVar searchMap)) >>= putMVar searchMap >>= \x -> sendAll sockDns msg) $ fmap ((\x -> fromList [(x,addr)]) . identifier . header) $ decode msg
     
     forever $ do
-        msg <- recv sockDns 10240
+        msg <- recv sockDns 65507
         -- print $ decode msg
         let _r = decode msg
         -- traverse (\a -> print [(rrname x, rdata x) | x <- answer a]) $ _r

@@ -61,6 +61,10 @@ blacklist = [
     "liangbingliang2.cn.",
     ".1bbpaqq.com.",
     "detectportal.firefox.com",
+    "ssl.google-analytics.com",
+    "crpo.baidu.com",
+    "erebor.douban.com",
+    "ad.doubanio.com",
     -- "prod.cloudops.mozgcp.net",
     -- "push.services.mozilla.com",
     -- "prod.mozaws.net",
@@ -105,7 +109,7 @@ lan_list = [
 recvMsg :: String -> (ByteString -> ByteString) -> Socket -> Socket -> MVar (Map Identifier SockAddr) -> MVar (Map [String] ByteString) -> IO ()
 recvMsg prompt handle recvSock sock id_addr qnames_response =
     forever $ do
-        msg <- handle <$> recv recvSock 10240
+        msg <- handle <$> recv recvSock 65507
         eitherResult <- runExceptT $ do
             {- IO only run Right way -}
             _r <- ExceptT ((return . decode) msg :: IO (Either DNSError DNSMessage))
@@ -153,7 +157,7 @@ main = do
     connect sockDnsLan $ SockAddrInet lan_port $ tupleToHostAddress lan_ip
 
     forkIO $ forever $ do
-        (msg, addr) <- recvFrom sock 10240
+        (msg, addr) <- recvFrom sock 65507
         {- print $ decode msg -}
         {- traverse (\x -> print $ qname <$> question x) $ decode msg -}
 
