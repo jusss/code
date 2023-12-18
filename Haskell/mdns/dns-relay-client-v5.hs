@@ -65,6 +65,9 @@ blacklist = [
     "crpo.baidu.com",
     "erebor.douban.com",
     "ad.doubanio.com",
+    ".in-addr.arpa.",
+    "tendawifi.com",
+    ".zhimg.com.",
     -- "prod.cloudops.mozgcp.net",
     -- "push.services.mozilla.com",
     -- "prod.mozaws.net",
@@ -113,9 +116,11 @@ recvMsg prompt handle recvSock sock id_addr qnames_response =
         eitherResult <- runExceptT $ do
             {- IO only run Right way -}
             _r <- ExceptT ((return . decode) msg :: IO (Either DNSError DNSMessage))
-            let _r1 = fmap (\x -> (unpack $ rrname x, rdata x)) $ answer _r
-            if null _r1 then
-                liftIO (print $ "empty list from server of " <> prompt)
+            -- SOA type has no anwser but authority, RCode NXDomain
+            let _r1 = if null (answer _r) then f authority else f answer where f y = fmap (\x -> (unpack $ rrname x, rdata x)) $ y _r
+            if null _r1 then do
+                liftIO (putStr $ "no anwser or authority from server of " <> prompt)
+                liftIO $ print _r
             else do
                 liftIO $ putStr (prompt <> " server: ")
                 liftIO $ print _r1
@@ -123,7 +128,7 @@ recvMsg prompt handle recvSock sock id_addr qnames_response =
 
                 if enableCache then do
                     -- filter ipv6, cache ipv4 only, and the last response can not be CNAME 5 or only be A 1, Right [AAAA] is Right [TYPE 28], pattern synonym
-                    let rrts = fmap rrtype $ answer _r
+                    let rrts = if null (answer _r) then f authority else f answer where f y = fmap rrtype $ y _r
                     -- liftIO $ print rrts
     
                     if AAAA `elem` rrts then
@@ -175,7 +180,7 @@ main = do
                     -- anw qu = [ResourceRecord (qname qu) (qtype qu) (1 :: Word16) (21 :: Word32) (RD_A (read "127.0.0.1" :: IPv4))]
 
                 let fake_responses = fmap (\qu -> makeResponse qid qu $ anw qu) $ question q where
-                    anw qu = [ResourceRecord (qname qu) (qtype qu) (1 :: Word16) (21 :: Word32) (RD_A (read "127.0.0.1" :: IPv4))]
+                    anw qu = [ResourceRecord (qname qu) (qtype qu) (1 :: Word16) (86400 :: Word32) (RD_A (read "127.0.0.1" :: IPv4))]
                 liftIO $ putStr "fake response: " >> print fake_responses
                 liftIO $ traverse (\fr -> sendAllTo sock fr addr) (encode <$> fake_responses)
                 return ()
@@ -183,10 +188,12 @@ main = do
             else if (member qnames qd) && enableCache  then do
                 let _response = qd ! qnames
                 cacheResponse <- ExceptT ((return . decode) _response :: IO (Either DNSError DNSMessage))
-                let _r1 = fmap (\x -> (rrname x, rdata x)) $ answer cacheResponse
+                -- let _r1 = fmap (\x -> (rrname x, rdata x)) $ answer cacheResponse
+                let _r1 = if null (answer cacheResponse) then f authority else f answer where f y = fmap (\x -> (unpack $ rrname x, rdata x)) $ y cacheResponse
                 if null _r1 then do
-                    liftIO (putStr $ "cache response parse failed of ")
+                    liftIO (putStr $ "cache no answer or authority: ")
                     liftIO $ print qnames
+                    liftIO $ print cacheResponse
 
                     if or [isInfixOf i _y | i <- lan_list, _y <- qnames] then do
                         liftIO $ (insert qid addr) <$> (takeMVar id_addr) >>= putMVar id_addr >>= \x -> sendAll sockDnsLan msg
