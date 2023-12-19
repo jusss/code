@@ -65,14 +65,15 @@ blacklist = [
     "crpo.baidu.com",
     "erebor.douban.com",
     "ad.doubanio.com",
-    ".in-addr.arpa.",
-    "tendawifi.com",
-    ".zhimg.com.",
+    -- ".in-addr.arpa.",
+    -- "tendawifi.com",
+    -- ".zhimg.com.",
     -- "prod.cloudops.mozgcp.net",
     -- "push.services.mozilla.com",
     -- "prod.mozaws.net",
     -- "firefox.settings.services.mozilla.com",
-    ".shdndn2.cn"]
+    ".shdndn2.cn",
+    "127.0.0.1."]
 
 -- lan_list for lan dns
 lan_list = [
@@ -99,6 +100,8 @@ lan_list = [
     "commonwealthproficient.com.",
     "tendacn.com.",
     ".sina.com",
+    "cdnlz9.com",
+    "iqiyi",
     "zhihu",
     "baidu",
     "51job",
@@ -116,7 +119,7 @@ recvMsg prompt handle recvSock sock id_addr qnames_response =
         eitherResult <- runExceptT $ do
             {- IO only run Right way -}
             _r <- ExceptT ((return . decode) msg :: IO (Either DNSError DNSMessage))
-            -- SOA type has no anwser but authority, RCode NXDomain
+            -- SOA type has no anwser but authority, RCode NXDomain, NXDomain mean domain do not exist, no anwser only authority
             let _r1 = if null (answer _r) then f authority else f answer where f y = fmap (\x -> (unpack $ rrname x, rdata x)) $ y _r
             if null _r1 then do
                 liftIO (putStr $ "no anwser or authority from server of " <> prompt)
@@ -136,6 +139,9 @@ recvMsg prompt handle recvSock sock id_addr qnames_response =
                         return ()
                     else if (last rrts) == CNAME then
                         -- liftIO (print "filter CNAME")
+                        return ()
+                    else if SOA `elem` rrts then
+                        -- liftIO (print "filter SOA")
                         return ()
                     else
                         liftIO $ (insert [(fst $ head _r1)] msg) <$> (takeMVar qnames_response) >>= putMVar qnames_response
