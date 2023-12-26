@@ -1,5 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
-import Control.Monad (forever, liftM2)
+import Control.Monad (forever, liftM2, when)
 import Network.Socket
 import Network.Socket.ByteString (recv, recvFrom, sendAll, sendAllTo)
 import Network.DNS.Decode (decode)
@@ -17,6 +17,7 @@ import Control.Monad.Trans.Except
 import Data.Word
 import Data.Tuple (fst)
 import Data.IP.Internal
+import Control.Concurrent.Thread.Delay (delay)
 
 -- this can run as a LAN dns relay server for other devices like iPad or Android Phone for filter ad
 
@@ -29,6 +30,10 @@ lan_port = 53
 
 enableCache = True
 -- enableCache = False
+
+-- one day have 86,400,000,000 microseconds
+-- cacheTimeout = 86400000000
+cacheTimeout = 1000000*60*30
 
 blacklist = [
     ".cnzz.com",
@@ -139,36 +144,21 @@ recvMsg prompt handle recvSock sock id_addr qnames_response =
             -- SOA type has no anwser but authority, RCode NXDomain, NXDomain mean domain do not exist, no anwser only authority
             let _r1 = if null (answer _r) then f authority else f answer where f y = fmap (\x -> (unpack $ rrname x, rdata x)) $ y _r
             if null _r1 then do
-                liftIO (putStr $ "no anwser or authority from server of " <> prompt)
-                liftIO $ print _r
+                liftIO $ (putStr $ "no anwser or authority from server of " <> prompt) >> print _r
             else do
-                liftIO $ putStr (prompt <> " server: ")
-                liftIO $ print _r1
-                liftIO $ (\x -> fmap (! x) (readMVar id_addr) >>= sendAllTo sock msg) $ (identifier . header) $ _r
+                liftIO $ putStr (prompt <> " server: ") >> print _r1
+                -- liftIO $ (\x -> fmap (! x) (readMVar id_addr) >>= sendAllTo sock msg) $ (identifier . header) $ _r
+                let _id = (identifier . header) $ _r
+                _id_addr <- liftIO $ readMVar id_addr
+                when (member _id _id_addr) $ liftIO $ sendAllTo sock msg (_id_addr ! _id)
 
-                if enableCache then do
-                    -- filter ipv6, cache ipv4 only, and the last response can not be CNAME 5 or only be A 1, Right [AAAA] is Right [TYPE 28], pattern synonym
+                when enableCache (do
+                    -- filter ipv6, cache ipv4 only, the last response can not be CNAME 5 or only be A 1, Right [AAAA] is Right [TYPE 28], pattern synonym
                     let rrts = if null (answer _r) then f authority else f answer where f y = fmap rrtype $ y _r
                     -- liftIO $ print rrts
-    
-                    -- if AAAA `elem` rrts then
-                        -- -- liftIO (print "filter ipv6 ")
-                        -- return ()
-                    -- else if (last rrts) == CNAME then
-                        -- -- liftIO (print "filter CNAME")
-                        -- return ()
-                    -- else if SOA `elem` rrts then
-                        -- -- liftIO (print "filter SOA")
-                        -- return ()
-                    -- else
-                        -- liftIO $ (insert [(fst $ head _r1)] msg) <$> (takeMVar qnames_response) >>= putMVar qnames_response
 
                     -- only cache A type
-                    if (last rrts) == A then
-                        liftIO $ (insert [(fst $ head _r1)] msg) <$> (takeMVar qnames_response) >>= putMVar qnames_response
-                    else return ()
-
-                else return ()
+                    when ((last rrts) == A) $ liftIO $ (insert [(fst $ head _r1)] msg) <$> (takeMVar qnames_response) >>= putMVar qnames_response)
 
         case eitherResult of 
             Left x -> print eitherResult
@@ -220,45 +210,43 @@ main = do
                 -- let _r1 = fmap (\x -> (rrname x, rdata x)) $ answer cacheResponse
                 let _r1 = if null (answer cacheResponse) then f authority else f answer where f y = fmap (\x -> (unpack $ rrname x, rdata x)) $ y cacheResponse
                 if null _r1 then do
-                    liftIO (putStr $ "cache no answer or authority: ")
-                    liftIO $ print qnames
-                    liftIO $ print cacheResponse
+                    liftIO $ (putStr $ "cache no answer or authority: ") >> print qnames >> print cacheResponse
 
                     if or [isInfixOf i _y | i <- lan_list, _y <- qnames] then do
                         liftIO $ (insert qid addr) <$> (takeMVar id_addr) >>= putMVar id_addr >>= \x -> sendAll sockDnsLan msg
-                        liftIO $ putStr "lan: "
-                        liftIO $ print qnames
+                        liftIO $ putStr "lan: " >> print qnames
                     else do
                         liftIO $ (insert qid addr) <$> (takeMVar id_addr) >>= putMVar id_addr >>= \x -> sendAll sockDns $ reverse msg
-                        liftIO $ putStr "remote: "
-                        liftIO $ print qnames
+                        liftIO $ putStr "remote: " >> print qnames
 
                 else do
                     -- change qid
-                    -- let altered_response = (take 2 msg) <> (drop 2 _response)
-
                     let altered_response = encode $ alterIdentifier q cacheResponse where
                         alterIdentifier m r = r { header = (header r) {identifier = identifier $ header m} }
 
                     liftIO $ sendAllTo sock altered_response addr
-                    liftIO $ putStr "cache: "
-                    liftIO $ print qnames
-                    liftIO $ putStr "cache server: "
-                    liftIO $ print _r1
+                    liftIO $ putStr "cache: " >> print qnames >> putStr "cache server: " >> print _r1
 
             else if or [isInfixOf i _y | i <- lan_list, _y <- qnames] then do
                 liftIO $ (insert qid addr) <$> (takeMVar id_addr) >>= putMVar id_addr >>= \x -> sendAll sockDnsLan msg
-                liftIO $ putStr "lan: "
-                liftIO $ print qnames
+                liftIO $ putStr "lan: " >> print qnames
             else do
                 liftIO $ (insert qid addr) <$> (takeMVar id_addr) >>= putMVar id_addr >>= \x -> sendAll sockDns $ reverse msg
-                liftIO $ putStr "remote: "
-                liftIO $ print qnames
+                liftIO $ putStr "remote: " >> print qnames
         
         case eitherResult of 
             Left x -> print eitherResult
-            Right y -> do
-                return ()
+            Right y -> return ()
+
+    when (enableCache && cacheTimeout > 600000000) $ (do
+        forkIO $ forever $ do
+            delay cacheTimeout
+            print "clean cache"
+            takeMVar id_addr
+            putMVar id_addr $ fromList [(0,SockAddrInet local_port $ tupleToHostAddress local_ip)]
+            takeMVar qnames_response
+            putMVar qnames_response $ fromList [([""], empty)]
+        return ())
 
     forkIO $ recvMsg "remote" reverse sockDns sock id_addr qnames_response
     recvMsg "lan" id sockDnsLan sock id_addr qnames_response
