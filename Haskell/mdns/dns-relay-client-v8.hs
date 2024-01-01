@@ -25,13 +25,13 @@ import Control.Concurrent.Thread.Delay (delay)
 import System.Environment (getArgs)
 import qualified Data.ByteString.Lazy as DBL
 import Data.IP
-import Data.Either (fromRight)
+import Data.Either (either)
 import MDNS.Config.Parse (getConfig, Config(..))
 
 recvFromRemote :: String -> (ByteString -> ByteString) -> Socket -> Socket -> MVar (Map Identifier SockAddr) -> MVar (Map (TYPE, ByteString) ByteString) -> Bool -> IO ()
 recvFromRemote prompt handle recvSock sock id_addr qnames_response enableCache = do
         msg <- handle <$> recv recvSock 65507
-        eitherResult <- runExceptT $ do
+        either (error . show) id <$> runExceptT do
             {- IO only run Right way -}
             _r <- ExceptT ((return . decode) msg :: IO (Either DNSError DNSMessage))
             -- SOA type has no anwser but authority, RCode NXDomain, NXDomain mean domain do not exist, no anwser only authority
@@ -49,17 +49,13 @@ recvFromRemote prompt handle recvSock sock id_addr qnames_response enableCache =
                     liftIO $ traverse (\x -> insert (fst x) msg <$> (takeMVar qnames_response) >>= putMVar qnames_response) _r1
                     return ()
 
-        case eitherResult of 
-            Left x -> print eitherResult
-            Right y -> return ()
-
 recvFromLocal :: Socket -> Socket -> Socket -> [(TYPE, ByteString)] -> Bool -> [(TYPE, ByteString)] -> MVar (Map Identifier SockAddr) -> MVar (Map (TYPE, ByteString) ByteString) -> IO ()
 recvFromLocal sock sockDnsLan sockDns blacklist enableCache lan_list id_addr qnames_response = do
     (msg, addr) <- recvFrom sock 65507
     {- print $ decode msg -}
     {- traverse (\x -> print $ qname <$> question x) $ decode msg -}
 
-    eitherResult :: Either DNSError () <- runExceptT $ do
+    either (error . show) id <$> runExceptT do
         {- IO only run Right way -}
         q <- ExceptT ((return . decode) msg :: IO (Either DNSError DNSMessage))
         let qnames :: [(TYPE, ByteString)] = (\x -> (qtype x, qname x)) <$> question q
@@ -110,10 +106,6 @@ recvFromLocal sock sockDnsLan sockDns blacklist enableCache lan_list id_addr qna
         else do
             liftIO $ (insert qid addr) <$> (takeMVar id_addr) >>= putMVar id_addr >> (sendAll sockDns $ reverse msg)
             liftIO $ putStr "remote: " >> print qnames
-    
-    case eitherResult of 
-        Left x -> print eitherResult
-        Right y -> return ()
 
 -- avoid lots of liftIO,
 -- 1. mtl instead of transformers
@@ -126,9 +118,9 @@ main = do
         putStrLn "it needs a config file"
     else do
         context <- DBL.readFile $ head fileName
-        v :: Either String () <- runExceptT $ do
+        either error id <$> runExceptT do
         -- runExceptT $ do
-            config <- ExceptT $ ((return . getConfig) context :: IO (Either String Config))
+            Config{..} <- ExceptT $ ((return . getConfig) context :: IO (Either String Config))
 
             -- liftIO $ f config where
                 -- f Config{..} = do
@@ -136,7 +128,6 @@ main = do
                     -- the 'where' section terminates the declaration of 'main', 'where' can only attach to declarations, not expressions
             
             liftIO $ do 
-                let Config{..} = config
         
                 id_addr <- newMVar $ fromList [(0,toSockAddr (local_ip, local_port))]
                 qnames_response <- newMVar $ fromList [((A, ""), empty)]
@@ -167,8 +158,3 @@ main = do
                 
                 forkIO $ forever $ recvFromRemote "remote" reverse sockDns sock id_addr qnames_response enableCache
                 forever $ recvFromRemote "lan" id sockDnsLan sock id_addr qnames_response enableCache
-
-        -- return ()
-        case v of 
-            Left x -> print v
-            Right y -> return ()
