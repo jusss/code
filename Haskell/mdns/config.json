@@ -50,7 +50,17 @@
       "crpo.baidu.com",
       "erebor.douban.com",
       "ad.doubanio.com",
-      ".shdndn2.cn"
+      ".shdndn2.cn",
+      "dmd.metaservices.microsoft.com.",
+      "prod.do.dsp.mp.microsoft.com.",
+      "windowsupdate.com.",
+      "events.data.microsoft.com.",
+      ".dl.delivery.mp.microsoft.com.",
+      ".nullupdate.microsoft.com.",
+      ".delivery.mp.microsoft.com.",
+      "edgeassetservice.azureedge.net.",
+      ".edgekey.net",
+      "msedge.net"
     ],
     "AAAA": [
       ".cnzz.com",
@@ -94,7 +104,17 @@
       "crpo.baidu.com",
       "erebor.douban.com",
       "ad.doubanio.com",
-      ".shdndn2.cn"
+      ".shdndn2.cn",
+      "dmd.metaservices.microsoft.com.",
+      "prod.do.dsp.mp.microsoft.com.",
+      "windowsupdate.com.",
+      "events.data.microsoft.com.",
+      ".dl.delivery.mp.microsoft.com.",
+      ".nullupdate.microsoft.com.",
+      ".delivery.mp.microsoft.com.",
+      "edgeassetservice.azureedge.net.",
+      ".edgekey.net",
+      "msedge.net"
     ]
   },
   "lan_list": {
