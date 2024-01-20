@@ -6,7 +6,7 @@
   "lan_ip": "114.114.114.114",
   "lan_port": 53,
   "enable_cache": true,
-  "cache_timeout": 1800000000,
+  "cache_timeout": 3600000000,
   "black_list": {
     "A": [
       ".cnzz.com",
@@ -162,6 +162,10 @@
       "91pic",
       "weibo",
       "youdao",
+      "alipaydns",
+      "alipay.com",
+      "qidian",
+      "yuewen",
       "douban"
     ],
     "AAAA": [
