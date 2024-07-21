@@ -40,8 +40,13 @@ import qualified Data.ByteString as D
 import qualified Data.ByteString.Lazy as DB
 import qualified Data.ByteString.Lazy.UTF8 as DBLU
 import qualified Data.ByteString.Char8 as BSC
+import qualified Data.ByteString.Lazy.Char8 as DBL
 import Network.Wai.Middleware.Gzip (gzip, def, gzipFiles, GzipFiles(GzipCompress))
 import Network.HTTP.Base (urlEncode)
+import qualified Network.Wreq as NW
+import Control.Lens (view, (^.))
+import Text.HTML.TagSoup
+import Text.HTML.TagSoup.Match
 
 {- no more html file, just html strings for directory -}
 {- there're urlPath like /a/b and filePath like rootPath <> urlPath -}
@@ -83,6 +88,20 @@ titleWithFilePondHtml pathName = "<html lang=\"en-US\">\n <head>\n <meta charset
 
 homeHtml = "<a href=\"/\">home</a><br><br>"
 
+getTitleFromLink :: String -> IO String
+getTitleFromLink url = do
+    result  <- try (NW.get url) :: IO (Either SomeException (NW.Response DB.ByteString))
+    case result of
+        Left ex -> do
+            return ""
+        Right r -> do
+            let doc = parseTags $ DBL.unpack $ r ^. NW.responseBody
+            let (a,b) = DL.break (\x -> x == TagOpen "title" []) doc
+            if DL.null b then
+                return "No Title"
+            else
+                return $ fromTagText $ head $ drop 1 $ take 2 b
+
 generateVideoHtml :: String -> ActionM ()
 generateVideoHtml pathName = do
         addHeader "Content-Type" "text/html; charset=utf-8"
@@ -112,7 +131,12 @@ generatePasteHtml pathName = do
         let h3 = "<textarea id=\"formData\" rows=\"6\" cols=\"36\" name=\"" <> pathName <> "\"></textarea> <br> <input onclick=\"clearForm()\" type=\"submit\" value=\"Submit\"> </form> <br>"
         let h4 = "<script> function clearForm() { var fm = document.getElementById('myForm')[0]; fm.submit(); fm.reset(); document.getElementById('formData').value = '';}; if (window.history.replaceState) {windows.history.replaceState(null, null, window.location.href)} </script>"
         binaryData <- liftIO $ D.readFile $ rootPath <> pathName <> "/paste.txt"
-        let h5 = concat $ fmap (<> "<br>") $ lines $ DT.unpack $ DTE.decodeUtf8With lenientDecode binaryData
+
+
+        let h5 = concat $ fmap (\x -> if DL.isPrefixOf "http" x then "<a href=\"" <> x <> "\" target=\"_blank\" rel=\"noopener noreferrer\">" <> x <> "</a><br>" else x <> "<br>") $ lines $ DT.unpack $ DTE.decodeUtf8With lenientDecode binaryData
+
+
+
         let h6 = "</body>\n </html>\n" 
         html $ DTL.pack $ h0 <> h1 <> h2 <> h3 <> h4 <> h5 <> h6
 
@@ -323,8 +347,15 @@ headerContentTypeForiOS = DMI.fromList [("jpg", "image/jpeg"), ("jpeg", "image/j
                         ("pdf", "application/pdf"),
                         ("txt", "text/plain; charset=utf-8")]
 
+-- headerContentType = DMI.fromList [("jpg", "image/jpeg"), ("jpeg", "image/jpeg"), ("png", "image/png"),
+                        -- ("mp4", "video/mp4"), ("m4a", "video/mp4"), ("mkv", "video/x-matroska"),
+                        -- ("webm", "video/webm"), ("mov", "video/quicktime"), ("avi", "video/x-msvideo"),
+                        -- ("aac", "audio/aac"), ("ogg", "audio/ogg"), ("wav", "audio/wav"),
+                        -- ("pdf", "application/pdf"),
+                        -- ("txt", "text/plain; charset=utf-8")]
+
 headerContentType = DMI.fromList [("jpg", "image/jpeg"), ("jpeg", "image/jpeg"), ("png", "image/png"),
-                        ("mp4", "video/mp4"), ("m4a", "video/mp4"), ("mkv", "video/x-matroska"),
+                        -- ("mp4", "video/mp4"), ("m4a", "video/mp4"), ("mkv", "video/x-matroska"),
                         ("webm", "video/webm"), ("mov", "video/quicktime"), ("avi", "video/x-msvideo"),
                         ("aac", "audio/aac"), ("ogg", "audio/ogg"), ("wav", "audio/wav"),
                         ("pdf", "application/pdf"),
@@ -521,6 +552,7 @@ main = do
             _d <- liftIO $ getCurrentTime
             let _t = addUTCTime (60*60*8 :: NominalDiffTime) _d
             let _date = fmap (\x -> if x == ' ' then '.' else x) $ DL.take 19 $ show _t
+            liftIO $ appendFile "user.login" (_date <> " " <> user <> " " <> pass <> "\r\n")
             if user == "user" && pass == "pass"
                 then do 
                     id <- addSession sessionConfig
@@ -534,7 +566,15 @@ main = do
             let strData = BSC.unpack binaryData
             liftIO $ print $ "post /paste with " <> strData
             if BSC.null binaryData then liftIO $ print "empty submit"
-            else liftIO $ insertFileWithByteString (rootPath <> "/paste/paste.txt") $ binaryData <> (BSC.pack "\r\n\r\n")
+            else do
+                let strDataList = lines strData
+                traverse (\_strData -> 
+                    if DL.isPrefixOf "http" _strData then do
+                        titleName <- liftIO $ getTitleFromLink _strData
+                        liftIO $ insertFileWithByteString (rootPath <> "/paste/paste.txt") $ BSC.pack $ titleName <> "\r\n" <> _strData <> "\r\n\r\n"
+                    else liftIO $ insertFileWithByteString (rootPath <> "/paste/paste.txt") $ BSC.pack $ _strData <> "\r\n"
+                    ) (reverse strDataList)
+                return ()
             generatePasteHtml "/paste"
 
         post "/video" $ checkLogin "/video" $ do
