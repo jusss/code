@@ -425,7 +425,7 @@ getTextFile urlPath = do
 
         {- reading html text file with Hasekll and put it into textarea with js is a wrong way, lots of escape characters, the right way is using js to fetch the content of that text file as plain text and put it into textarea -}
 
-        if DL.isSuffixOf ".http" fileName then do
+        if DL.isSuffixOf ".url" fileName then do
             binaryData <- liftIO $ D.readFile $ rootPath <> urlPath
             let d = concat $ fmap (\x -> if DL.isPrefixOf "http" x then "<a href=\\\"" <> x <> "\\\" target=\\\"_blank\\\" rel=\\\"noopener noreferrer\\\">" <> x <> "</a><br>" else x <> "<br>") $ lines $ DT.unpack $ DTE.decodeUtf8With lenientDecode binaryData
             liftIO $ print d
@@ -635,8 +635,8 @@ main = do
 
                         "edit" -> getEditTextFile urlPath
                         "append" -> do
-                            if DL.isSuffixOf ".http" urlPath then do
-                                liftIO $ print "end with .http" 
+                            if DL.isSuffixOf ".url" urlPath then do
+                                liftIO $ print "end with .url" 
                                 liftIO $ print urlPath
                                 let strData = BSC.unpack binaryData
                                 let strDataList = lines strData
@@ -647,7 +647,7 @@ main = do
                                 return ()
                                 
                             else do
-                                liftIO $ print "end not with .http" 
+                                liftIO $ print "end not with .url" 
                                 liftIO $ print urlPath
                                 
                                 liftIO $ insertFileWithByteString (rootPath <> urlPath) $ binaryData <> (BSC.pack "\r\n")
