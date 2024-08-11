@@ -1,0 +1,19 @@
+user
+usn
+pass
+password
+passcode
+fuck
+jira
+lark
+feishu
+apikey
+key=
+key =
+token
+ ip=
+ ip =
+addr
+gmail
+.com
+http
