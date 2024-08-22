@@ -34,10 +34,10 @@ executable local
   -- hs-source-dirs:
   default-language:    Haskell2010
 
-executable v8
+executable v9
   -- main-is:             dns-relay.hs
   -- main-is:             dns-relay-client-blacklist.hs
-  main-is:             dns-relay-client-v8.hs
+  main-is:             dns-relay-client-v9.hs
   other-modules:       MDNS.Config.Parse
   -- other-extensions:
   build-depends:       base >=4.13 && <4.14, network, dns, containers, bytestring, transformers, iproute, unbounded-delays, aeson, utf8-string
