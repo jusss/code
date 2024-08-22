@@ -17,6 +17,7 @@ log_path = f"{os.getenv('HOME')}/chat_history"
 log_prefix = "chat_history"
 prompt = ""
 history_limit = 12
+stream = True
 
 #1 creat log file for chat context, done
 #2 loop input, only write when exit, done
@@ -28,7 +29,7 @@ def create_log_file(log_path, log_prefix):
     if not os.path.exists(log_path):
         print(f"{log_path} does not exist, it will be created")
         os.makedirs(log_path)
-
+       
     postfix = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
     log_file = f"{log_path}{log_prefix}_{postfix}.json"
     with open(log_file, 'a'):
@@ -40,7 +41,7 @@ def get_log_file(log_path, log_prefix):
     if not os.path.exists(log_path):
         print(f"{log_path} does not exist, it will be created")
         os.makedirs(log_path)
-
+       
         postfix = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
         log_file = f"{log_path}{log_prefix}_{postfix}.json"
         with open(log_file, 'a'):
@@ -55,7 +56,7 @@ def get_log_file(log_path, log_prefix):
         file_path = os.path.join(log_path, file)
         if os.path.isfile(file_path):
             modified_time = os.path.getmtime(file_path)
-
+            
             if modified_time > latest_modified_time:
                 latest_modified_time = modified_time
                 latest_modified_file = file
@@ -64,7 +65,7 @@ def get_log_file(log_path, log_prefix):
         raise Exception("no invalid history file")
 
     return os.path.join(log_path, latest_modified_file)
-
+ 
 # history :: [[Map str str]], write_content :: [[Map str str]]
 def chat(client, model, prompt, query, history, write_content):
     message = []
@@ -76,12 +77,32 @@ def chat(client, model, prompt, query, history, write_content):
     if len(history) > history_limit:
         history = history[-history_limit:]
 
+    print(f"{MODEL}: ", end='', flush=True)
+
     completion = client.chat.completions.create(
         model = model,
         messages = reduce(add, history + [message]),
         temperature = 0.3,
+        stream = stream
     )
-    result = completion.choices[0].message.content
+
+    if not stream:
+        result = completion.choices[0].message.content
+        print(result)
+    else:
+        collected_messages = []
+        for idx, chunk in enumerate(completion):
+            # print("Chunk received, value: ", chunk)
+            chunk_message = chunk.choices[0].delta
+            if not chunk_message.content:
+                continue
+            # print(f"chunk message is {chunk_message}")
+            print(chunk_message.content, end='')
+            collected_messages.append(chunk_message)  # save the message
+            # print(f"#{idx}: {''.join([m.content for m in collected_messages])}")
+        # print(f"Full conversation received: {''.join([m.content for m in collected_messages])}")
+        result = ''.join([m.content for m in collected_messages])
+        print('')
 
     message.append({"role": "assistant", "content": result})
     history.append(message)
@@ -125,7 +146,7 @@ def get_multiple_line_input(input_msg):
             break
     query = "".join(lines)
     return query
-
+ 
 def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None):
     client = OpenAI(api_key = api_key, base_url = base_url)
     query = ''
@@ -146,7 +167,7 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
             input_msg = "input: "
 
             # # for multiple line input
-            # print("Enter your input (Ctrl+D to end):")
+            # print("Enter your input (Ctrl+D to end):") 
             # query = sys.stdin.read()
 
             try:
@@ -167,13 +188,11 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
             if query == 'c':
                 prompt = get_multiple_line_input("new prompt, Ctrl-d to set: \n")
                 query = get_multiple_line_input("Ctrl-d to send: \n")
-
-            print(f"{MODEL}: ", end='')
+            
             result, history, write_content = chat(client, model, prompt, query, history, write_content)
-            print(result)
 
         result = "".join(json.dumps(content) + "\n" for content in write_content)
-
+    
         print(f"Write chat history into {log_file}")
         f.seek(0, os.SEEK_END)
         f.write(result)
@@ -189,7 +208,8 @@ if __name__ == "__main__":
             last_input = run(OPENAI_API_KEY, OPENAI_BASE_URL, MODEL, log_path, log_prefix, prompt, log_file)
 
         print("Exit Successfully")
-
+            
     except Exception as e:
         print(e)
         logging.error(str(e))
+
