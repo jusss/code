@@ -158,6 +158,16 @@ def get_multiple_line_input(input_msg):
             break
     query = "".join(lines)
     return query
+
+def get_prompt_from_history(history):
+        # prompt_xss :: [[Map str str]]
+        prompt_xss = list(map(lambda xs: list(filter(lambda x: x.get("role") == "system", xs)), history))
+
+        for xs in prompt_xss[::-1]:
+            for x in xs[::-1]:
+                return x.get("content")
+
+        return ""
  
 def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None):
     client = OpenAI(api_key = api_key, base_url = base_url)
@@ -168,60 +178,61 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
 
     print(f"log_file is {log_file}")
 
-    with open(log_file, "r+", encoding="utf-8") as f:
-        # history :: [[Map str str]]
+
+    # history :: [[Map str str]]
+    history = []
+    # write_content :: [[Map str str]],  []::[A], A can be [Int], so []::[[Int]]
+    write_content = []
+
+    with open(log_file, "r", encoding="utf-8") as f:
         history = [json.loads(line) for line in f]
-        # write_content :: [[Map str str]],  []::[A], A can be [Int], so []::[[Int]]
-        write_content = []
 
-        # if prompt is empty, try get it from history file
-        if not prompt:
-            # prompt_xss :: [[Map str str]]
-            prompt_xss = list(map(lambda xs: list(filter(lambda x: x.get("role") == "system", xs)), history))
+    # if prompt is empty, try get it from history file
+    if not prompt:
+        prompt = get_prompt_from_history(history)
 
-            for xs in prompt_xss:
-                for x in xs:
-                    prompt = x.get("content")
+    while True:
+        colored_text = get_colored_text(
+                "\n# Ctrl+D TO EXIT, ENTER TO SEND, N FOR NEW CONVERSATION, " +
+                "C FOR NEW PROMPT, M FOR MULTIPLE LINE\n" + 
+                (prompt if not prompt else f"prompt: {prompt}"), "green")
+        print(colored_text)
 
-        while True:
-            colored_text = get_colored_text(
-                    "\n# Ctrl+D TO EXIT, ENTER TO SEND, N FOR NEW CONVERSATION, " +
-                    "C FOR NEW PROMPT, M FOR MULTIPLE LINE\n" + 
-                    (prompt if not prompt else f"prompt: {prompt}"), "green")
-            print(colored_text)
+        input_msg = "input: "
 
-            input_msg = "input: "
+        # # for multiple line input
+        # print("Enter your input (Ctrl+D to end):") 
+        # query = sys.stdin.read()
 
-            # # for multiple line input
-            # print("Enter your input (Ctrl+D to end):") 
-            # query = sys.stdin.read()
+        try:
+            query = input(input_msg)
+        except EOFError:
+            print(" ")
+            break
 
-            try:
-                query = input(input_msg)
-            except EOFError:
-                break
+        if not query:
+            # break
+            continue
 
-            if not query:
-                # break
-                continue
+        if query == 'm':
+            query = get_multiple_line_input("enter then Ctrl-d to send:")
 
-            if query == 'm':
-                query = get_multiple_line_input("enter then Ctrl-d to send:")
+        if query == 'n':
+            break
 
-            if query == 'n':
-                break
+        if query == 'c':
+            prompt = get_multiple_line_input("new prompt, enter then Ctrl-d to set:")
+            query = get_multiple_line_input("\nenter then Ctrl-d to send:")
+        
+        result, history, write_content = chat(client, model, prompt, query, history, write_content)
 
-            if query == 'c':
-                prompt = get_multiple_line_input("new prompt, enter then Ctrl-d to set:")
-                query = get_multiple_line_input("\nenter then Ctrl-d to send:")
-            
-            result, history, write_content = chat(client, model, prompt, query, history, write_content)
+    result = "".join(json.dumps(content) + "\n" for content in write_content)
 
-        result = "".join(json.dumps(content) + "\n" for content in write_content)
-    
-        print(f"Write chat history into {log_file}")
-        f.seek(0, os.SEEK_END)
-        f.write(result)
+    if result:
+        with open(log_file, "a", encoding="utf-8") as f:
+            print(f"Write chat history into {log_file}")
+            # f.seek(0, os.SEEK_END)
+            f.write(result)
 
     return query
 
