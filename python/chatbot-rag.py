@@ -21,6 +21,7 @@ log_prefix = "chat_history"
 prompt = ""
 history_limit = 12
 stream = True
+retrieval_limit = 6
 
 #1 creat log file for chat context, done
 #2 loop input, only write when exit, done
@@ -222,10 +223,11 @@ def create_dataset(path, segment_func, topK):
     print(f"{match_max_path} is created")
     print(f"{match_all_path} is created")
 
-
+# retrieval all keywords related chunks, not multiple keywords at the one chunk 
 def retrieval_related_chunks_from_dataset(dataset, query, topK):
     keywords = jieba.analyse.extract_tags(query, topK=topK)
-    result = [dataset.get(keyword) for keyword in keywords]
+    keywords = list(set(keywords))
+    result = [dataset.get(keyword,[])[:retrieval_limit] for keyword in keywords]
     return list(filter(lambda x: x, result))
 
 # get_dataset :: String -> Map String [String]
@@ -252,6 +254,7 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
     write_content = []
 
     dataset_path = ""
+    dataset = None
 
     with open(log_file, "r", encoding="utf-8") as f:
         history = [json.loads(line) for line in f]
