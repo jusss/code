@@ -3,6 +3,7 @@ import json
 import sys
 import os
 import logging
+import re
 import readline
 import jieba
 import jieba.analyse
@@ -19,7 +20,7 @@ MODEL = ""
 log_path = f"{os.getenv('HOME')}/chat_history"
 log_prefix = "chat_history"
 prompt = ""
-history_limit = 12
+history_limit = 6
 stream = True
 retrieval_limit = 6
 
@@ -27,6 +28,9 @@ retrieval_limit = 6
 #2 loop input, only write when exit, done
 #3 add function calling
 # token size or limit history for chat context
+
+identity = lambda x: x
+pattern = re.compile(r'^[A-Za-z]+$')
 
 def create_log_file(log_path, log_prefix):
     log_path = log_path if log_path.endswith("/") else log_path + "/"
@@ -82,15 +86,16 @@ def get_colored_text(text, color):
     return f"\u001b[{color_str}m\033[1;3m{text}\u001b[0m"
  
 # history :: [[Map str str]], write_content :: [[Map str str]]
-def chat(client, model, prompt, query, history, write_content, dataset=None):
+def chat(client, model, prompt, query, history, write_content, dataset=None, retrieval_func=identity):
     message = []
     if prompt:
         message.append({"role": "system", "content": prompt})
 
     if dataset:
         # chunks :: [[String]]
-        chunks = retrieval_related_chunks_from_dataset(dataset, query, topK=5)
+        chunks = retrieval_func(dataset, query, topK=20)
         context = "\nthose messages may be useful: " + ",".join(reduce(add, chunks))
+
         print(f"retrieval msg: {context}")
         if prompt:
             message[0]["content"] = prompt + context
@@ -189,8 +194,30 @@ def get_prompt_from_history(history):
 
 
 # type keyword = String; type Document = String
-# create_keywords_document_index :: [Document] -> Int -> [([Keyword], Document)]
-create_keywords_document_index = lambda documents, topK: [ (jieba.analyse.extract_tags(doc, topK=topK), doc) for doc in documents ]
+# create_keywords_document_index :: [Document] -> Int -> (String -> [Keyword]) -> [([Keyword], Document)]
+# create_keywords_document_index = lambda documents, topK, f: [ (f(doc, topK=topK), doc) for doc in documents ] if topK else [ (list(filter(lambda x: x not in [' ', ',','.'],f(doc))), doc) for doc in documents ]
+# create_keywords_document_index = lambda documents, topK, f: [ (f(doc, topK=topK), doc) for doc in documents ] if topK else [ (f(doc), doc) for doc in documents ]
+
+def create_keywords_document_index(documents, topK, f):
+    if topK:
+        return [ (f(doc, topK=topK), doc) for doc in documents ]
+    else:
+        result = []
+        for doc in documents:
+            # print("doc is ", doc)
+            # print("f doc is ", f(doc))
+
+            # key = "".join(f(doc))
+            # print("key is",key)
+
+            keys = [word for word in f(doc) if pattern.match(word)]
+
+            keys = list(set(keys))
+            # print('keys is ', keys)
+
+            result.append((keys,doc))
+        return result
+
 
 # get_keyword_documents :: [([Keyword], Document)] -> [(Keyword, Document)]
 get_keyword_documents = lambda xs: [ (key, doc) for keywords,doc in xs for key in keywords ]
@@ -204,29 +231,76 @@ def tuple_list_to_dict(tuple_list):
 
 def create_dataset(path, segment_func, topK):
     data = ""
-    match_max = path.split("/")[-1].split(".")[0] + "_match_max.json"
-    match_all = path.split("/")[-1].split(".")[0] + "_match_all.json"
-    match_max_path = os.path.join(log_path, match_max)
-    match_all_path = os.path.join(log_path, match_all)
+    match_max = path.split("/")[-1].split(".")[0] + "_most_match.json"
+    match_all = path.split("/")[-1].split(".")[0] + "_all_match.json"
+    search_keyword = path.split("/")[-1].split(".")[0] + "_search_keyword.json"
+
+    most_matched_keywords_path = os.path.join(log_path, match_max)
+    all_keywords_path = os.path.join(log_path, match_all)
+    search_keyword_path = os.path.join(log_path, search_keyword)
+
     with open(path, "r", encoding="utf-8") as f:
         data = f.read()
+
     documents = segment_func(data)
-    documents = filter(lambda x: x, documents)
-    tuple_list = create_keywords_document_index(documents, topK)
-    with open(match_max_path, "w+", encoding="utf-8") as f:
+
+    # FILTER OBJECT ONLY ITERATE ONCE!
+    documents = list(filter(lambda x: x, documents))
+
+    tuple_list = create_keywords_document_index(documents, topK, jieba.analyse.extract_tags)
+
+    with open(most_matched_keywords_path, "w+", encoding="utf-8") as f:
         f.write(json.dumps(tuple_list))
 
-    search_dict = tuple_list_to_dict(get_keyword_documents(tuple_list))
-    with open(match_all_path, "w+", encoding="utf-8") as f:
-        f.write(json.dumps(search_dict))
+    keyword_dict = tuple_list_to_dict(get_keyword_documents(tuple_list))
+    with open(all_keywords_path, "w+", encoding="utf-8") as f:
+        f.write(json.dumps(keyword_dict))
 
-    print(f"{match_max_path} is created")
-    print(f"{match_all_path} is created")
+    search_tuple_list = create_keywords_document_index(documents, None, jieba.lcut_for_search)
 
-# retrieval all keywords related chunks, not multiple keywords at the one chunk 
-def retrieval_related_chunks_from_dataset(dataset, query, topK):
+    with open(search_keyword_path, "w+", encoding="utf-8") as f:
+        f.write(json.dumps(search_tuple_list))
+
+
+    print(f"{most_matched_keywords_path} is created")
+    print(f"{all_keywords_path} is created")
+    print(f"{search_keyword_path} is created")
+
+# retrieval all keywords, pro: full content, con: too many irrelevant content
+# retrieval most matched keywords, pro: good related content, con: since have retrieval limit, it may lack a few keywords
+# retrieval with search keyword, too many keywords, and too many irrelevant content
+# extract_tags or textrank, too little, some keyword can't get, lcut_for_search too many, too many irrelevant related content
+
+# dataset :: [([Keyword], Document)]
+def retrieval_most_matched_keywords_from_dataset(dataset, query, topK):
     keywords = jieba.analyse.extract_tags(query, topK=topK)
+    # keywords = jieba.analyse.textrank(query, topK=topK)
+    # keywords = jieba.lcut_for_search(query)
+    # keywords = [word for word in keywords if pattern.match(word)]
+    
     keywords = list(set(keywords))
+    print(f"retrieval keywords: {keywords}")
+
+    keyword_count = defaultdict(int)
+    for n, keys_doc_pair in enumerate(dataset):
+        for keyword in keywords:
+            if keyword in keys_doc_pair[0]:
+                keyword_count[n] = keyword_count[n] + 1
+
+    index_list = sorted(list(keyword_count.keys()), key=lambda x: keyword_count[x], reverse=True)
+
+    result = [dataset[i][1] for i in index_list]
+    # add [] for same type 
+    return [result[:retrieval_limit]]
+
+# dataset :: Map str [str]
+# retrieval all keywords related chunks, not multiple keywords at the one chunk 
+def retrieval_all_keywords_from_dataset(dataset, query, topK):
+    keywords = jieba.analyse.extract_tags(query, topK=topK)
+    # keywords = jieba.lcut_for_search(query)
+    # keywords = [word for word in keywords if pattern.match(word)]
+    keywords = list(set(keywords))
+    print(f"retrieval keywords: {keywords}")
     result = [dataset.get(keyword,[])[:retrieval_limit] for keyword in keywords]
     return list(filter(lambda x: x, result))
 
@@ -247,7 +321,6 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
 
     print(f"log_file is {log_file}")
 
-
     # history :: [[Map str str]]
     history = []
     # write_content :: [[Map str str]],  []::[A], A can be [Int], so []::[[Int]]
@@ -255,6 +328,7 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
 
     dataset_path = ""
     dataset = None
+    retrieval_func = identity
 
     with open(log_file, "r", encoding="utf-8") as f:
         history = [json.loads(line) for line in f]
@@ -266,7 +340,7 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
     while True:
         colored_text = get_colored_text(
                 "\n# Ctrl+D TO EXIT, ENTER TO SEND, N FOR NEW CONVERSATION, " +
-                "C FOR NEW PROMPT, M FOR MULTIPLE LINE, D FOR CREAT DOCUMENT, R FOR CONNECT DATASET, S CLOSE DATASET\n" + 
+                "C FOR NEW PROMPT, M FOR MULTIPLE LINE, D FOR CREAT DATASET, R FOR CONNECT DATASET, S CLOSE DATASET, L LIST DATASET\n" + 
                 (prompt if not prompt else f"prompt: {prompt}") + 
                 (dataset_path if not dataset_path else f"dataset {dataset_path} is connected"), 
                 "green")
@@ -300,11 +374,25 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
 
         if query == 'd':
             path = input("file path: ")
-            create_dataset(path, lambda x: x.split("\n"), topK = 5)
+            delimeter = input("delimeter: ")
+            # convert escape sequences to special characters, like -\n
+            delimeter = delimeter.encode().decode('unicode_escape')
+            if not delimeter:
+                create_dataset(path, lambda x: x.split("\n"), topK = 20)
+            else:
+                create_dataset(path, lambda x: x.split(delimeter), topK = 20)
             continue
 
         if query == 'r':
             dataset_path = input("file path: ")
+
+            if dataset_path.endswith("_most_match.json") or dataset_path.endswith("_search_keyword.json"):
+                retrieval_func = retrieval_most_matched_keywords_from_dataset
+            elif dataset_path.endswith("_all_match.json"):
+                retrieval_func = retrieval_all_keywords_from_dataset
+            else:
+                raise Exception("invalid dataset type")
+
             dataset = get_dataset(dataset_path)
             continue
 
@@ -313,8 +401,18 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
             dataset = None
             dataset_path = ""
             continue
+
+        if query == 'l':
+            file_list = filter(lambda x: x.endswith("_most_match.json") or x.endswith("_all_match.json") or x.endswith("_search_keyword.json"), os.listdir(log_path))
+            if file_list:
+                for i in file_list:
+                    print(os.path.join(log_path,i))
+            else:
+                print("no dataset")
+            continue
+
         
-        result, history, write_content = chat(client, model, prompt, query, history, write_content, dataset)
+        result, history, write_content = chat(client, model, prompt, query, history, write_content, dataset, retrieval_func)
 
     result = "".join(json.dumps(content) + "\n" for content in write_content)
 
