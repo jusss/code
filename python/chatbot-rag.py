@@ -1,3 +1,4 @@
+import ast
 import time
 import json
 import sys
@@ -13,8 +14,8 @@ from functools import reduce
 from operator import add
 from collections import defaultdict
 
-OPENAI_API_KEY=""
-OPENAI_BASE_URL=""
+OPENAI_API_KEY = ""
+OPENAI_BASE_URL = ""
 MODEL = ""
 
 log_path = f"{os.getenv('HOME')}/chat_history"
@@ -31,6 +32,15 @@ retrieval_limit = 6
 
 identity = lambda x: x
 pattern = re.compile(r'^[A-Za-z]+$')
+
+# def splits(alist, delimeters):
+    # accum=[[]]
+    # for item in alist:
+        # if item in delimeters:
+            # accum.append([])
+        # else:
+            # accum[-1].append(item)
+    # return reduce(add, accum)
 
 def create_log_file(log_path, log_prefix):
     log_path = log_path if log_path.endswith("/") else log_path + "/"
@@ -374,13 +384,16 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
 
         if query == 'd':
             path = input("file path: ")
-            delimeter = input("delimeter: ")
+            delimeter = input('input re style delimeters like "-*-\n|#*#\n": ')
+            # "-*-\n|#*#\n"
+            # re.split('-*-\n|#*#\n', str)
             # convert escape sequences to special characters, like -\n
-            delimeter = delimeter.encode().decode('unicode_escape')
+            # delimeter = delimeter.encode().decode('unicode_escape')
             if not delimeter:
                 create_dataset(path, lambda x: x.split("\n"), topK = 20)
             else:
-                create_dataset(path, lambda x: x.split(delimeter), topK = 20)
+                # create_dataset(path, lambda x: x.split(delimeter), topK = 20)
+                create_dataset(path, lambda x: re.split(ast.literal_eval(delimeter), x) , topK = 20)
             continue
 
         if query == 'r':
