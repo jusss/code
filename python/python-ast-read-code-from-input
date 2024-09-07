@@ -1,0 +1,12 @@
+a=input(":")
+
+if you input ["a","\n"]
+a should be '["a","\n"]'
+
+how to turn that string into a python list
+ast.literal_eval(a) would turn that into a python list
+or use eval
+
+in haskell, it does not have literal_eval or eval, since it's compiled language
+you can use 
+readMaybe "[1,2,3]" :: Maybe [Int] == Just [1,2,3]
