@@ -221,6 +221,10 @@ list2string = lambda x: "".join(x)
 # Bind Infix (f >>= g) >>= h == foldl1 (>>=) [f, g, h]
 # f (a (f (b (f (g x))))) == foldr (.) id (map (f .) [a, b, z, g]) == foldr ($) x (map (f .) [a, b, z, g]) == f . a . f . b . f . z . f . g
 
+find_string_in_string = lambda sub, words: [ i for i in range(len(words) - len(sub)) if all(sub[z] == words[i+z] for z in range(len(sub))) ]
+
+chunks = lambda alist, n: [alist[i:i+n] for i in range(0, len(alist), n)]
+
 def chunksOf(n, alist):
     def wrapper(n, alist, blist):
         if len(alist) < n:
