@@ -8,11 +8,14 @@ import re
 import readline
 import jieba
 import jieba.analyse
+import jieba.posseg as pseg
 from openai import OpenAI
 from datetime import datetime
 from functools import reduce
 from operator import add
 from collections import defaultdict
+from itertools import combinations
+from copy import deepcopy
 
 OPENAI_API_KEY = ""
 OPENAI_BASE_URL = ""
@@ -33,14 +36,53 @@ retrieval_limit = 6
 identity = lambda x: x
 pattern = re.compile(r'^[A-Za-z]+$')
 
-# def splits(alist, delimeters):
-    # accum=[[]]
-    # for item in alist:
-        # if item in delimeters:
-            # accum.append([])
-        # else:
-            # accum[-1].append(item)
-    # return reduce(add, accum)
+# Define a list of stop words
+# stop_words = set(['how', 'to', 'is', 'do', 'you', 'are', 'python', 'use', 'what', 'haskell', 'in', 'of', 'the', 'by', 'on', 'like'])
+
+stop_words = []
+
+if os.path.exists(f"{os.getenv('HOME')}/stop_words.json"):
+    with open(f"{os.getenv('HOME')}/stop_words.json", "r", encoding="utf-8") as f:
+        stop_words = json.loads(f.read())
+    
+stop_words = set(stop_words)
+
+find_string_in_string = lambda sub, words: [ i for i in range(len(words) - len(sub)) if all(sub[z] == words[i+z] for z in range(len(sub))) ]
+
+chunks = lambda alist, n: [alist[i:i+n] for i in range(0, len(alist), n)]
+
+def split_string_with_multiple_strings(string, string_list):
+    remove_range = []
+    result = []
+    for i in string_list:
+        length = len(i)
+        remove_range.append([[start, start+length] for start in find_string_in_string(i, string)])
+
+    remove_range = reduce(add, remove_range)
+
+    def remove_intersection_items(remove_range):
+        com = list(combinations(remove_range,2))
+        for a,b in com:
+            if set(range(*a)).intersection(set(range(*b))) or (a[1] == b[0]) or (a[0] == b[1])  :
+                if a in remove_range and b in remove_range:
+                    remove_range.remove(a)
+                    remove_range.remove(b)
+                    remove_range.append([a[0] if a[0] <= b[0] else b[0], a[1] if a[1] >= b[1] else b[1]])
+                    print(f"remove {a} and {b} now it's {remove_range}")
+        return remove_range
+
+    while True:
+        before = deepcopy(remove_range)
+        remove_range = remove_intersection_items(remove_range)
+        if sorted(before) == sorted(remove_range):
+            break
+
+    remove_range = sorted(remove_range, key=lambda x: x[0], reverse=False)
+
+    for start, stop in chunks([0] + reduce(add, remove_range) + [len(string)], 2):
+        sub = string[start:stop]
+        result.append(sub)
+    return result
 
 def create_log_file(log_path, log_prefix):
     log_path = log_path if log_path.endswith("/") else log_path + "/"
@@ -202,6 +244,24 @@ def get_prompt_from_history(history):
 
         return ""
 
+# Function to filter tags
+def filter_tags(tags, stop_words):
+    filtered_tags = []
+    for tag in tags:
+        # Skip stop words
+        if tag in stop_words:
+            continue
+        
+        # Get part of speech
+        word_pos = pseg.lcut(tag)
+        if word_pos:
+            word, flag = word_pos[0]
+            # Example: Filter out certain parts of speech (e.g., adverbs)
+            if flag in ['d']:
+                continue
+        
+        filtered_tags.append(tag)
+    return filtered_tags
 
 # type keyword = String; type Document = String
 # create_keywords_document_index :: [Document] -> Int -> (String -> [Keyword]) -> [([Keyword], Document)]
@@ -210,24 +270,14 @@ def get_prompt_from_history(history):
 
 def create_keywords_document_index(documents, topK, f):
     if topK:
-        return [ (f(doc, topK=topK), doc) for doc in documents ]
+        return [ (filter_tags(f(doc, topK=topK), stop_words), doc) for doc in documents ]
     else:
         result = []
         for doc in documents:
-            # print("doc is ", doc)
-            # print("f doc is ", f(doc))
-
-            # key = "".join(f(doc))
-            # print("key is",key)
-
             keys = [word for word in f(doc) if pattern.match(word)]
-
-            keys = list(set(keys))
-            # print('keys is ', keys)
-
+            keys = filter_tags(list(set(keys)), stop_words)
             result.append((keys,doc))
         return result
-
 
 # get_keyword_documents :: [([Keyword], Document)] -> [(Keyword, Document)]
 get_keyword_documents = lambda xs: [ (key, doc) for keywords,doc in xs for key in keywords ]
@@ -288,7 +338,7 @@ def retrieval_most_matched_keywords_from_dataset(dataset, query, topK):
     # keywords = jieba.lcut_for_search(query)
     # keywords = [word for word in keywords if pattern.match(word)]
     
-    keywords = list(set(keywords))
+    keywords = filter_tags(list(set(keywords)), stop_words)
     print(f"retrieval keywords: {keywords}")
 
     keyword_count = defaultdict(int)
@@ -309,7 +359,7 @@ def retrieval_all_keywords_from_dataset(dataset, query, topK):
     keywords = jieba.analyse.extract_tags(query, topK=topK)
     # keywords = jieba.lcut_for_search(query)
     # keywords = [word for word in keywords if pattern.match(word)]
-    keywords = list(set(keywords))
+    keywords = filter_tags(list(set(keywords)), stop_words)
     print(f"retrieval keywords: {keywords}")
     result = [dataset.get(keyword,[])[:retrieval_limit] for keyword in keywords]
     return list(filter(lambda x: x, result))
@@ -384,7 +434,7 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
 
         if query == 'd':
             path = input("file path: ")
-            delimeter = input('input re style delimeters like "-*-\n|#*#\n": ')
+            delimeter = input('input re style delimeters like "-*-\\n|#*#\\n": ')
             # "-*-\n|#*#\n"
             # re.split('-*-\n|#*#\n', str)
             # convert escape sequences to special characters, like -\n
