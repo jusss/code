@@ -148,23 +148,30 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
     if prompt:
         message.append({"role": "system", "content": prompt})
 
+    keyword_context = ""
+    vector_context = ""
+    keyword_contexts = []
+    vector_contexts = []
+
     if dataset:
         # chunks :: [[String]]
         chunks = retrieval_func(dataset, query, topK=20)
-        context = "\nthose messages may be useful: " + ",".join(reduce(add, chunks))
-
-        print(f"retrieval msg: {context}")
-        if prompt:
-            message[0]["content"] = prompt + context
-        else:
-            message.append({"role": "system", "content": context})
+        # keyword_context = "\n".join(reduce(add, chunks))
+        keyword_contexts = reduce(add, chunks)
+        print("keyword retrieval: ", keyword_contexts)
 
     if collection_names:
-
         chunks = vector_query(query,vector_db_path, collection_names, retrieval_limit, threshold)
-        context = "\nthose messages may be useful: " + "\n".join(chunks)
+        # vector_context = "\n".join(chunks)
+        vector_contexts = chunks
 
-        print(f"retrieval msg: {context}")
+    if any([dataset, collection_names]):
+        #context = "\nthose messages may be useful: " + keyword_context + "\n" + vector_context
+        # remove the dumplate elements
+        union_list = vector_contexts + [item for item in keyword_contexts if item not in vector_contexts]
+        context = "\nthose messages may be useful: " + ",".join(union_list)
+
+        print(f"\nretrieval msg: {context}")
         if prompt:
             message[0]["content"] = prompt + context
         else:
@@ -456,7 +463,7 @@ def vector_query(query, vector_db_path, collection_names, n_results, threshold):
         )
         results.append((collection, result['ids']))
 
-    print(results)
+    # print(results)
 
     proper_context = []
     for collection, ids in results:
@@ -471,7 +478,7 @@ def vector_query(query, vector_db_path, collection_names, n_results, threshold):
                     proper_context.append(data["documents"][n])
 
     
-    print('this is proper context', proper_context)    
+    print('vector retrieval: ', proper_context)    
     return proper_context
 
 
@@ -512,8 +519,8 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
                 "\n# Ctrl+D TO EXIT, ENTER TO SEND, N FOR NEW CONVERSATION, " +
                 "C FOR NEW PROMPT, M FOR MULTIPLE LINE, D FOR CREAT DATASET, R FOR CONNECT DATASET, S CLOSE DATASET, L LIST DATASET, T FOR VECTOR DATASET, O FOR CONNECT COLLECTIONS\n" + 
                 (prompt if not prompt else f"prompt: {prompt}") + 
-                (dataset_path if not dataset_path else f"dataset {dataset_path} is connected") +
-                ("" if not collection_names else f"vector db {collection_names} is connected"), 
+                (dataset_path if not dataset_path else f"dataset {dataset_path} is connected\n") +
+                ("" if not collection_names else f"vector db {collection_names} is connected\n"), 
                 "green")
         print(colored_text)
 
