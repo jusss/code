@@ -2,10 +2,33 @@
 
 #usage srt.py file.srt new-file.srt delay-time
 import sys
+import chardet
+
+encoding = "utf-8"
+
+def try_encodings(file_path, encodings):
+    with open(file_path, 'rb') as f:
+        raw_data = f.read()
+    for encoding in encodings:
+        try:
+            raw_data.decode(encoding)
+            return encoding
+        except UnicodeDecodeError:
+            continue
+    return None
+
 original_file_name = sys.argv[1]
-original_file_encoding = 'utf-8'
+file_path = original_file_name
+encodings = ['utf-8', 'iso-8859-1','gbk','gb2312', 'gb18030','hz-gb-2312','utf-16','iso-2022-cn',]
+encoding = try_encodings(file_path, encodings)
+#print("encoding is ", encoding)
+#original_file_encoding = 'utf-8'
+#original_file_encoding = 'iso-8859-1'
+original_file_encoding = encoding
 new_file_name = sys.argv[2]
-new_file_encoding = 'utf-8'
+#new_file_encoding = 'utf-8'
+#new_file_encoding = 'iso-8859-1'
+new_file_encoding = encoding
 delay_time = int(sys.argv[3])
 alist=[]
 
@@ -103,7 +126,7 @@ def bla (position,original,new):
 
 bla(0,a1,alist)
 
-a2=open(new_file_name,'a',encoding=new_file_encoding)
+a2=open(new_file_name,'w',encoding=new_file_encoding)
 a2.write(''.join(alist))
 
 b1.close()
