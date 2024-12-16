@@ -28,7 +28,7 @@ c = lambda fib, n, z, count, k: k(z) if count == 1 else fib(n, z, count, c)(k)
 
 identity = lambda x: x
 
-# call with current k?
+# call with current k? call/cc in scheme can capture the outside code of call/cc, callCC in Haskell only capture the k inside callCC
 # 1. js doesn't have block function, so cps or async is very useful
 # 2. async also need non-block function inside, otherwise it still block, like request in async is not ok, but non-block request inside async is ok
 # 3. use select as decorator for block funciton, @select def f(p,k): return k(select(f(p)))
