@@ -84,13 +84,13 @@ def recv_local(local_socket, session, url, headers):
 
                 _dict[query_data[0:2]] = query_addr
 
-                if not any([i in qname for i in blacklist]):
+                if (not any([i in qname for i in blacklist])) and ("." in qname):
 
                     # requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='1.1.1.1', port=443): Read timed out. (read timeout=None)
                     res = session.post(url, data=query_data, headers=headers)
                     answer_data = res.content
     
-                    print(f"anwser {answer_data[12:]}")
+                    # print(f"anwser {answer_data[12:]}")
                     
                     _addr = _dict.get(answer_data[0:2])
                     if _addr:
