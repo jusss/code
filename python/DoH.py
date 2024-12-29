@@ -3,6 +3,13 @@
 # cat /etc/resolv.conf
 # nameserver 127.0.0.1
 
+# vim /etc/hosts
+# 223.5.5.5   alidns.com
+# 1.12.12.12  doh.pub
+
+# there're tls and https two ways for dns, check https://github.com/paulmillr/encrypted-dns.git
+
+
 import os, sys, socket, requests
 local_addr = ('127.0.0.1',53)
 
@@ -95,7 +102,9 @@ if __name__ == '__main__':
     local_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  
     local_socket.bind(local_addr)
     session = requests.Session()
-    url = "https://1.1.1.1/dns-query"
+    # url = "https://1.1.1.1/dns-query"
+    # url = "https://dns.alidns.com/dns-query"
+    url = "https://doh.pub/dns-query"
     headers = {
             'accept': 'application/dns-message',
             'content-type': 'application/dns-message'
