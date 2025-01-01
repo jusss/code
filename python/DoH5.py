@@ -10,7 +10,7 @@
 # there're tls and https two ways for dns, check https://github.com/paulmillr/encrypted-dns.git
 
 
-import os, sys, socket, requests
+import os, sys, socket, requests, json
 import threading
 local_addr = ('127.0.0.1',53)
 
@@ -30,6 +30,11 @@ google = [
         ]
 
 blacklist = ads
+
+with open("config.json") as f:
+    content = f.read()
+    d = json.loads(content)
+    blacklist = d["black_list"]["A"]
 
 
 a=b'\0x00\0x02'
