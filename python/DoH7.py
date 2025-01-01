@@ -5,6 +5,7 @@
 
 # vim /etc/hosts
 # 223.5.5.5   alidns.com
+# 120.53.53.53 doh.pub
 # 1.12.12.12  doh.pub
 
 # there're tls and https two ways for dns, check https://github.com/paulmillr/encrypted-dns.git
