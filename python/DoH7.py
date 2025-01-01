@@ -14,7 +14,8 @@
 import os, sys, socket, requests, json
 import threading
 from concurrent.futures import ThreadPoolExecutor
-local_addr = ('127.0.0.1',53)
+# local_addr = ('127.0.0.1', 53)
+local_addr = ('0.0.0.0', 53)
 
 ads = [
         "sectigochina.com",
