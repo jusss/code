@@ -9,6 +9,7 @@
   "cache_timeout": 36000000000,
   "black_list": {
     "A": [
+      ".in-addr.arpa",
       "ausnhdo.com",
       "ifrog.asia",
       "saitgys.com",
