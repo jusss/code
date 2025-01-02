@@ -48,35 +48,40 @@ def thread_post(local_socket, session, url, headers):
     with ThreadPoolExecutor(max_workers=10) as executor:
         while True:
             query_data, query_addr = local_socket.recvfrom(10240)
-            executor.submit(recv_local, local_socket, session, url, headers, query_data, query_addr)
-            # print("thread count: ", threading.active_count())
+
+            if (b'\x07in-addr\x04arpa' in query_data) or (b'\x04_dns\x08resolver\x04arpa' in query_data):
+                continue
+            else:
+                executor.submit(recv_local, local_socket, session, url, headers, query_data, query_addr)
+                # print("thread count: ", threading.active_count())
 
 
 def recv_local(local_socket, session, url, headers, query_data, query_addr):
                 
-                # _query :: bytes
-                _query = query_data[12:]
-                # query :: list<int>
-                query = list(_query)
-                name = []
+                # # _query :: bytes
+                # _query = query_data[12:]
+                # # query :: list<int>
+                # query = list(_query)
+                # name = []
 
-                while True:
-                    if query[0] == 0:
-                        break
-                    else:
-                        length = query[0]
-                        name.append(''.join(chr(i) for i in query[1:length+1]))
-                        query = query[length+1:]
+                # while True:
+                    # if query[0] == 0:
+                        # break
+                    # else:
+                        # length = query[0]
+                        # name.append(''.join(chr(i) for i in query[1:length+1]))
+                        # query = query[length+1:]
 
-                qname = '.'.join(name)
-                # print(qname)
+                # qname = '.'.join(name)
+                # # print(qname)
 
-                print(f"{query_addr} {qname}")
+                # print(f"{query_addr} {qname}")
 
-                if (not any([i in qname for i in blacklist])) and ("." in qname):
+                # if (not any([i in qname for i in blacklist])) and ("." in qname):
 
                     try:
                         # requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='1.1.1.1', port=443): Read timed out. (read timeout=None)
+                        # print(query_data)
                         res = session.post(url, data=query_data, headers=headers)
                         answer_data = res.content
                         # print(f"anwser {answer_data[12:]}")

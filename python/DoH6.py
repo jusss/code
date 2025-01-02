@@ -46,10 +46,14 @@ c=bytes(b)
 def thread_post(local_socket, session, url, headers):
         while True:
             query_data, query_addr = local_socket.recvfrom(10240)
+            # print(query_data)
+            if (b'\x07in-addr\x04arpa' in query_data) or (b'\x04_dns\x08resolver\x04arpa' in query_data):
+                continue
+            else:
 
-            x = threading.Thread(target= recv_local, args=(local_socket, session, url, headers, query_data, query_addr))
-            x.start()
-            # print("thread count: ", threading.active_count())
+                x = threading.Thread(target= recv_local, args=(local_socket, session, url, headers, query_data, query_addr))
+                x.start()
+                # print("thread count: ", threading.active_count())
 
 
 def recv_local(local_socket, session, url, headers, query_data, query_addr):
