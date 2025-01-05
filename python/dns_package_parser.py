@@ -110,8 +110,6 @@ def parse(data):
     else:
         answer_number = answer_count[0] * 256 + answer_count[1]
 
-    print("answer number is", answer_number)
-
 
     #### QUESTION SECTION
     QNAME, QTYPE = "", ""
@@ -167,6 +165,7 @@ def parse(data):
     # Response
     if bits[0] == '1':
         print("********** ANSWER Section ", query)
+        print("answer number is", answer_number)
         if answer_number == 0:
             answer_number = 1
 
