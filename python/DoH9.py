@@ -11,7 +11,7 @@
 # there're tls and https two ways for dns, check https://github.com/paulmillr/encrypted-dns.git
 
 
-import os, sys, socket, requests, json
+import os, sys, socket, requests, json, time
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from dns_package_parser import parse
@@ -46,10 +46,18 @@ b=list(a)
 c=bytes(b)
 
 cache = {}
+timeout = 60
+current_time = time.time()
 
 def thread_post(local_socket, url, headers):
+    global cache
+    global current_time
     with ThreadPoolExecutor(max_workers=10) as executor:
         while True:
+            
+            if time.time() - current_time > timeout:
+                cache = {}
+                current_time = time.time()
 
             # only send A,CNAME, MX, AAAA type data
             # only cache A,CNAME, MX, AAAA
@@ -62,7 +70,6 @@ def thread_post(local_socket, url, headers):
             if qtype in ['PTR', 'SOA']:
                 continue
 
-            global cache
             if cache.get((qname, qtype)):
                 answer_data = transaction_id + cache.get((qname, qtype))
                 local_socket.sendto(answer_data, query_addr)
