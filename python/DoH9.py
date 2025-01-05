@@ -66,18 +66,25 @@ def thread_post(local_socket, url, headers):
             transaction_id, qr, tc, rcode, qname, qtype = parse(query_data)
             # print(transaction_id, qr, tc, rcode, qname, qtype)
 
-            print(f"{query_addr} {qname} {qtype}")
             if qtype in ['PTR', 'SOA']:
                 continue
+
+            if any([i in qname for i in blacklist]):
+                continue
+
+            if "." not in qname:
+                continue
+
+            print(f"{query_addr} {qname} {qtype}")
 
             if cache.get((qname, qtype)):
                 answer_data = transaction_id + cache.get((qname, qtype))
                 local_socket.sendto(answer_data, query_addr)
-                print(f"***** read cache {qname, qtype}")
+                print(f"############## read cache {qname, qtype}   #################################")
 
             else:
-                if (not any([i in qname for i in blacklist])) and ("." in qname):
-                    executor.submit(recv_local, local_socket, url, headers, query_addr, query_data, qname, qtype)
+                # if (not any([i in qname for i in blacklist])) and ("." in qname):
+                executor.submit(recv_local, local_socket, url, headers, query_addr, query_data, qname, qtype)
 
             # print("thread count: ", threading.active_count())
 
@@ -93,7 +100,7 @@ def recv_local(local_socket, url, headers, query_addr, query_data, qname, qtype)
 
             global cache
             cache[(qname, qtype)] = answer_data[2:]
-            print(f"***** add cache {qname, qtype}")
+            print(f"--------------- add cache {qname, qtype}  ---------------------")
 
 
     except Exception as e:
