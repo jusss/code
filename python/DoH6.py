@@ -43,7 +43,7 @@ a=b'\0x00\0x02'
 b=list(a)
 c=bytes(b)
 
-def thread_post(local_socket, session, url, headers):
+def thread_post(local_socket, url, headers):
         while True:
             query_data, query_addr = local_socket.recvfrom(10240)
             # print(query_data)
@@ -51,12 +51,12 @@ def thread_post(local_socket, session, url, headers):
                 continue
             else:
 
-                x = threading.Thread(target= recv_local, args=(local_socket, session, url, headers, query_data, query_addr))
+                x = threading.Thread(target= recv_local, args=(local_socket, url, headers, query_data, query_addr))
                 x.start()
                 # print("thread count: ", threading.active_count())
 
 
-def recv_local(local_socket, session, url, headers, query_data, query_addr):
+def recv_local(local_socket, url, headers, query_data, query_addr):
                 
                 # _query :: bytes
                 _query = query_data[12:]
@@ -81,10 +81,11 @@ def recv_local(local_socket, session, url, headers, query_data, query_addr):
 
                     try:
                         # requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='1.1.1.1', port=443): Read timed out. (read timeout=None)
-                        res = session.post(url, data=query_data, headers=headers)
-                        answer_data = res.content
-                        # print(f"anwser {answer_data[12:]}")
-                        local_socket.sendto(answer_data, query_addr)
+                        with requests.Session() as session:
+                            res = session.post(url, data=query_data, headers=headers)
+                            answer_data = res.content
+                            # print(f"anwser {answer_data[12:]}")
+                            local_socket.sendto(answer_data, query_addr)
                     except Exception as e:
                         print(e)
                         pass
@@ -94,7 +95,6 @@ if __name__ == '__main__':
 
     local_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  
     local_socket.bind(local_addr)
-    session = requests.Session()
     # url = "https://1.1.1.1/dns-query"
     # url = "https://dns.alidns.com/dns-query"
     url = "https://doh.pub/dns-query"
@@ -102,4 +102,4 @@ if __name__ == '__main__':
             'accept': 'application/dns-message',
             'content-type': 'application/dns-message'
             }
-    thread_post(local_socket, session, url, headers)
+    thread_post(local_socket, url, headers)

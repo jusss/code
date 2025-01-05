@@ -44,7 +44,7 @@ a=b'\0x00\0x02'
 b=list(a)
 c=bytes(b)
 
-def thread_post(local_socket, session, url, headers):
+def thread_post(local_socket, url, headers):
     with ThreadPoolExecutor(max_workers=10) as executor:
         while True:
             query_data, query_addr = local_socket.recvfrom(10240)
@@ -52,40 +52,41 @@ def thread_post(local_socket, session, url, headers):
             if (b'\x07in-addr\x04arpa' in query_data) or (b'\x04_dns\x08resolver\x04arpa' in query_data):
                 continue
             else:
-                executor.submit(recv_local, local_socket, session, url, headers, query_data, query_addr)
+                executor.submit(recv_local, local_socket, url, headers, query_data, query_addr)
                 # print("thread count: ", threading.active_count())
 
 
-def recv_local(local_socket, session, url, headers, query_data, query_addr):
+def recv_local(local_socket, url, headers, query_data, query_addr):
                 
-                # # _query :: bytes
-                # _query = query_data[12:]
-                # # query :: list<int>
-                # query = list(_query)
-                # name = []
+                # _query :: bytes
+                _query = query_data[12:]
+                # query :: list<int>
+                query = list(_query)
+                name = []
 
-                # while True:
-                    # if query[0] == 0:
-                        # break
-                    # else:
-                        # length = query[0]
-                        # name.append(''.join(chr(i) for i in query[1:length+1]))
-                        # query = query[length+1:]
+                while True:
+                    if query[0] == 0:
+                        break
+                    else:
+                        length = query[0]
+                        name.append(''.join(chr(i) for i in query[1:length+1]))
+                        query = query[length+1:]
 
-                # qname = '.'.join(name)
-                # # print(qname)
+                qname = '.'.join(name)
+                # print(qname)
 
-                # print(f"{query_addr} {qname}")
+                print(f"{query_addr} {qname}")
 
-                # if (not any([i in qname for i in blacklist])) and ("." in qname):
+                if (not any([i in qname for i in blacklist])) and ("." in qname):
 
                     try:
                         # requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='1.1.1.1', port=443): Read timed out. (read timeout=None)
                         # print(query_data)
-                        res = session.post(url, data=query_data, headers=headers)
-                        answer_data = res.content
-                        # print(f"anwser {answer_data[12:]}")
-                        local_socket.sendto(answer_data, query_addr)
+                        with requests.Session() as session:
+                            res = session.post(url, data=query_data, headers=headers)
+                            answer_data = res.content
+                            # print(f"anwser {answer_data[12:]}")
+                            local_socket.sendto(answer_data, query_addr)
                     except Exception as e:
                         print(e)
                         pass
@@ -95,7 +96,6 @@ if __name__ == '__main__':
 
     local_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  
     local_socket.bind(local_addr)
-    session = requests.Session()
     # url = "https://1.1.1.1/dns-query"
     # url = "https://dns.alidns.com/dns-query"
     url = "https://doh.pub/dns-query"
@@ -103,4 +103,4 @@ if __name__ == '__main__':
             'accept': 'application/dns-message',
             'content-type': 'application/dns-message'
             }
-    thread_post(local_socket, session, url, headers)
+    thread_post(local_socket, url, headers)
