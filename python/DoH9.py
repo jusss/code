@@ -93,8 +93,8 @@ def recv_local(local_socket, url, headers, query_addr, query_data, qname, qtype)
         with requests.Session() as session:
             res = session.post(url, data=query_data, headers=headers)
             answer_data = res.content
-            # transaction_id, qr, tc, rcode, qname, qtype, answer, rdata = parse(answer_data)
-            # print(transaction_id, qr, tc, rcode, qname, qtype, answer, rdata)
+            transaction_id, qr, tc, rcode, qname, qtype, answer = parse(answer_data)
+            # print(transaction_id, qr, tc, rcode, qname, qtype, answer)
             # print(f"anwser {answer_data[12:]}")
             local_socket.sendto(answer_data, query_addr)
 
