@@ -98,9 +98,10 @@ def recv_local(local_socket, url, headers, query_addr, query_data, qname, qtype)
             # print(f"anwser {answer_data[12:]}")
             local_socket.sendto(answer_data, query_addr)
 
-            global cache
-            cache[(qname, qtype)] = answer_data[2:]
-            print(f"--------------- add cache {qname, qtype}  ---------------------")
+            if not (len(answer) == 1 and answer[0].Type == "SOA"):
+                global cache
+                cache[(qname, qtype)] = answer_data[2:]
+                print(f"--------------- add cache {qname, qtype}  ---------------------")
 
 
     except Exception as e:

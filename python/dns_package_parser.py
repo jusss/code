@@ -1,25 +1,24 @@
 from copy import deepcopy
 from pydantic import BaseModel
-from typing import List
+from typing import List, Union
 
-# input [2,q,q,4,.,c,o,m,0]
-def name_offset(name_bytes):
-        while True:
-            if query[0] == 0:
-                break
-            else:
-                length = query[0]
-                name.append(''.join(chr(i) for i in query[1:length+1]))
-                query = query[length+1:]
+# todo, 1. tcp 53
 
-        NAME = '.'.join(name)
-        print("answer section name is ", NAME)
+# input [2,q,q,3,c,o,m,0]
+# dns compression scheme
+# if the first two bits of offset byte are 11, then it's compressed, the rest 6bits and the next byte make a pointer
+# of the whole message, 0xc0 0x10 will jump to 16th byte, if it's not compressed, it will forward offset byte by offset
+# 0x00 is the end of domain name
+# 11000000 is 0xc0, is 192, only the value which is greater than 192 can have 11 as first two bits, compressed offset must be greater than 192
 
-def get_offset_name(ints, accum = [], new_start=0):
-    if ints[0] == 0:
-        return new_start, '.'.join(map(lambda xs: ''.join(chr(i) for i in xs), accum))
-    else:
-        return get_offset_name(ints[ints[0]+1:], accum + [ints[1:ints[0]+1]], ints[0]+1 + new_start)
+def get_offset_name(ints, origin, accum = [], new_start=0):
+    offset = ints[0]
+    if offset == 0:
+        return new_start, '.'.join(map(ints_to_string, accum))
+    if offset >= 192:
+        pointer = bits_string_to_int(int_to_bits_string(offset)[2:]) * 256 + ints[1]
+        return get_offset_name(origin[pointer:], origin, accum, 2+new_start)
+    return get_offset_name(ints[offset+1:], origin, accum + [ints[1:offset+1]], offset +1 + new_start)
 
 class Answer(BaseModel):
     Name: str
@@ -27,18 +26,22 @@ class Answer(BaseModel):
     Class: str
     TTL: int
     RDLength: int
-    RData: List[int]
+    RData: Union[List[int], str]
 
 class Question(BaseModel):
     QName: str
     QType: str
     QClass: str
 
-int_to_bits_string = lambda n: bin(n)[2:]
-byte_to_bits_string = lambda byte: bin(int.from_bytes(byte,"big"))[2:]
+int_to_bits_string = lambda n: bin(n)[2:].zfill(8)
+byte_to_bits_string = lambda byte: bin(int.from_bytes(byte,"big"))[2:].zfill(8)
 bytes_to_ints = lambda _bytes: list(_bytes)
 ints_to_bytes = lambda ints: bytes(ints)
 ints_to_string = lambda ints: ''.join(chr(i) for i in ints)
+bits_string_to_int = lambda bit_str: int(bit_str, 2)
+
+chunks = lambda alist, n: [alist[i:i+n] for i in range(0, len(alist), n)]
+ints_to_ipv6_string = lambda ints: ":".join([hex(i[0]*256 + i[1])[2:] for i in chunks(ints, 2)])
 
 def parse(data):
     # when udp package greater than 512B, and EDNS is not supported by client or server, DNS queries are transmitted using TCP on port 53
@@ -50,6 +53,8 @@ def parse(data):
     print("**************************                BEGIN            ***********************")
 
     origin = deepcopy(data)
+    origin1 = deepcopy(data)
+    origin2 = deepcopy(data)
 
     ###### HEADER SECTION
     QR, TC, RCODE = "", "", "" 
@@ -140,7 +145,7 @@ def parse(data):
 
 
     #### QUESTION SECTION
-    QNAME, QTYPE = "", ""
+    QNAME, QTYPE, QClass = "", "", ""
 
     _query = data[12:]
     # query :: list<int>
@@ -161,7 +166,7 @@ def parse(data):
     # QNAME = '.'.join(name)
 
 
-    new_start, QNAME = get_offset_name(query)
+    new_start, QNAME = get_offset_name(query, origin)
     query = query[new_start:]
 
     
@@ -183,7 +188,16 @@ def parse(data):
     # type_dict = {[0,1]: "A", [0,2]: "NS", [0,5]: "CNAME", [0,6]: "SOA", [0,12]: "PTR", [0,15]: "MX", [0,28]: "AAAA"}
     # QTYPE = type_dict.get(query[1:3], "Unknown Answer Type")
 
-    QClass = query[3:5]
+    if query[3:5] == [0,1]:
+        QClass = "IN"
+    if query[3:5] == [0,3]:
+        QClass = "CH"
+    if query[3:5] == [0,4]:
+        QClass = "HS"
+    if query[3:5] == [0,254]:
+        QClass = "None"
+    if query[3:5] == [0,255]:
+        QClass = "Any"
 
     # 1B 8bit 11111111 is 255
     # Query
@@ -192,13 +206,13 @@ def parse(data):
         return ID, QR, TC, RCODE, QNAME, QTYPE
 
 
-    ############# ANSWER Section
+    ############# ANSWER SECTION
 
     query = query[5:]
 
     result = []
 
-    ANSWER, RDATA, NAME, TYPE = [],[], "", ""
+    ANSWER, RDATA, NAME, TYPE, Class = [],[], "", "", ""
 
     # Response
     if bits[0] == '1':
@@ -214,7 +228,7 @@ def parse(data):
                 print("******* answer section name is compressed")
                 # if it's compressed domain, 0xC0 == 192, it will read the next byte like 12 as offset point, it jump 12B of whole response for decode name
 
-                new_start, NAME = get_offset_name(list(origin)[query[1]:])
+                new_start, NAME = get_offset_name(origin[query[1]:], origin)
                 # compressed_name = []
                 # compressed_query = origin[query[1]:]
                 # while True:
@@ -244,7 +258,7 @@ def parse(data):
         
                 # NAME = '.'.join(name)
 
-                new_start, NAME = get_offset_name(query)
+                new_start, NAME = get_offset_name(query, origin)
                 print("answer section  NOT compressed name is ", NAME)
                 # query = query[1:]
                 query = query[new_start:]
@@ -266,6 +280,13 @@ def parse(data):
             if query[0:2] == [0,28]:
                 Type = "AAAA"
 
+            if query[2:4] == [0,1]:
+                Class = "IN"
+            if query[2:4] == [0,3]:
+                Class = "CH"
+            if query[2:4] == [0,4]:
+                Class = "HS"
+
             # type_dict = {[0,1]: "A", [0,2]: "NS", [0,5]: "CNAME", [0,6]: "SOA", [0,12]: "PTR", [0,15]: "MX", [0,28]: "AAAA"}
             # Type = type_dict.get(query[0:2], "Unknown Answer Type")
     
@@ -284,7 +305,12 @@ def parse(data):
             
             RDATA = query[10:10+rdlength]
 
-            result.append(Answer(Name= NAME, Type=Type, Class="IN", TTL= TTL, RDLength=rdlength, RData=RDATA))
+            if Type == "CNAME" or Type == "SOA":
+                n, RDATA = get_offset_name(RDATA, origin)
+            if Type == "AAAA":
+                RDATA = ints_to_ipv6_string(RDATA)
+
+            result.append(Answer(Name= NAME, Type=Type, Class=Class, TTL= TTL, RDLength=rdlength, RData=RDATA))
             query = query[10+rdlength:]
 
 
