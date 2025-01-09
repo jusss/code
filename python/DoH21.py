@@ -55,7 +55,7 @@ class RecvLocalThenSend(asyncio.DatagramProtocol):
             cache = {}
             current_time = time.time()
         transaction_id, qr, tc, rcode, qname, qtype = parse(query_data)
-        if qtype in ['PTR', 'SOA']:
+        if qtype in ['PTR', 'SOA', 'HTTPS', 'AAAA']:
             return
 
         if any([i in qname for i in blacklist]):

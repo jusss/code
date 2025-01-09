@@ -189,6 +189,12 @@ def parse(data, debug=False):
         QTYPE = "PTR"
     if query[1:3] == [0,15]:
         QTYPE = "MX"
+    if query[1:3] == [0,16]:
+        QTYPE = "TXT"
+    if query[1:3] == [0,64]:
+        QTYPE = "SVCB"
+    if query[1:3] == [0,65]:
+        QTYPE = "HTTPS"
     if query[1:3] == [0,28]:
         QTYPE = "AAAA"
 
@@ -286,6 +292,12 @@ def parse(data, debug=False):
                 Type = "MX"
             if query[0:2] == [0,28]:
                 Type = "AAAA"
+            if query[0:2] == [0,16]:
+                Type = "TXT"
+            if query[0:2] == [0,64]:
+                Type = "SVCB"
+            if query[0:2] == [0,65]:
+                Type = "HTTPS"
 
             if query[2:4] == [0,1]:
                 Class = "IN"

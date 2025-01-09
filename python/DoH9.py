@@ -67,7 +67,7 @@ def thread_post(local_socket, url, headers):
         transaction_id, qr, tc, rcode, qname, qtype = parse(query_data)
         # print(transaction_id, qr, tc, rcode, qname, qtype)
 
-        if qtype in ['PTR', 'SOA']:
+        if qtype in ['PTR', 'SOA', 'HTTPS', 'AAAA']:
             continue
 
         if any([i in qname for i in blacklist]):
