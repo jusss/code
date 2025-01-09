@@ -52,41 +52,42 @@ current_time = time.time()
 def thread_post(local_socket, url, headers):
     global cache
     global current_time
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        while True:
-            
-            if time.time() - current_time > timeout:
-                cache = {}
-                current_time = time.time()
+    # with ThreadPoolExecutor(max_workers=10) as executor:
+    executor = ThreadPoolExecutor(max_workers=10)
+    while True:
+        
+        if time.time() - current_time > timeout:
+            cache = {}
+            current_time = time.time()
 
-            # only send A,CNAME, MX, AAAA type data
-            # only cache A,CNAME, MX, AAAA
+        # only send A,CNAME, MX, AAAA type data
+        # only cache A,CNAME, MX, AAAA
 
-            query_data, query_addr = local_socket.recvfrom(10240)
-            transaction_id, qr, tc, rcode, qname, qtype = parse(query_data)
-            # print(transaction_id, qr, tc, rcode, qname, qtype)
+        query_data, query_addr = local_socket.recvfrom(10240)
+        transaction_id, qr, tc, rcode, qname, qtype = parse(query_data)
+        # print(transaction_id, qr, tc, rcode, qname, qtype)
 
-            if qtype in ['PTR', 'SOA']:
-                continue
+        if qtype in ['PTR', 'SOA']:
+            continue
 
-            if any([i in qname for i in blacklist]):
-                continue
+        if any([i in qname for i in blacklist]):
+            continue
 
-            if "." not in qname:
-                continue
+        if "." not in qname:
+            continue
 
-            print(f"{query_addr} {qname} {qtype}")
+        print(f"{query_addr} {qname} {qtype}")
 
-            if cache.get((qname, qtype)):
-                answer_data = transaction_id + cache.get((qname, qtype))
-                local_socket.sendto(answer_data, query_addr)
-                print(f"############## read cache {qname, qtype}   #################################")
+        if cache.get((qname, qtype)):
+            answer_data = transaction_id + cache.get((qname, qtype))
+            local_socket.sendto(answer_data, query_addr)
+            print(f"############## read cache {qname, qtype}   #################################")
 
-            else:
-                # if (not any([i in qname for i in blacklist])) and ("." in qname):
-                executor.submit(recv_local, local_socket, url, headers, query_addr, query_data, qname, qtype)
+        else:
+            # if (not any([i in qname for i in blacklist])) and ("." in qname):
+            executor.submit(recv_local, local_socket, url, headers, query_addr, query_data, qname, qtype)
 
-            # print("thread count: ", threading.active_count())
+        # print("thread count: ", threading.active_count())
 
 def recv_local(local_socket, url, headers, query_addr, query_data, qname, qtype):
     try:
