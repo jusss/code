@@ -1,6 +1,7 @@
 from copy import deepcopy
 from pydantic import BaseModel
 from typing import List, Union
+from functools import partial
 
 # todo, 1. tcp 53
 
@@ -43,12 +44,18 @@ bits_string_to_int = lambda bit_str: int(bit_str, 2)
 chunks = lambda alist, n: [alist[i:i+n] for i in range(0, len(alist), n)]
 ints_to_ipv6_string = lambda ints: ":".join([hex(i[0]*256 + i[1])[2:] for i in chunks(ints, 2)])
 
-def parse(data):
+def _print(debug, content):
+    if debug:
+        print(content)
+
+
+def parse(data, debug=False):
     # when udp package greater than 512B, and EDNS is not supported by client or server, DNS queries are transmitted using TCP on port 53
     # dns message
     # header 12B (id, qr, opcode, aa, tc, rd, ra, z, rcode, qdcount, ancount, nscount, arcount)
     # question section (qname, qtype 2B, qclass 2B)
     # answer section (name(may compressed), type 2B, class 2B, ttl 4B, rdlength 2B, rdata)
+    print = partial(_print, debug)
 
     print("**************************                BEGIN            ***********************")
 
@@ -216,8 +223,8 @@ def parse(data):
 
     # Response
     if bits[0] == '1':
-        print("********** ANSWER Section ", query)
-        print("answer number is", answer_number)
+        print(f"********** ANSWER Section {query}")
+        print(f"answer number is {answer_number}")
         if answer_number == 0:
             answer_number = 1
 
@@ -259,7 +266,7 @@ def parse(data):
                 # NAME = '.'.join(name)
 
                 new_start, NAME = get_offset_name(query, origin)
-                print("answer section  NOT compressed name is ", NAME)
+                print(f"answer section  NOT compressed name is {NAME}")
                 # query = query[1:]
                 query = query[new_start:]
     
