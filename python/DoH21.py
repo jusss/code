@@ -41,7 +41,7 @@ c=bytes(b)
 
 _dict = {}
 cache = {}
-timeout = 160
+timeout = 600
 current_time = time.time()
 latest = []
 
@@ -121,8 +121,10 @@ async def send_post_request(url, query_data, headers, transport, query_addr):
                     return
                 if cache.get((qname, qtype)):
                     return 
+                if answer[-1].Type not in ["A", "AAAA"]:
+                    return
                 cache[(qname, qtype)] = answer_data[2:]
-                print(f"--------------- add cache {qname, qtype, answer[0].RData}  ---------------------")
+                print(f"--------------- add cache {qname, qtype, answer[-1].Type, answer[-1].RData}  ---------------------")
 
 async def main():
     loop = asyncio.get_running_loop()

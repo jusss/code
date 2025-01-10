@@ -115,9 +115,10 @@ def recv_local(local_socket, url, headers, query_addr, query_data, qname, qtype)
                 return
             if cache.get((qname, qtype)):
                 return
+            if answer[-1].Type not in ["A", "AAAA"]:
+                return
             cache[(qname, qtype)] = answer_data[2:]
-            print(f"--------------- add cache {qname, qtype, answer[0].RData}  ---------------------")
-
+            print(f"--------------- add cache {qname, qtype, answer[-1].Type, answer[-1].RData}  ---------------------")
 
     except Exception as e:
         print(e)
