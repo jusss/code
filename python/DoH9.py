@@ -48,17 +48,21 @@ c=bytes(b)
 cache = {}
 timeout = 60
 current_time = time.time()
+latest = []
 
 def thread_post(local_socket, url, headers):
-    global cache
-    global current_time
+    global cache, current_time, timeout, latest
     # with ThreadPoolExecutor(max_workers=10) as executor:
     executor = ThreadPoolExecutor(max_workers=10)
     while True:
         
-        if time.time() - current_time > timeout:
+        # if time.time() - current_time > timeout:
+            # cache = {}
+            # current_time = time.time()
+
+        if int(time.time()) % timeout == 0:
             cache = {}
-            current_time = time.time()
+            latest = []
 
         # only send A,CNAME, MX, AAAA type data
         # only cache A,CNAME, MX, AAAA
@@ -67,7 +71,8 @@ def thread_post(local_socket, url, headers):
         transaction_id, qr, tc, rcode, qname, qtype = parse(query_data)
         # print(transaction_id, qr, tc, rcode, qname, qtype)
 
-        if qtype in ['PTR', 'SOA', 'HTTPS', 'AAAA']:
+        # AAAA can not be blocked, otherwise query A with AAAA may not get end of dns response
+        if qtype in ['PTR', 'SOA']:
             continue
 
         if any([i in qname for i in blacklist]):
@@ -75,6 +80,12 @@ def thread_post(local_socket, url, headers):
 
         if "." not in qname:
             continue
+
+        # avoid repeat query 
+        if (query_data[:2], qname, qtype) in latest:
+            continue
+        else:
+            latest.append((query_data[:2], qname, qtype))
 
         print(f"{query_addr} {qname} {qtype}")
 
@@ -90,6 +101,7 @@ def thread_post(local_socket, url, headers):
         # print("thread count: ", threading.active_count())
 
 def recv_local(local_socket, url, headers, query_addr, query_data, qname, qtype):
+    global cache
     try:
         with requests.Session() as session:
             res = session.post(url, data=query_data, headers=headers)
@@ -99,10 +111,12 @@ def recv_local(local_socket, url, headers, query_addr, query_data, qname, qtype)
             # print(f"anwser {answer_data[12:]}")
             local_socket.sendto(answer_data, query_addr)
 
-            if not (len(answer) == 1 and answer[0].Type == "SOA"):
-                global cache
-                cache[(qname, qtype)] = answer_data[2:]
-                print(f"--------------- add cache {qname, qtype}  ---------------------")
+            if (len(answer) == 1 and answer[0].Type == "SOA"):
+                return
+            if cache.get((qname, qtype)):
+                return
+            cache[(qname, qtype)] = answer_data[2:]
+            print(f"--------------- add cache {qname, qtype, answer[0].RData}  ---------------------")
 
 
     except Exception as e:

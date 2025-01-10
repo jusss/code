@@ -43,6 +43,7 @@ _dict = {}
 cache = {}
 timeout = 160
 current_time = time.time()
+latest = []
 
 class RecvLocalThenSend(asyncio.DatagramProtocol):
     def __init__(self):
@@ -50,12 +51,19 @@ class RecvLocalThenSend(asyncio.DatagramProtocol):
     def connection_made(self, transport):
         self.transport = transport
     def datagram_received(self, query_data, query_addr):
-        global cache, current_time, timeout
-        if time.time() - current_time > timeout:
+        global cache, current_time, timeout, latest
+        # if time.time() - current_time > timeout:
+            # cache = {}
+            # current_time = time.time()
+
+        if int(time.time()) % timeout == 0:
             cache = {}
-            current_time = time.time()
+            latest = []
+
         transaction_id, qr, tc, rcode, qname, qtype = parse(query_data)
-        if qtype in ['PTR', 'SOA', 'HTTPS', 'AAAA']:
+        
+        # AAAA can not be blocked, otherwise query A with AAAA may not get end of dns response
+        if qtype in ['PTR', 'SOA']:
             return
 
         if any([i in qname for i in blacklist]):
@@ -63,6 +71,12 @@ class RecvLocalThenSend(asyncio.DatagramProtocol):
 
         if "." not in qname:
             return
+
+        # avoid repeat query 
+        if (query_data[:2], qname, qtype) in latest:
+            return
+        else:
+            latest.append((query_data[:2], qname, qtype))
 
         print(f"{query_addr} {qname} {qtype}")
         if cache.get((qname, qtype)):
@@ -96,16 +110,19 @@ def send_request(url, query_data, headers, transport):
 
 
 async def send_post_request(url, query_data, headers, transport, query_addr):
+    global cache
     async with aiohttp.ClientSession() as session:
         async with session.post(url, data=query_data, headers=headers) as response:
             if response.status == 200:
                 answer_data=await response.read()
                 transaction_id, qr, tc, rcode, qname, qtype, answer = parse(answer_data)
                 transport.sendto(answer_data, query_addr)
-                if not (len(answer) == 1 and answer[0].Type == "SOA"):
-                    global cache
-                    cache[(qname, qtype)] = answer_data[2:]
-                    print(f"--------------- add cache {qname, qtype}  ---------------------")
+                if (len(answer) == 1 and answer[0].Type == "SOA"):
+                    return
+                if cache.get((qname, qtype)):
+                    return 
+                cache[(qname, qtype)] = answer_data[2:]
+                print(f"--------------- add cache {qname, qtype, answer[0].RData}  ---------------------")
 
 async def main():
     loop = asyncio.get_running_loop()

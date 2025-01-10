@@ -225,7 +225,7 @@ def parse(data, debug=False):
 
     result = []
 
-    ANSWER, RDATA, NAME, TYPE, Class = [],[], "", "", ""
+    ANSWER, RDATA, NAME, Type, Class = [],[], "", "", ""
 
     # Response
     if bits[0] == '1':
