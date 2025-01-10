@@ -96,11 +96,11 @@ def thread_post(local_socket, url, headers):
 
         else:
             # if (not any([i in qname for i in blacklist])) and ("." in qname):
-            executor.submit(recv_local, local_socket, url, headers, query_addr, query_data, qname, qtype)
+            executor.submit(recv_local, local_socket, url, headers, query_addr, query_data)
 
         # print("thread count: ", threading.active_count())
 
-def recv_local(local_socket, url, headers, query_addr, query_data, qname, qtype):
+def recv_local(local_socket, url, headers, query_addr, query_data):
     global cache
     try:
         with requests.Session() as session:
