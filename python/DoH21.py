@@ -131,7 +131,10 @@ async def main():
     t = await loop.create_datagram_endpoint(RecvLocalThenSend, local_addr=('0.0.0.0', 53))
     await asyncio.sleep(3600000)
 
-
 if __name__ == '__main__':
-    asyncio.run(main())
+    # asyncio.run(main())
 
+    loop = asyncio.get_event_loop()
+    t = loop.create_datagram_endpoint(RecvLocalThenSend, local_addr=('0.0.0.0', 53))
+    loop.run_until_complete(t)
+    loop.run_forever()
