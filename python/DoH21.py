@@ -49,7 +49,7 @@ c=bytes(b)
 
 _dict = {}
 cache = {}
-timeout = 600
+timeout = 3600
 current_time = time.time()
 latest = []
 
@@ -93,7 +93,8 @@ class RecvLocalThenSend(asyncio.DatagramProtocol):
             print(f"############## read cache {qname, qtype}   #################################")
         else:
             #url = "https://doh.pub/dns-query"
-            url = "https://tyo02.dnscry.pt/dns-query"
+            #url = "https://tyo02.dnscry.pt/dns-query"
+            url = "https://jp01.dns4me.net"
 
             headers = {
             'accept': 'application/dns-message',
