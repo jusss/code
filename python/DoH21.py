@@ -6,6 +6,14 @@
 # 223.5.5.5   alidns.com
 # 1.12.12.12  doh.pub
 # one.one.one.one 1.1.1.1
+# 54.64.104.154 jp01.dns4me.net 
+# 103.179.44.73 sin02.dnscry.pt
+# 103.179.45.6 tyo02.dnscry.pt
+# 103.2.57.5 public.dns.iij.jp
+# 37.252.249.233 dns.nextdns.io
+# 95.217.11.63 public.ns.nwps.fi
+# 80.67.169.12 ns0.fdn.fr
+# https://github.com/curl/curl/wiki/DNS-over-HTTPS#publicly-available-servers
 # there're tls and https two ways for dns, check https://github.com/paulmillr/encrypted-dns.git
 
 import os, sys, socket, requests, json, time
@@ -84,7 +92,9 @@ class RecvLocalThenSend(asyncio.DatagramProtocol):
             self.transport.sendto(answer_data, query_addr)
             print(f"############## read cache {qname, qtype}   #################################")
         else:
-            url = "https://doh.pub/dns-query"
+            #url = "https://doh.pub/dns-query"
+            url = "https://tyo02.dnscry.pt/dns-query"
+
             headers = {
             'accept': 'application/dns-message',
             'content-type': 'application/dns-message'
