@@ -76,18 +76,21 @@ insertFileWithByteString filePath byteString = do
 listDirectoryAscendingByTime :: FilePath -> IO [FilePath]
 listDirectoryAscendingByTime path = do
     filelist <- listDirectory path
-    tl <- traverse getModificationTime $ ((path <> "/") <>) <$> filelist
-    let fl = reverse $ fst <$> (DL.sortOn snd $ zipWith (,) filelist tl)
+    -- tl <- traverse getModificationTime $ ((path <> "/") <>) <$> filelist
+    -- let fl = reverse $ fst <$> (DL.sortOn snd $ zipWith (,) filelist tl)
+    tl <- traverse getAccessTime $ ((path <> "/") <>) <$> filelist
+    let fl = fst <$> (DL.sortOn snd $ zipWith (,) filelist tl)
     return fl
 
 listFileHtml pathName fileList = 
-    if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> (urlPathEncode $ pathName <> "/" <> x) <> "\"> " <> x <> "</a> <br>" <> "\n") fileList)
+    if null fileList then "" else foldl1 (<>) (fmap (\x -> "<a href=\"" <> (urlPathEncode $ pathName <> "/" <> x) <> "\"> " <> x <> "</a><br><br>" <> "\n") fileList)
 
 titleHtml pathName = "<html lang=\"zh-CN\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">  <title>" <> pathName <> "</title>\n </head>\n <body>\n"
 
 titleWithFilePondHtml pathName = "<html lang=\"en-US\">\n <head>\n <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"> <title>" <> pathName <> "</title>\n <link href=\"/node_modules/filepond/dist/filepond.css\" rel=\"stylesheet\" />\n <script src=\"/node_modules/filepond/dist/filepond.js\"></script>\n </head>\n <body>\n"
 
 homeHtml = "<a href=\"/\">home</a><br><br>"
+refresh urlPath = "<a href=\"" <> urlPath <> "\">refresh</a><br><br>"
 
 getTitleFromLink :: String -> IO String
 getTitleFromLink url = do
@@ -114,7 +117,7 @@ generateVideoHtml pathName = do
         liftIO $ createDirectoryIfMissing True $ rootPath <> pathName
         fileList <- liftIO $ listDirectoryAscendingByTime $ rootPath <> pathName
         let h0 = titleHtml pathName
-        let h1 = homeHtml
+        let h1 = homeHtml <> (refresh pathName)
         let h2 = "<form id='myForm' enctype=\"multipart/form-data\" action=\"" <> pathName <> "\" method=\"post\">"
         let h3 = "<textarea id=\"formData\" rows=\"6\" cols=\"36\" name=\"" <> pathName <> "\"></textarea> <br> <input onclick=\"clearForm()\" type=\"submit\" value=\"Submit\"> </form> <br>"
         let h4 = listFileHtml pathName fileList
@@ -602,7 +605,8 @@ main = do
             else do
                 _d <- liftIO $ getCurrentTime
                 let _t = addUTCTime (60*60*8 :: NominalDiffTime) _d
-                let _date = fmap (\x -> if x == ' ' then '.' else x) $ DL.take 19 $ show _t
+                -- let _date = fmap (\x -> if x == ' ' then '.' else x) $ DL.take 19 $ show _t
+                let _date = DL.take 19 $ show _t
                 {- apt install ffmpeg, to fix malformed AAC bitstream for youtube-dl -}
                 -- liftIO $ callCommand ("cd video; youtube-dl --no-mtime -o '" <> _date <> ".%(ext)s' " <> strData)
                 liftIO $ forkIO $ callCommand ("cd video;  yt-dlp \"" <> strData <> "\" --cookies-from-browser \"chrome:/root/.config/chromium/Default::twitter\" -o '" <> _date <> ".%(ext)s' ")
