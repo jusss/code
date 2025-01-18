@@ -6,6 +6,7 @@ import Network.Wai.Handler.Warp (run)
 import Web.Scotty
 import Control.Monad
 import Control.Monad.IO.Class
+import Control.Concurrent
 import System.IO
 import System.Process
 import Data.Time.Clock
@@ -14,7 +15,7 @@ import qualified Data.List as DL
 import qualified Data.Text.Lazy as DTL
 import qualified Data.ByteString.Char8 as BSC
 
-addr = ""
+addr = "http://127.0.0.1:6000"
 rootPath = "/root/web_plain"
 {- assume download file in /root/web_plain/video/ -}
 
@@ -31,7 +32,8 @@ main = do
             let _date = fmap (\x -> if x == ' ' then '.' else x) $ DL.take 19 $ show _t
             text $ DTL.pack $ addr <> "/video/" <> _date <> ".mp4"
             {- liftIO $ callCommand ("cd video; youtube-dl --no-mtime -o '" <> _date <> ".%(ext)s' " <> urlData) -}
-            liftIO $ callCommand ("cd video;  yt-dlp \"" <> urlData <> "\" --cookies-from-browser \"chrome:/root/.config/chromium/Default::twitter\" -o '"     <> _date <> ".%(ext)s' ")
+            liftIO $ forkIO $ callCommand ("cd video;  yt-dlp \"" <> urlData <> "\" --cookies-from-browser \"chrome:/root/.config/chromium/Default::twitter\" -o '" <> _date <> ".%(ext)s' ")
+            return ()
 
         get "/video/:file" $ do
             _file <- param "file"

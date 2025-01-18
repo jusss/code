@@ -13,6 +13,7 @@ import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Cont
 import Control.Exception
+import Control.Concurrent
 import System.Environment
 import System.Directory
 import System.IO
@@ -360,7 +361,7 @@ headerContentTypeForiOS = DMI.fromList [("jpg", "image/jpeg"), ("jpeg", "image/j
 
 headerContentType = DMI.fromList [("jpg", "image/jpeg"), ("jpeg", "image/jpeg"), ("png", "image/png"),
                         -- ("mp4", "video/mp4"), ("m4a", "video/mp4"), ("mkv", "video/x-matroska"),
-                        ("webm", "video/webm"), ("mov", "video/quicktime"), ("avi", "video/x-msvideo"),
+                        -- ("webm", "video/webm"), ("mov", "video/quicktime"), ("avi", "video/x-msvideo"),
                         ("aac", "audio/aac"), ("ogg", "audio/ogg"), ("wav", "audio/wav"),
                         ("pdf", "application/pdf"),
                         ("txt", "text/plain; charset=utf-8")]
@@ -603,7 +604,9 @@ main = do
                 let _t = addUTCTime (60*60*8 :: NominalDiffTime) _d
                 let _date = fmap (\x -> if x == ' ' then '.' else x) $ DL.take 19 $ show _t
                 {- apt install ffmpeg, to fix malformed AAC bitstream for youtube-dl -}
-                liftIO $ callCommand ("cd video; youtube-dl --no-mtime -o '" <> _date <> ".%(ext)s' " <> strData)
+                -- liftIO $ callCommand ("cd video; youtube-dl --no-mtime -o '" <> _date <> ".%(ext)s' " <> strData)
+                liftIO $ forkIO $ callCommand ("cd video;  yt-dlp \"" <> strData <> "\" --cookies-from-browser \"chrome:/root/.config/chromium/Default::twitter\" -o '" <> _date <> ".%(ext)s' ")
+                return ()
             generateVideoHtml "/video"
 
         post "/url" $ do
