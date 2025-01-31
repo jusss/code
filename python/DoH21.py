@@ -4,7 +4,10 @@
 # nameserver 127.0.0.1
 # vim /etc/hosts
 # 223.5.5.5   alidns.com
+# 120.53.53.53  doh.pub
+# 119.29.29.29  doh.pub
 # 1.12.12.12  doh.pub
+# 1.12.12.21 doh.pub
 # one.one.one.one 1.1.1.1
 # 54.64.104.154 jp01.dns4me.net 
 # 103.179.44.73 sin02.dnscry.pt
@@ -49,7 +52,7 @@ c=bytes(b)
 
 _dict = {}
 cache = {}
-timeout = 3600
+timeout = 600
 current_time = time.time()
 latest = []
 
@@ -92,9 +95,9 @@ class RecvLocalThenSend(asyncio.DatagramProtocol):
             self.transport.sendto(answer_data, query_addr)
             print(f"############## read cache {qname, qtype}   #################################")
         else:
-            #url = "https://doh.pub/dns-query"
+            url = "https://doh.pub/dns-query"
             #url = "https://tyo02.dnscry.pt/dns-query"
-            url = "https://jp01.dns4me.net"
+            #url = "https://jp01.dns4me.net"
 
             headers = {
             'accept': 'application/dns-message',
