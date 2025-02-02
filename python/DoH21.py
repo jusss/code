@@ -84,10 +84,10 @@ class RecvLocalThenSend(asyncio.DatagramProtocol):
             return
 
         # avoid repeat query 
-        if (query_data[:2], qname, qtype) in latest:
-            return
-        else:
-            latest.append((query_data[:2], qname, qtype))
+        # if (query_data[:2], qname, qtype) in latest:
+            # return
+        # else:
+            # latest.append((query_data[:2], qname, qtype))
 
         print(f"{query_addr} {qname} {qtype}")
         if cache.get((qname, qtype)):
