@@ -18,6 +18,7 @@
 # 80.67.169.12 ns0.fdn.fr
 # https://github.com/curl/curl/wiki/DNS-over-HTTPS#publicly-available-servers
 # there're tls and https two ways for dns, check https://github.com/paulmillr/encrypted-dns.git
+# doh.pub would not resolv v6.hiij22.com
 
 import os, sys, socket, requests, json, time
 import asyncio
@@ -84,10 +85,10 @@ class RecvLocalThenSend(asyncio.DatagramProtocol):
             return
 
         # avoid repeat query 
-        # if (query_data[:2], qname, qtype) in latest:
-            # return
-        # else:
-            # latest.append((query_data[:2], qname, qtype))
+        if (query_data[:2], qname, qtype) in latest:
+            return
+        else:
+            latest.append((query_data[:2], qname, qtype))
 
         print(f"{query_addr} {qname} {qtype}")
         if cache.get((qname, qtype)):
@@ -95,9 +96,9 @@ class RecvLocalThenSend(asyncio.DatagramProtocol):
             self.transport.sendto(answer_data, query_addr)
             print(f"############## read cache {qname, qtype}   #################################")
         else:
-            url = "https://doh.pub/dns-query"
+            #url = "https://doh.pub/dns-query"
             #url = "https://tyo02.dnscry.pt/dns-query"
-            #url = "https://jp01.dns4me.net"
+            url = "https://jp01.dns4me.net"
 
             headers = {
             'accept': 'application/dns-message',
