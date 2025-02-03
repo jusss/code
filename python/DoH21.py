@@ -25,9 +25,9 @@ import asyncio
 import aiohttp
 from dns_package_parser import parse
 
-#url = "https://doh.pub/dns-query"
+url = "https://doh.pub/dns-query"
 #url = "https://tyo02.dnscry.pt/dns-query"
-url = "https://jp01.dns4me.net"
+#url = "https://jp01.dns4me.net"
 
 enable_cache = False
 timeout = 600
