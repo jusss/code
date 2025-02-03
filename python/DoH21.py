@@ -29,8 +29,8 @@ url = "https://doh.pub/dns-query"
 #url = "https://tyo02.dnscry.pt/dns-query"
 #url = "https://jp01.dns4me.net"
 
-enable_cache = False
-timeout = 600
+enable_cache = True
+timeout = 3600
 
 ads = [
         "sectigochina.com",
@@ -104,7 +104,8 @@ class RecvLocalThenSend(asyncio.DatagramProtocol):
 
             _transaction_id, _qr, _tc, _rcode, _qname, _qtype, _answer = parse(answer_data)
 
-            print(f"############## read cache {qname, qtype, _qname, _qtype, _answer}   #################################")
+            # print(f"############## read cache {qname, qtype, _qname, _qtype, _answer}   #################################")
+            print(f"############## read cache {_qname, _qtype, _answer[-1].Type, _answer[-1].RData} #################################")
             return
 
         headers = {
