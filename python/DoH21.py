@@ -25,6 +25,13 @@ import asyncio
 import aiohttp
 from dns_package_parser import parse
 
+#url = "https://doh.pub/dns-query"
+#url = "https://tyo02.dnscry.pt/dns-query"
+url = "https://jp01.dns4me.net"
+
+enable_cache = False
+timeout = 600
+
 ads = [
         "sectigochina.com",
         "qncud.com",
@@ -53,7 +60,6 @@ c=bytes(b)
 
 _dict = {}
 cache = {}
-timeout = 600
 current_time = time.time()
 latest = []
 
@@ -63,7 +69,7 @@ class RecvLocalThenSend(asyncio.DatagramProtocol):
     def connection_made(self, transport):
         self.transport = transport
     def datagram_received(self, query_data, query_addr):
-        global cache, current_time, timeout, latest
+        global cache, current_time, timeout, latest, url, enable_cache
         # if time.time() - current_time > timeout:
             # cache = {}
             # current_time = time.time()
@@ -85,33 +91,34 @@ class RecvLocalThenSend(asyncio.DatagramProtocol):
             return
 
         # avoid repeat query 
-        if (query_data[:2], qname, qtype) in latest:
+        if ((query_data[:2], qname, qtype) in latest) and enable_cache:
             return
         else:
             latest.append((query_data[:2], qname, qtype))
 
         print(f"{query_addr} {qname} {qtype}")
-        if cache.get((qname, qtype)):
-            answer_data = transaction_id + cache.get((qname, qtype))
+        cached_value = cache.get((qname, qtype))
+        if cached_value and enable_cache:
+            answer_data = transaction_id + cached_value
             self.transport.sendto(answer_data, query_addr)
-            print(f"############## read cache {qname, qtype}   #################################")
-        else:
-            #url = "https://doh.pub/dns-query"
-            #url = "https://tyo02.dnscry.pt/dns-query"
-            url = "https://jp01.dns4me.net"
 
-            headers = {
-            'accept': 'application/dns-message',
-            'content-type': 'application/dns-message'
-            }
+            _transaction_id, _qr, _tc, _rcode, _qname, _qtype, _answer = parse(answer_data)
 
-            try:
-                # send_request(url, query_data, headers, self.transport)
-                asyncio.get_running_loop().create_task(send_post_request(url, query_data, headers, self.transport, query_addr))
+            print(f"############## read cache {qname, qtype, _qname, _qtype, _answer}   #################################")
+            return
 
-            except Exception as e:
-                print(e)
-                pass
+        headers = {
+        'accept': 'application/dns-message',
+        'content-type': 'application/dns-message'
+        }
+
+        try:
+            # send_request(url, query_data, headers, self.transport)
+            asyncio.get_running_loop().create_task(send_post_request(url, query_data, headers, self.transport, query_addr))
+
+        except Exception as e:
+            print(e)
+            pass
 
 def send_request(url, query_data, headers, transport):
     res = requests.post(url, data=query_data, headers=headers)
@@ -125,21 +132,25 @@ def send_request(url, query_data, headers, transport):
 
 
 async def send_post_request(url, query_data, headers, transport, query_addr):
-    global cache
+    global cache, enable_cache
     async with aiohttp.ClientSession() as session:
         async with session.post(url, data=query_data, headers=headers) as response:
             if response.status == 200:
                 answer_data=await response.read()
                 transaction_id, qr, tc, rcode, qname, qtype, answer = parse(answer_data)
                 transport.sendto(answer_data, query_addr)
+
+                #print(f"############## recv answer {qname, qtype, answer} ############")
+
                 if (len(answer) == 1 and answer[0].Type == "SOA"):
                     return
-                if cache.get((qname, qtype)):
-                    return 
+
                 if answer[-1].Type not in ["A", "AAAA"]:
                     return
-                cache[(qname, qtype)] = answer_data[2:]
-                print(f"--------------- add cache {qname, qtype, answer[-1].Type, answer[-1].RData}  ---------------------")
+
+                if enable_cache:
+                    cache[(qname, qtype)] = answer_data[2:]
+                    print(f"--------------- add cache {qname, qtype, answer[-1].Type, answer[-1].RData}  ---------------------")
 
 async def main():
     loop = asyncio.get_running_loop()
