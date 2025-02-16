@@ -25,11 +25,11 @@ import asyncio
 import aiohttp
 from dns_package_parser import parse
 
-#url = "https://doh.pub/dns-query"
+url = "https://doh.pub/dns-query"
 #url = "https://tyo02.dnscry.pt/dns-query"
-url = "https://jp01.dns4me.net"
+#url = "https://jp01.dns4me.net"
 
-enable_cache = False
+enable_cache = True
 timeout = 3600
 
 ads = [
@@ -81,7 +81,8 @@ class RecvLocalThenSend(asyncio.DatagramProtocol):
         transaction_id, qr, tc, rcode, qname, qtype = parse(query_data)
         
         # AAAA can not be blocked, otherwise query A with AAAA may not get end of dns response
-        if qtype in ['PTR', 'SOA']:
+        # reject HTTPS for iOS 
+        if qtype in ['PTR', 'SOA', 'HTTPS']:
             return
 
         if any([i in qname for i in blacklist]):
