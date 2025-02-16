@@ -1,0 +1,24 @@
+# cat wg-next.service
+[Unit]
+Description=Run wg-next.py
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /root/wg-next.py
+
+# cat wg-next.timer
+[Unit]
+Description=Daily wg-next.py timer
+
+[Timer]
+OnCalendar=*-*-* 08:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+
+# cp wg-next.* /etc/systemd/system
+# systemctl daemon-reload
+# systemctl enable wg-next.timer
+# systemctl start wg-next.timer
+# systemctl status wg-next.timer
