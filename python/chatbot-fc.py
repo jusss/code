@@ -21,9 +21,10 @@ from pathlib import Path
 
 OPENAI_API_KEY = ""
 OPENAI_BASE_URL = ""
-# MODEL = "ep-20241202111844-2thng"
-# MODEL = "ep-20241202112646-vnvgv"
-MODEL = "ep-20241202112824-5zvw9"
+
+MODEL = "ep-20241202111844-2thng" # doubao-pro-128k-240628 support two functions at same time
+#MODEL = "ep-20241202112646-vnvgv"   # moonshot moonshot-v1-128k-v1, will call one function, then another 
+#MODEL = "ep-20241202112824-5zvw9" # chatglm3-130b-fc-v1.0 support two functions at same time
 
 log_path = f"{os.getenv('HOME')}/chat_history"
 log_prefix = "chat_history"
@@ -97,7 +98,8 @@ def load_functions(plugins_dir):
         spec.loader.exec_module(module)
     
         # Get the functions defined in the module
-        functions = functions | {name: obj for name, obj in module.__dict__.items() if callable(obj)}
+        # functions = functions | {name: obj for name, obj in module.__dict__.items() if callable(obj)}
+        functions.update({name: obj for name, obj in module.__dict__.items() if callable(obj)})
     return functions
 
 functions = load_functions(plugins_dir)
@@ -215,92 +217,75 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
 
     print(get_colored_text(f"\n{MODEL}: ", "green"), end='', flush=True)
 
+    message = reduce(add, history + [message])
 
-    completion = client.chat.completions.create(
+
+    result = ""
+    while True:
+
+        completion = client.chat.completions.create(
             model = model,
-            messages = reduce(add, history + [message]),
+            messages = message ,
             temperature = 0.3,
             stream = stream,
             tools = tools
-    )
+        )
 
-    if not stream:
-        result = completion.choices[0].message.content
-        print(result)
-    else:
-
-        collected_messages = []
-        for idx, chunk in enumerate(completion):
-            # print("Chunk received, value: ", chunk)
-            # in stream mode, since finish_reason will show at the end of the messages, so suggest to use delta.tool_calls to check if it's tools call
-            # if chunk.choices[0].finish_reason == "tool_calls":
-                # print("***** it's tool call")
-        
-            chunk_message = chunk.choices[0].delta
-        
-            # https://platform.moonshot.cn/docs/guide/use-kimi-api-to-complete-tool-calls#%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98%E5%8F%8A%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9
-            # in stream mode, wait delta.content is over then check delta.tool_calls
-            if not chunk_message.content:
-                # print("chunk tools is ", chunk_message.tool_calls)
+        if not stream:
+            result = completion.choices[0].message.content
+            message.append({"role": "assistant", "content": result})
+            print(result)
+            break
+        else:
+            _dict = {}
+            collected_messages = []
+            tool_call_messages = []
+            for idx, chunk in enumerate(completion):
+                chunk_message = chunk.choices[0].delta
                 if chunk_message.tool_calls:
-
-                    # tools call need that ChoiceDelta object not json, but ChoiceDelta can not be serialized by json
-                    _message = deepcopy(message)
-
+                    if chunk_message.model_dump()["tool_calls"][0]["id"]:
+                        tool_call_messages.append(chunk_message)
                     for funcs in chunk_message.tool_calls:
-                        name = funcs.function.name
-                        args = funcs.function.arguments
-                        tool_id = funcs.id
-                        # print(f"name is {name}, args is {args}, id is {tool_id}")
-
-                        _message.append(chunk_message)
-                        message.append(chunk_message.model_dump())
-
-                        func_result = functions[name](args)
-
-                        _message.append({
-                            "role": "tool",
-                            "tool_call_id": tool_id,
-                            "name": name,
-                            "content": func_result
-                        })
-
-                        message.append({
-                            "role": "tool",
-                            "tool_call_id": tool_id,
-                            "name": name,
-                            "content": func_result
-                        })
-                    # goto k
-                    _completion = client.chat.completions.create(
-                        model = model,
-                        messages = _message,
-                        temperature = 0.3,
-                        stream = True,
-                        tools=tools
-                        )
-
-                    for _idx, _chunk in enumerate(_completion):
-                        _chunk_message = _chunk.choices[0].delta
-
-                        if _chunk_message.content:
-                            print(_chunk_message.content, end='')
-                            collected_messages.append(_chunk_message)  # save the message
-                    # if collected_messages:
-                        # result = ''.join([m.content for m in collected_messages])
-                        # print(result)
-            else: 
-                #print(f"chunk message is {chunk_message}")
+                        if funcs.function.name:
+                            _dict[funcs.index] = {"tool_id": funcs.id, "name": funcs.function.name, "args": funcs.function.arguments}
+                        else:
+                            _dict[funcs.index]["args"] = _dict[funcs.index]["args"] + funcs.function.arguments
+            
                 if chunk_message.content:
                     print(chunk_message.content, end='')
-                    collected_messages.append(chunk_message)  # save the message
-                # print(f"#{idx}: {''.join([m.content for m in collected_messages])}")
-            # print(f"Full conversation received: {''.join([m.content for m in collected_messages])}")
-        if collected_messages:
+                    collected_messages.append(chunk_message)  
+        
+            if collected_messages:
                 result = ''.join([m.content for m in collected_messages])
                 print('')
+                message.append({"role": "assistant", "content": result})
+            if tool_call_messages:
+                merge_tool_call = []
+                for tool_call_message in tool_call_messages:
+                    t = tool_call_message.model_dump(exclude_none=True)
+        
+                    for b in t['tool_calls']:
+                        del b['index']
+        
+                    merge_tool_call.append(t)
+        
+                message.append(
+                    reduce(lambda x, y: {**x, 'tool_calls': x['tool_calls'] + y['tool_calls']}, merge_tool_call)
+                    )
 
-    message.append({"role": "assistant", "content": result})
+                if _dict:
+                    for index, v in _dict.items():
+                        r = functions[v["name"]](v["args"])
+                        message.append({
+                            "role": "tool",
+                            "tool_call_id": v["tool_id"],
+                            "name": v["name"],
+                            "content": r
+                        })
+            else:
+                break
+            
+    # message.append({"role": "assistant", "content": result})
     history.append(message)
     write_content.append(message)
 
