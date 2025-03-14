@@ -18,12 +18,14 @@ from itertools import combinations
 from copy import deepcopy
 import importlib.util
 from pathlib import Path
+from itertools import accumulate
 
 OPENAI_API_KEY = ""
 OPENAI_BASE_URL = ""
 
-MODEL = "ep-20241202111844-2thng" # doubao-pro-128k-240628 support two functions at same time
-#MODEL = "ep-20241202112646-vnvgv"   # moonshot moonshot-v1-128k-v1, will call one function, then another 
+#MODEL="ep-20241202112616-gwq48" # 
+#MODEL = "ep-20241202111844-2thng" # doubao-pro-128k-240628 support two functions at same time
+MODEL = "ep-20241202112646-vnvgv"   # moonshot moonshot-v1-128k-v1, will call one function, then another 
 #MODEL = "ep-20241202112824-5zvw9" # chatglm3-130b-fc-v1.0 support two functions at same time
 
 log_path = f"{os.getenv('HOME')}/chat_history"
@@ -36,6 +38,7 @@ prompt = ""
 history_limit = 6
 stream = True
 retrieval_limit = 6
+token_limit = 32000
 
 #1 creat log file for chat context, done
 #2 loop input, only write when exit, done
@@ -191,6 +194,20 @@ def get_colored_text(text, color):
     }
     color_str = _TEXT_COLOR_MAPPING[color]
     return f"\u001b[{color_str}m\033[1;3m{text}\u001b[0m"
+
+def trim_message(history, length):
+    d = list(map(lambda xs: len(json.dumps(xs)), history))
+    #d=[20, 10, 30, 40, 70, 20, 30, 10]
+    d1=reversed(d)
+    index=0
+    for n, r in enumerate(accumulate(d1)):
+        #print(n, r)
+        if r > length:
+            index = n
+            break
+    
+    # print(d[-index:])
+    return(history[-index:])
  
 # history :: [[Map str str]], write_content :: [[Map str str]]
 def chat(client, model, prompt, query, history, write_content, dataset=None, retrieval_func=identity):
@@ -200,7 +217,7 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
         message.append({"role": "system", "content": prompt})
 
     if dataset:
-        # chunks :: [[String]]
+        # chunks :: [[String]], maybe try to use function call to do retrieval, write 'call this tool or not' in prompt for RAG
         chunks = retrieval_func(dataset, query, topK=20)
         context = "\nthose messages may be useful: " + ",".join(reduce(add, chunks))
 
@@ -212,13 +229,16 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
 
     message.append({"role": "user", "content": query})
 
-    if len(history) > history_limit:
-        history = history[-history_limit:]
+    # history :: [[dict]], every [dict] is a complete conversation,
+    # if len(history) > history_limit:
+        # history = history[-history_limit:]
 
     print(get_colored_text(f"\n{MODEL}: ", "green"), end='', flush=True)
 
-    message = reduce(add, history + [message])
+    # check message length by token_limit
+    history = trim_message(history, token_limit - len(json.dumps(message)))
 
+    message = reduce(add, history + [message])
 
     result = ""
     while True:
