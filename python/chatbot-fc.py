@@ -204,7 +204,9 @@ def trim_length(history, length):
     for n, r in enumerate(accumulate(d1)):
         #print(n, r)
         if r > length:
-            if n == 0 or n == 1:
+            if n == 0:
+                return []
+            elif n == 1:
                 return [history[-1]]
             else:
                 index = n
