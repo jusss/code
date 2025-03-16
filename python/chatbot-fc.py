@@ -195,22 +195,42 @@ def get_colored_text(text, color):
     color_str = _TEXT_COLOR_MAPPING[color]
     return f"\u001b[{color_str}m\033[1;3m{text}\u001b[0m"
 
-def trim_message(history, length):
-    d = list(map(lambda xs: len(json.dumps(xs)), history))
+def trim_length(history, length):
+    d = list(map(lambda xs: len(json.dumps(xs,ensure_ascii=False).encode('utf8')), history))
     #d=[20, 10, 30, 40, 70, 20, 30, 10]
+    #print(d)
     d1=reversed(d)
     index=0
     for n, r in enumerate(accumulate(d1)):
         #print(n, r)
         if r > length:
-            index = n
-            break
-    
+            if n == 0 or n == 1:
+                return [history[-1]]
+            else:
+                index = n
+                break
+
     # print(d[-index:])
     return(history[-index:])
+
+# def trim_length(history, length):
+    # d = list(map(lambda xs: len(json.dumps(xs)), history))
+    # #d=[20, 10, 30, 40, 70, 20, 30, 10]
+    # d1=reversed(d)
+    # index=0
+    # for n, r in enumerate(accumulate(d1)):
+        # #print(n, r)
+        # if r > length:
+            # index = n
+            # break
+    
+    # # print(d[-index:])
+    # return(history[-index:])
  
 # history :: [[Map str str]], write_content :: [[Map str str]]
 def chat(client, model, prompt, query, history, write_content, dataset=None, retrieval_func=identity):
+    # message only add this one time complete conversation, so it's message not messages
+    # message :: [dict]
     message = []
     result = ""
     if prompt:
@@ -229,23 +249,23 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
 
     message.append({"role": "user", "content": query})
 
-    # history :: [[dict]], every [dict] is a complete conversation,
-    # if len(history) > history_limit:
-        # history = history[-history_limit:]
+    # history :: [[dict]], every [dict] is a complete conversation, is a message
+    if len(history) > history_limit:
+        history = history[-history_limit:]
 
     print(get_colored_text(f"\n{MODEL}: ", "green"), end='', flush=True)
 
-    # check message length by token_limit
-    history = trim_message(history, token_limit - len(json.dumps(message)))
-
-    message = reduce(add, history + [message])
+    # limit messages length by token_limit, only trim history which item is a complete conversation, 
+    # do not trim message, trim message can cause incomplete conversation
+    history = trim_length(history, token_limit - len(json.dumps(message)))
 
     result = ""
     while True:
+        # print(f"**** the messages is {reduce(add, history + [message])}")
 
         completion = client.chat.completions.create(
             model = model,
-            messages = message ,
+            messages = reduce(add, history + [message]),
             temperature = 0.3,
             stream = stream,
             tools = tools
