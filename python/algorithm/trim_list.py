@@ -7,8 +7,13 @@ def trim_list(alist, length):
     for n, r in enumerate(accumulate(d1)):
         # print(n, r)
         if r > length:
-            index = n
-            break
+            if n == 0:
+                return []
+            elif n == 1:
+                return [alist[-1]]
+            else:
+                index = n
+                break
     
     return(alist[-index:])
 
