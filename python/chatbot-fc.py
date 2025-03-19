@@ -25,8 +25,14 @@ OPENAI_BASE_URL = ""
 
 #MODEL="ep-20241202112616-gwq48" # 
 #MODEL = "ep-20241202111844-2thng" # doubao-pro-128k-240628 support two functions at same time
-MODEL = "ep-20241202112646-vnvgv"   # moonshot moonshot-v1-128k-v1, will call one function, then another 
+#MODEL = "ep-20241202112646-vnvgv"   # moonshot moonshot-v1-128k-v1, will call one function, then another 
 #MODEL = "ep-20241202112824-5zvw9" # chatglm3-130b-fc-v1.0 support two functions at same time
+MODEL = "moonshot-v1-32k" # 3 requests per minute
+
+# glm need prompt to use web_search tool, moonshot doesn't
+# follow the next rules:
+# 1.check the history to retrieval related context before you answer
+# 2.use the tool web_search for unknown question, like name something
 
 log_path = f"{os.getenv('HOME')}/chat_history"
 log_prefix = "chat_history"
@@ -38,7 +44,7 @@ prompt = ""
 history_limit = 6
 stream = True
 retrieval_limit = 6
-token_limit = 32000
+token_limit = 16000
 
 #1 creat log file for chat context, done
 #2 loop input, only write when exit, done
@@ -260,18 +266,22 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
     # limit messages length by token_limit, only trim history which item is a complete conversation, 
     # do not trim message, trim message can cause incomplete conversation
     history = trim_length(history, token_limit - len(json.dumps(message)))
-
+    messages = reduce(add, history) if history else []
     result = ""
     while True:
         # print(f"**** the messages is {reduce(add, history + [message])}")
-
-        completion = client.chat.completions.create(
-            model = model,
-            messages = reduce(add, history + [message]),
-            temperature = 0.3,
-            stream = stream,
-            tools = tools
-        )
+        try:
+            completion = client.chat.completions.create(
+                model = model,
+                messages = messages + message,
+                temperature = 0.3,
+                stream = stream,
+                tools = tools
+            )
+        except Exception as e:
+            print(e)
+            print(f"*** messages is {messages + message}")
+            exit()
 
         if not stream:
             result = completion.choices[0].message.content
@@ -311,9 +321,15 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
         
                     merge_tool_call.append(t)
         
+                # message.append(
+                    # reduce(lambda x, y: {**x, 'tool_calls': x['tool_calls'] + y['tool_calls']}, merge_tool_call)
+                    # )
+
+                msg = reduce(lambda x, y: {**x, 'tool_calls': x['tool_calls'] + y['tool_calls']}, merge_tool_call)
+                msg["role"] = "assistant"
                 message.append(
-                    reduce(lambda x, y: {**x, 'tool_calls': x['tool_calls'] + y['tool_calls']}, merge_tool_call)
-                    )
+                    msg
+                )
 
                 if _dict:
                     for index, v in _dict.items():
