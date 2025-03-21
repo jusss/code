@@ -40,10 +40,15 @@ def load_tools(plugins_dir):
 tools = load_tools(plugins_dir)
 
 OPENAI_API_KEY = ""
-OPENAI_BASE_URL = ""
+OPENAI_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3"
 #MODEL = "ep-20241202111844-2thng" # doubao-pro-128k-240628 support two functions at same time
-MODEL = "ep-20241202112646-vnvgv"   # moonshot moonshot-v1-128k-v1, will call one function, then another 
-#MODEL = "ep-20241202112824-5zvw9" # chatglm3-130b-fc-v1.0 support two functions at same time
+#MODEL = "ep-20241202112646-vnvgv"   # moonshot moonshot-v1-128k-v1, will call one function, then another 
+MODEL = "ep-20241202112824-5zvw9" # chatglm3-130b-fc-v1.0 support two functions at same time
+
+OPENAI_API_KEY = ""
+OPENAI_BASE_URL = "https://api.moonshot.cn/v1"
+MODEL = "moonshot-v1-32k"
+
 
 client = OpenAI(api_key = OPENAI_API_KEY, base_url = OPENAI_BASE_URL)
 
@@ -98,8 +103,10 @@ while True:
 
             merge_tool_call.append(t)
 
+        msg = reduce(lambda x, y: {**x, 'tool_calls': x['tool_calls'] + y['tool_calls']}, merge_tool_call)
+        msg["role"] = "assistant"
         message.append(
-            reduce(lambda x, y: {**x, 'tool_calls': x['tool_calls'] + y['tool_calls']}, merge_tool_call)
+                msg
             )
         if _dict:
             print(f"***** dict is {_dict}")
