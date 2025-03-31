@@ -25,8 +25,8 @@ import asyncio
 import aiohttp
 from dns_package_parser import parse
 
-url = "https://doh.pub/dns-query"
-#url = "https://tyo02.dnscry.pt/dns-query"
+#url = "https://doh.pub/dns-query"
+url = "https://tyo02.dnscry.pt/dns-query"
 #url = "https://jp01.dns4me.net"
 
 enable_cache = True
@@ -38,7 +38,17 @@ ads = [
         "dlrtz.com",
         "0efghij.com",
         "0ghijkl.com",
-        "taopianimage1.com",
+         "51weizhang.cn",
+        "sp0.baidu.com",
+        ".bbyaqpy.com",
+        ".eghfsly.com",
+        ".edjvdgl.com",
+        ".pcepzar.com",
+        ".jkdzayx.com",
+        ".anoltzy.com",
+        ".xn--gmq34xj04bqwk.com",
+       "taopianimage1.com",
+        "upqtkxq.com"
         ]
 
 google = [
@@ -47,7 +57,7 @@ google = [
         "googleapis.com",
         ]
 
-blacklist = ads
+blacklist = ads 
 
 with open("config.json") as f:
     content = f.read()
