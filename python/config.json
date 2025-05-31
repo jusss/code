@@ -9,15 +9,7 @@
   "cache_timeout": 36000000000,
   "black_list": {
     "A": [
-        "51weizhang.cn",
-        "sp0.baidu.com",
-        ".bbyaqpy.com",
-        ".eghfsly.com",
-        ".edjvdgl.com",
-        ".pcepzar.com",
-        ".jkdzayx.com",
-        ".anoltzy.com",
-        ".xn--gmq34xj04bqwk.com",
+      "stun.services.mozilla1.com",
       "commonwealthproficient.com",
       ".in-addr.arpa",
       "ausnhdo.com",
