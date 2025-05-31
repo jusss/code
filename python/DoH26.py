@@ -94,9 +94,9 @@ class RecvLocalThenSend(asyncio.DatagramProtocol):
 
         transaction_id, qr, tc, rcode, qname, qtype = parse(query_data)
         
-        # AAAA can not be blocked, otherwise query A with AAAA may not get end of dns response
+        # AAAA can not be blocked, otherwise git push need `-4`, dig `-4`, and nslookup on linux will stuck for query with AAAA
         # reject HTTPS for iOS 
-        if qtype in ['PTR', 'SOA', 'HTTPS', 'AAAA']:
+        if qtype in ['PTR', 'SOA', 'HTTPS']:
             return
 
         if any([i in qname for i in blacklist]):
