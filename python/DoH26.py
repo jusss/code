@@ -96,7 +96,7 @@ class RecvLocalThenSend(asyncio.DatagramProtocol):
         
         # AAAA can not be blocked, otherwise query A with AAAA may not get end of dns response
         # reject HTTPS for iOS 
-        if qtype in ['PTR', 'SOA', 'HTTPS']:
+        if qtype in ['PTR', 'SOA', 'HTTPS', 'AAAA']:
             return
 
         if any([i in qname for i in blacklist]):
