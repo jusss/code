@@ -177,7 +177,7 @@ async def send_post_request(url, query_data, headers, transport, query_addr):
             print("### use DoH ###")
 
             async with aiohttp.ClientSession() as session:
-                async with session.post(url, data=query_data, headers=headers) as response:
+                async with session.post(url, data=query_data, headers=headers, verify_ssl=False) as response:
                     if response.status == 200:
                         answer_data=await response.read()
                         transaction_id, qr, tc, rcode, qname, qtype, answer = parse(answer_data)
@@ -197,7 +197,7 @@ async def send_post_request(url, query_data, headers, transport, query_addr):
         
     else:
         async with aiohttp.ClientSession() as session:
-            async with session.post(url, data=query_data, headers=headers) as response:
+            async with session.post(url, data=query_data, headers=headers, verify_ssl=False) as response:
                 if response.status == 200:
                     answer_data=await response.read()
                     transaction_id, qr, tc, rcode, qname, qtype, answer = parse(answer_data)
