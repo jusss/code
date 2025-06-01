@@ -167,15 +167,15 @@ async def send_post_request(url, query_data, headers, transport, query_addr, que
                 #print(f"############## recv answer {qname, qtype, answer} ############")
 
                 if not answer:
-                    self.transport.sendto(query_data, query_addr)
+                    transport.sendto(query_data, query_addr)
                     return 
         
                 if (len(answer) == 1 and answer[0].Type == "SOA"):
-                    self.transport.sendto(query_data, query_addr)
+                    transport.sendto(query_data, query_addr)
                     return
         
                 if answer[-1].Type not in ["A", "AAAA"]:
-                    self.transport.sendto(query_data, query_addr)
+                    transport.sendto(query_data, query_addr)
                     return
         
                 if enable_cache:
@@ -195,11 +195,11 @@ async def send_post_request(url, query_data, headers, transport, query_addr, que
                         #print(f"############## recv answer {qname, qtype, answer} ############")
         
                         if (len(answer) == 1 and answer[0].Type == "SOA"):
-                            self.transport.sendto(query_data, query_addr)
+                            transport.sendto(query_data, query_addr)
                             return
         
                         if answer[-1].Type not in ["A", "AAAA"]:
-                            self.transport.sendto(query_data, query_addr)
+                            transport.sendto(query_data, query_addr)
                             return
         
                         if enable_cache:
@@ -219,11 +219,11 @@ async def send_post_request(url, query_data, headers, transport, query_addr, que
                     #print(f"############## recv answer {qname, qtype, answer} ############")
     
                     if (len(answer) == 1 and answer[0].Type == "SOA"):
-                        self.transport.sendto(query_data, query_addr)
+                        transport.sendto(query_data, query_addr)
                         return
     
                     if answer[-1].Type not in ["A", "AAAA"]:
-                        self.transport.sendto(query_data, query_addr)
+                        transport.sendto(query_data, query_addr)
                         return
     
                     if enable_cache:
