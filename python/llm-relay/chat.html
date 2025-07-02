@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSE Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        #chatArea {
+            width: 100%;
+            height: 400px;
+            border: 1px solid #ccc;
+            margin-bottom: 10px;
+            padding: 10px;
+            overflow-y: auto;
+        }
+        #chatInput {
+            width: 80%;
+            padding: 8px;
+            margin-right: 10px;
+        }
+        #sendButton {
+            padding: 8px 16px;
+        }
+    </style>
+</head>
+<body>
+    <h1>SSE Chat</h1>
+    <div id="buttonContainer">
+        <button id="newConversationButton">New Conversation</button>
+    </div>
+    <textarea id="chatArea" readonly></textarea>
+    <div>
+        <input type="text" id="chatInput" placeholder="Type your message...">
+        <button id="sendButton">Send</button>
+    </div>
+
+    <script>
+        const chatArea = document.getElementById('chatArea');
+        const chatInput = document.getElementById('chatInput');
+        const sendButton = document.getElementById('sendButton');
+        const newConversationButton = document.getElementById('newConversationButton');
+
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        // Current conversation ID
+        let currentConversationId = generateUUID();
+        let eventSource = null;
+
+        function startSSEConnection(conversationId) {
+            if (eventSource) {
+                eventSource.close(); // Close existing connection
+            }
+            const sseUrl = `/api/chat?conversation_id=${encodeURIComponent(conversationId)}`;
+            eventSource = new EventSource(sseUrl);
+
+            eventSource.onopen = function() {
+                console.log('SSE connection opened for conversation:', conversationId);
+                chatArea.value += `Connected to server (Conversation ID: ${conversationId}).\n`;
+                chatArea.scrollTop = chatArea.scrollHeight;
+            };
+
+            eventSource.onmessage = function(event) {
+             console.log('Raw SSE data:', event.data); // Debug raw data
+            if (!event.data || event.data.trim() === '') {
+                console.log('Skipping empty SSE data');
+                return; // Skip empty or whitespace-only data
+            }
+            try {
+                const data = JSON.parse(event.data);
+                console.log('Parsed SSE data:', data); // Debug parsed data
+                // Check for choices[0].delta.content
+                if (data.choices && data.choices[0] && data.choices[0].delta && data.choices[0].delta.content) {
+                    const content = data.choices[0].delta.content;
+                    chatArea.value += `${content}`;
+                    chatArea.scrollTop = chatArea.scrollHeight;
+                    // Close connection if finished
+                    if (data.choices[0].finish_reason === 'stop') {
+                        eventSource.close();
+                        eventSource = null;
+                        console.log('Chat complete, connection closed');
+                    }
+                } else {
+                    console.log('No content field in parsed data:', data);
+                    // chatArea.value += `Server sent data without content field: ${JSON.stringify(data)}\n`;
+                    // chatArea.scrollTop = chatArea.scrollHeight;
+                }
+            } catch (e) {
+                console.error('Failed to parse SSE data:', event.data, e);
+                chatArea.value += `Error parsing server data: ${event.data}\n`;
+                chatArea.scrollTop = chatArea.scrollHeight;
+            }
+        };
+
+        eventSource.onerror = function() {
+            chatArea.value += 'Error connecting to server.\n';
+            chatArea.scrollTop = chatArea.scrollHeight;
+        };
+        }
+        // Initialize SSE connection with initial conversation_id
+        startSSEConnection(currentConversationId);
+
+
+                // Handle new conversation button click
+        newConversationButton.addEventListener('click', function() {
+            currentConversationId = generateUUID();
+            chatArea.value += `Started new conversation (ID: ${currentConversationId}).\n`;
+            chatArea.scrollTop = chatArea.scrollHeight;
+            startSSEConnection(currentConversationId);
+        });
+
+
+        // Send message when button is clicked
+        sendButton.addEventListener('click', function() {
+            const message = chatInput.value.trim();
+            if (message) {
+                // Simulate sending message (replace with actual API call)
+                const formData = new FormData();
+                formData.append('content', message);
+                formData.append('prompt', ''); // Example prompt, adjust as needed
+                formData.append('conversation_id', currentConversationId); // Example ID, adjust as needed
+
+                fetch('/api/chat', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (response.ok) {
+
+                        chatArea.value += '\nUser: ' + message + '\nAI: ';
+                        chatArea.scrollTop = chatArea.scrollHeight;
+                        chatInput.value = ''; // Clear input
+                    }
+                })
+                .catch(error => {
+                    chatArea.value += 'Error sending message: ' + error + '\n';
+                    chatArea.scrollTop = chatArea.scrollHeight;
+                });
+            }
+        });
+
+        // Allow sending message with Enter key
+        chatInput.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                sendButton.click();
+            }
+        });
+    </script>
+</body>
+</html>
