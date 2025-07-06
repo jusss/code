@@ -36,7 +36,11 @@
     <!-- <h1>SSE Chat</h1> -->
     <div id="buttonContainer">
         <button id="newConversationButton">New Conversation</button>
+        <button id="downloadConversationButton">Download Conversation</button>
     </div>
+
+
+
     <textarea id="chatArea" readonly></textarea>
     <div>
         <input type="text" id="chatInput" placeholder="Type your message...">
@@ -48,6 +52,7 @@
         const chatInput = document.getElementById('chatInput');
         const sendButton = document.getElementById('sendButton');
         const newConversationButton = document.getElementById('newConversationButton');
+        const downloadConversationButton = document.getElementById('downloadConversationButton');
 
         function generateUUID() {
             return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -58,7 +63,7 @@
         }
 
         // Current conversation ID
-        let currentConversationId = generateUUID();
+        currentConversationId = generateUUID();
         let eventSource = null;
 
         function startSSEConnection(conversationId) {
@@ -115,14 +120,26 @@
         startSSEConnection(currentConversationId);
 
 
-                // Handle new conversation button click
+        // Handle new conversation button click
         newConversationButton.addEventListener('click', function() {
             currentConversationId = generateUUID();
-            chatArea.value += `Started new conversation (ID: ${currentConversationId}).\n`;
+            chatArea.value += `\n \nStarted new conversation (ID: ${currentConversationId}).\n`;
             chatArea.scrollTop = chatArea.scrollHeight;
+            chatArea.value = '';
             startSSEConnection(currentConversationId);
         });
 
+        downloadConversationButton.addEventListener('click', function() {
+            window.location.href = `/api/export?id=${encodeURIComponent(currentConversationId)}`
+            <!-- fetch (`/api/export?id=${encodeURIComponent(currentConversationId)}`, { -->
+                <!-- method: 'GET', -->
+            <!-- }) -->
+            <!-- .then(response => { if (!response.ok)  -->
+                <!-- {console.log("failed to download")}}) -->
+            <!-- .catch(error => { console.log("error: ", error); -->
+                    <!-- }) -->
+
+        });
 
         // Send message when button is clicked
         sendButton.addEventListener('click', function() {
