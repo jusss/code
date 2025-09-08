@@ -1,0 +1,83 @@
+function in python is an object, which has some atrributes like 
+'__name__', '__doc__', and '__setattr__', 
+you can check it by
+>>> def f():
+...   print(1)
+...
+>>> help(f)
+
+>>> dir(f)
+['__annotations__', '__call__', '__class__', '__closure__', '__code__', '__defaults__', '__delattr__', '__dict__', '__dir__', '__doc__', '__eq__', '__format__', '__ge__', '__get__', '__getattribute__', '__globals__', '__gt__', '__hash__', '__init__', '__init_subclass__', '__kwdefaults__', '__le__', '__lt__', '__module__', '__name__', '__ne__', '__new__', '__qualname__', '__reduce__', '__reduce_ex__', '__repr__', '__setattr__', '__sizeof__', '__str__', '__subclasshook__']
+
+
+1. '__wrapped__' is not an attribute of a default function, only after @wraps(func), func will have __wrapped__ to run original func without the decorator
+2. when use decorator @wraps from functools, the function can use __wrapped__ runs the original function without the decorator.
+3. and inside the decorator definition, @wraps(func) will copy the original function info like __name__ to the wrapper function
+
+def trampoline(func):
+    @wraps(func) # copy func attribute to wrapper, so when run func, func can have its original attributes, func will have __wrapped__ method, func can run original func without the decorator
+    def wrapper(*args, **kwargs):
+        result = func(*args, **kwargs)
+        while callable(result):
+            result = result()
+        return result
+    return wrapper
+
+@trampoline
+def fib(x, y, n):
+    if n == 0:
+        return x
+    print(x)
+    return lambda: fib.__wrapped__(y, x + y, n - 1) # with wraps decorator, __wrapped__ will run original fib, not after decorated by decorator trampoline, without __wrapped__, fib(y,x+y,n-1) will run decorated fib by trampoline
+
+fib(0, 1, 2200)
+
+1. fib.__wrapped__() runs the original fib function without the trampoline decorator.
+2. It returns a lambda for each recursive step, requiring manual evaluation to reach the final result.
+3. For large n (like 2200), using fib.__wrapped__ directly risks a RecursionError unless you manually iterate the lambdas or increase the recursion limit.
+4. Stick to the decorated fib for correct trampolining and to avoid stack overflow.
+
+
+@wraps is a convenience function for invoking functools.update_wrapper
+
+from functools import wraps
+def d(f):
+  @wraps(f)
+  def wrapper(*args, **kwds):
+    return f(*args, **kwds)
+  return wrapper
+
+from functools import update_wrapper
+def d(func):
+    def wrapper(*args, **kwargs):
+        print("Before calling the function.")
+        result = func(*args, **kwargs)
+        print("After calling the function.")
+        return result
+    update_wrapper(wrapper, func) # Crucial step
+    return wrapper
+
+@d
+def ex():
+  ...
+
+
+ref
+https://www.cnblogs.com/wuyongqiang/p/10171273.html
+https://docs.python.org/3/library/functools.html
+
+-------------------
+from functools import *
+def trampoline(f):
+    while callable(f):
+        f=f()
+    return f
+
+def fib(x,y,n):
+    if n == 0:
+        return x
+    print(x)
+    return lambda: fib(y,x+y,n-1)
+
+trampoline(fib(0,1,2200))
+
