@@ -32,7 +32,20 @@ def fib(x, y, n):
     print(x)
     return lambda: fib.__wrapped__(y, x + y, n - 1)
 
-fib(0, 1, 2200)
+#fib(0, 1, 2200)
+
+
+@trampoline
+def fib_cps(x,y,n,k):
+    if n == 0:
+        return k(x)
+    print(x)
+    return lambda: fib_cps.__wrapped__(y,x+y,n-1,k)
+
+fib_cps(0, 1, 2200, lambda x: x)
+
+# cps in tail call, k wouldn't change
+# not tail call, it would be lambda r: k(other_handle(r)) as the last parameter
 
 """
 Key changes made:
