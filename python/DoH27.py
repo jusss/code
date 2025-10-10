@@ -3,11 +3,11 @@
 # cat /etc/resolv.conf
 # nameserver 127.0.0.1
 # vim /etc/hosts
-# 223.5.5.5   alidns.com
+# 223.5.5.5   dns.alidns.com
+# 223.6.6.6   dns.alidns.com
 # 120.53.53.53  doh.pub
 # 119.29.29.29  doh.pub
-# 1.12.12.12  doh.pub
-# 1.12.12.21 doh.pub
+# 1.12.12.12 doh.pub
 # one.one.one.one 1.1.1.1
 # 54.64.104.154 jp01.dns4me.net 
 # 103.179.44.73 sin02.dnscry.pt
@@ -27,14 +27,26 @@ import asyncudp
 from dns_package_parser import parse
 
 #url = "https://doh.pub/dns-query"
-url = "https://tyo02.dnscry.pt/dns-query"
+url = "https://dns.alidns.com/dns-query"
+#url = "https://tyo02.dnscry.pt/dns-query"
 #url = "https://jp01.dns4me.net"
+#url = "https://dns-unfiltered.adguard.com/dns-query"
+#url = "https://cloudflare-dns.com/dns-query"
+#url = "https://1.1.1.1/dns-query"
+#url = "https://dns.google/dns-query"
+#url = "https://doh.opendns.com/dns-query"
+#url = "https://185.222.222.222/dns-query"
+#url = "https://45.11.45.11/dns-query"
+#url = "https://dns.nextdns.io/7e15ce/dns-query"
 
 enable_cache = True
 timeout = 3600
 dns_server='8.8.8.8'
+#dns_server='114.114.114.114'
 #dns_server='119.29.29.29'
-dns_relay=True
+#dns_server='192.168.0.1'
+#dns_server='192.168.1.1'
+dns_relay=False
 
 ads = [
         "sectigochina.com",
