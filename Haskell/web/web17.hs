@@ -353,7 +353,14 @@ generateHtmlForDirectory pathName = do
 {- since iOS won't preview mp4 file, so comment it for just download -}
 headerContentTypeForiOS = DMI.fromList [("jpg", "image/jpeg"), ("jpeg", "image/jpeg"), ("png", "image/png"),
                         ("pdf", "application/pdf"),
-                        ("txt", "text/plain; charset=utf-8")]
+                        ("txt", "text/plain; charset=utf-8"),
+                        ("py", "text/plain; charset=utf-8"),
+                        ("sh", "text/plain; charset=utf-8"),
+                        ("hs", "text/plain; charset=utf-8"),
+                        ("js", "text/plain; charset=utf-8"),
+                        ("kt", "text/plain; charset=utf-8"),
+                        ("html", "text/plain; charset=utf-8"),
+                        ("yaml", "text/plain; charset=utf-8")]
 
 -- headerContentType = DMI.fromList [("jpg", "image/jpeg"), ("jpeg", "image/jpeg"), ("png", "image/png"),
                         -- ("mp4", "video/mp4"), ("m4a", "video/mp4"), ("mkv", "video/x-matroska"),
@@ -367,7 +374,14 @@ headerContentType = DMI.fromList [("jpg", "image/jpeg"), ("jpeg", "image/jpeg"),
                         -- ("webm", "video/webm"), ("mov", "video/quicktime"), ("avi", "video/x-msvideo"),
                         ("aac", "audio/aac"), ("ogg", "audio/ogg"), ("wav", "audio/wav"),
                         ("pdf", "application/pdf"),
-                        ("txt", "text/plain; charset=utf-8")]
+                        ("txt", "text/plain; charset=utf-8"),
+                        ("py", "text/plain; charset=utf-8"),
+                        ("sh", "text/plain; charset=utf-8"),
+                        ("hs", "text/plain; charset=utf-8"),
+                        ("js", "text/plain; charset=utf-8"),
+                        ("kt", "text/plain; charset=utf-8"),
+                        ("html", "text/plain; charset=utf-8"),
+                        ("yaml", "text/plain; charset=utf-8")]
 
 getChunkedFile :: String -> ActionM ()
 getChunkedFile urlPath = do
@@ -425,7 +439,7 @@ getTextFile urlPath = do
         let h3 = "<textarea style=\"width: 100%; height: 16%;\" id=\"formData\" name=\"data\"></textarea> <br> <input onclick=\"clearForm()\" type=\"submit\" value=\"Submit\"> </form> <br>"
 
         {- let h4 = "<iframe src=\"" <> urlPathWithReadParam <> "\"  width=\"100%\" height=\"100%\"   ></iframe>" -}
-        let h4 = "<div id=\"content\"></div>"
+        let h4 = "<div id=\"content\" style=\"white-space: pre-wrap; font-family: monospace; tab-size: 4;\"></div>"
 
         {- reading html text file with Hasekll and put it into textarea with js is a wrong way, lots of escape characters, the right way is using js to fetch the content of that text file as plain text and put it into textarea -}
 
