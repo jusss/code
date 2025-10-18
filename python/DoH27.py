@@ -41,11 +41,12 @@ url = "https://dns.alidns.com/dns-query"
 
 enable_cache = True
 timeout = 3600
-dns_server='8.8.8.8'
+#dns_server='8.8.8.8'
 #dns_server='114.114.114.114'
 #dns_server='119.29.29.29'
-#dns_server='192.168.0.1'
+dns_server='192.168.0.1'
 #dns_server='192.168.1.1'
+dns_server='172.18.208.1'
 dns_relay=False
 
 ads = [
