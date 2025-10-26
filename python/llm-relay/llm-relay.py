@@ -276,6 +276,17 @@ class Service:
         if not messages:
             messages = self.conversations.get(conversation_id, [])
 
+        if messages:
+            # delete old tool_calls in messages
+            # messages = filter(lambda d: if (d['role'] == "assistant" and d.get("tool_calls")) or d["role"] == "tool")
+            new_message = []
+            for d in messages:
+                if (d['role'] == "assistant" and d.get("tool_calls")) or d["role"] == "tool":
+                    continue
+                else:
+                    new_message.append(d)
+            messages = new_message
+
         # if len(messages) > 20:
             # messages = [{"role": "system", "content": prompt}] + messages[3:]
         if len(json.dumps(messages,ensure_ascii=False).encode('utf8')) > 32000:
