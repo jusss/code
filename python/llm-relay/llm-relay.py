@@ -34,7 +34,7 @@ Authorization=f"Bearer {api_key}"
 Model = "ep-20241202112616-gwq48"
 
 
-Authorization = f""
+Authorization = f"Bearer "
 URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
 Model = "glm-4.6"
 
@@ -50,6 +50,8 @@ default_prompt = """
     You're an usefull assistant, Please answer the prompt, and then if you need to think or calculate, use <think> and </think> to show your thought process, but make sure to provide a clear and concise answer outside of the thought process, as if you didn't see the thought process itself. Think step by step. Please think.
     when you're not sure on something, think twice, and ask directly for new information
 """
+
+default_prompt = ""
 
 hash_key = hashlib.sha256(password.encode()).hexdigest()
 user_data = {"user_name": user, "user_id": 0}
@@ -188,7 +190,9 @@ class Service:
         yield 'data: {"content": "hello"}\n\n'.encode()
         yield 'data: {"content": "there"}\n\n'.encode()
 
-    def do_post(self,url, headers, data):
+    # def do_post(self,url, headers, data):
+    @classmethod
+    def do_post(cls,url, headers, data):
         _dict = {}
         tool_call_messages = []
         messages = []
@@ -317,30 +321,74 @@ class Service:
                 "tools": tools
             }
             print(data)
-            for result, line, tool_messages in self.do_post(url, headers, data):
-                if not tool_messages:
-                    content = result["choices"][0]["delta"].get("content")
-                    if content:
-                        answer = answer + content
-                    yield line + b'\n\n'
+
+            while True:
+                one_more=False
+
+                for result, line, tool_messages in Service.do_post(url, headers, data):
+                    if not tool_messages:
+                        content = result["choices"][0]["delta"].get("content")
+                        if content:
+                            answer = answer + content
+                        yield line + b'\n\n'
+                    else:
+                        messages = messages + tool_messages
+                        data["messages"] = messages
+                        one_more = True
+
+                if one_more:
+                    continue
                 else:
-                    messages = messages + tool_messages
-                    data["messages"] = messages
-                    for result, line, tool_messages in self.do_post(url, headers, data):
-                        if not tool_messages:
-                            content = result["choices"][0]["delta"].get("content")
-                            if content:
-                                answer = answer + content
-                            yield line + b'\n\n'
-                        else:
-                            messages = messages + tool_messages
-                            data["messages"] = messages
-                            for result, line, tool_messages in self.do_post(url, headers, data):
-                                if not tool_messages:
-                                    content = result["choices"][0]["delta"].get("content")
-                                    if content:
-                                        answer = answer + content
-                                    yield line + b'\n\n'
+                    break
+
+
+            # for result, line, tool_messages in Service.do_post(url, headers, data):
+                # if not tool_messages:
+                    # content = result["choices"][0]["delta"].get("content")
+                    # if content:
+                        # answer = answer + content
+                    # yield line + b'\n\n'
+                # else:
+                    # messages = messages + tool_messages
+                    # data["messages"] = messages
+                    # for result, line, tool_messages in Service.do_post(url, headers, data):
+                        # if not tool_messages:
+                            # content = result["choices"][0]["delta"].get("content")
+                            # if content:
+                                # answer = answer + content
+                            # yield line + b'\n\n'
+                        # else:
+                            # messages = messages + tool_messages
+                            # data["messages"] = messages
+                            # for result, line, tool_messages in Service.do_post(url, headers, data):
+                                # if not tool_messages:
+                                    # content = result["choices"][0]["delta"].get("content")
+                                    # if content:
+                                        # answer = answer + content
+                                    # yield line + b'\n\n'
+
+            # def recursive_tool_call(url, headers,data, answer, messages, tool_messages=[]):
+
+                # print(f"\n\n\n *** call recursive tool call, data is {data}, answer is {answer}, messages is {messages}, \ntool is {tool_messages}\n\n\n")
+                # if tool_messages:
+                    # messages = messages + tool_messages
+                    # data["messages"] = messages
+
+                # for result, line, _tool_messages in Service.do_post(url, headers, data):
+                    # if not _tool_messages:
+                        # content = result["choices"][0]["delta"].get("content")
+                        # if content:
+                            # answer = answer + content
+                        # yield line + b'\n\n', answer, messages
+                    # else:
+                        # yield recursive_tool_call(url, headers, data, answer, messages, _tool_messages), None, None
+
+            # for line, answer, messages in recursive_tool_call(url, headers, data, answer, messages):
+                # if (answer is None) and (messages is None):
+                    # continue
+                # answer = answer
+                # messages = messages
+                # yield line
 
             if answer:
                 messages.append({"role": "assistant", "content": answer})
