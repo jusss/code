@@ -144,11 +144,13 @@ class Service:
         if self.conversations.get(conversation_id, ""):
             data = self.conversations.get(conversation_id)
 
+            print(f"download data is {data}")
+
             result = []
             for i in data:
-                if i["role"] == "user":
+                if i["role"] == "user" and i.get("content"):
                     result.append("Q: " + i["content"])
-                elif i["role"] == "assistant":
+                elif i["role"] == "assistant" and i.get("content"):
                     result.append("A: " + i["content"])
 
             text_content = "\n".join(result)
@@ -298,7 +300,7 @@ class Service:
                 "temperature": 0.7,
                 "top_p": 0.8,
                 "frequency_penalty": 0.0,
-                "max_tokens": 2048,
+                # "max_tokens": 2048,
                 "repetition_penalty": 1.2,
                 "stream": True,
                 "tools": tools
