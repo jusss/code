@@ -324,7 +324,10 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
                 new_message.append(d)
         messages = new_message
 
-    print(f"messages is {messages}")
+    # print(f"messages is {messages}")
+
+    if len(json.dumps(messages,ensure_ascii=False).encode('utf8')) > 32000:
+        messages = [{"role": "system", "content": prompt}] + messages[-2:]
 
     result = ""
     while True:
