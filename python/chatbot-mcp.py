@@ -25,14 +25,18 @@ import asyncio
 OPENAI_API_KEY = ""
 OPENAI_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3"
 
-#MODEL="ep-20241202112616-gwq48" # 
+MODEL="ep-20241202112616-gwq48" # 
 #MODEL = "ep-20241202111844-2thng" # doubao-pro-128k-240628 support two functions at same time
 #MODEL = "ep-20241202112646-vnvgv"   # moonshot moonshot-v1-128k-v1, will call one function, then another 
-MODEL = "ep-20241202112824-5zvw9" # chatglm3-130b-fc-v1.0 support two functions at same time
+#MODEL = "ep-20241202112824-5zvw9" # chatglm3-130b-fc-v1.0 support two functions at same time
 
 OPENAI_API_KEY = ""
 OPENAI_BASE_URL = "https://api.moonshot.cn/v1"
 MODEL = "moonshot-v1-32k" # 3 requests per minute
+
+OPENAI_API_KEY = ""
+OPENAI_BASE_URL = "https://open.bigmodel.cn/api/paas/v4"
+MODEL = "glm-4.6"
 
 # glm need prompt to use web_search tool, moonshot doesn't
 # follow the next rules:
@@ -40,7 +44,7 @@ MODEL = "moonshot-v1-32k" # 3 requests per minute
 # 2.use the tool web_search for unknown question, like name something
 
 mcp_server_addr = ""
-mcp_server_port = 
+mcp_server_port = 8000
 
 debug = False
 
@@ -306,8 +310,22 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
 
     # limit messages length by token_limit, only trim history which item is a complete conversation, 
     # do not trim message, trim message can cause incomplete conversation
-    history = trim_length(history, token_limit - len(json.dumps(message)))
+    # history = trim_length(history, token_limit - len(json.dumps(message)))
     messages = reduce(add, history) if history else []
+
+    if messages:
+        # delete old tool_calls in messages
+        # messages = filter(lambda d: if (d['role'] == "assistant" and d.get("tool_calls")) or d["role"] == "tool")
+        new_message = []
+        for d in messages:
+            if (d['role'] == "assistant" and d.get("tool_calls")) or d["role"] == "tool":
+                continue
+            else:
+                new_message.append(d)
+        messages = new_message
+
+    print(f"messages is {messages}")
+
     result = ""
     while True:
         # print(f"**** the messages is {reduce(add, history + [message])}")
