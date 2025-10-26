@@ -274,8 +274,10 @@ class Service:
         if not messages:
             messages = self.conversations.get(conversation_id, [])
 
-        if len(messages) > 20:
-            messages = [{"role": "system", "content": prompt}] + messages[3:]
+        # if len(messages) > 20:
+            # messages = [{"role": "system", "content": prompt}] + messages[3:]
+        if len(json.dumps(messages,ensure_ascii=False).encode('utf8')) > 32000:
+            messages = [{"role": "system", "content": prompt}] + messages[-3:]
 
         if not prompt:
             prompt = default_prompt
@@ -327,7 +329,7 @@ class Service:
                                         answer = answer + content
                                     yield line + b'\n\n'
 
-
+            if answer:
                 messages.append({"role": "assistant", "content": answer})
                 self.conversations[conversation_id] = messages
 
@@ -470,6 +472,6 @@ if __name__ == "__main__":
         app,
         host="0.0.0.0",
         port=9000,
-        ssl_keyfile="./example.key",
-        ssl_certfile="./example.crt"
+        # ssl_keyfile="./example.key",
+        # ssl_certfile="./example.crt"
     )
