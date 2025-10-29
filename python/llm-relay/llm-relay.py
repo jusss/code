@@ -322,24 +322,24 @@ class Service:
             }
             print(data)
 
-            while True:
-                one_more=False
+            # while True:
+                # one_more=False
 
-                for result, line, tool_messages in Service.do_post(url, headers, data):
-                    if not tool_messages:
-                        content = result["choices"][0]["delta"].get("content")
-                        if content:
-                            answer = answer + content
-                        yield line + b'\n\n'
-                    else:
-                        messages = messages + tool_messages
-                        data["messages"] = messages
-                        one_more = True
+                # for result, line, tool_messages in Service.do_post(url, headers, data):
+                    # if not tool_messages:
+                        # content = result["choices"][0]["delta"].get("content")
+                        # if content:
+                            # answer = answer + content
+                        # yield line + b'\n\n'
+                    # else:
+                        # messages = messages + tool_messages
+                        # data["messages"] = messages
+                        # one_more = True
 
-                if one_more:
-                    continue
-                else:
-                    break
+                # if one_more:
+                    # continue
+                # else:
+                    # break
 
 
             # for result, line, tool_messages in Service.do_post(url, headers, data):
@@ -367,28 +367,26 @@ class Service:
                                         # answer = answer + content
                                     # yield line + b'\n\n'
 
-            # def recursive_tool_call(url, headers,data, answer, messages, tool_messages=[]):
+            def recursive_tool_call(url, headers,data, answer, messages, tool_messages=[]):
 
                 # print(f"\n\n\n *** call recursive tool call, data is {data}, answer is {answer}, messages is {messages}, \ntool is {tool_messages}\n\n\n")
-                # if tool_messages:
-                    # messages = messages + tool_messages
-                    # data["messages"] = messages
+                if tool_messages:
+                    messages = messages + tool_messages
+                    data["messages"] = messages
 
-                # for result, line, _tool_messages in Service.do_post(url, headers, data):
-                    # if not _tool_messages:
-                        # content = result["choices"][0]["delta"].get("content")
-                        # if content:
-                            # answer = answer + content
-                        # yield line + b'\n\n', answer, messages
-                    # else:
-                        # yield recursive_tool_call(url, headers, data, answer, messages, _tool_messages), None, None
+                for result, line, _tool_messages in Service.do_post(url, headers, data):
+                    if not _tool_messages:
+                        content = result["choices"][0]["delta"].get("content")
+                        if content:
+                            answer = answer + content
+                        yield line + b'\n\n', answer, messages
+                    else:
+                        yield from recursive_tool_call(url, headers, data, answer, messages, _tool_messages)  
 
-            # for line, answer, messages in recursive_tool_call(url, headers, data, answer, messages):
-                # if (answer is None) and (messages is None):
-                    # continue
-                # answer = answer
-                # messages = messages
-                # yield line
+            for line, answer, messages in recursive_tool_call(url, headers, data, answer, messages):
+                answer = answer
+                messages = messages
+                yield line
 
             if answer:
                 messages.append({"role": "assistant", "content": answer})
