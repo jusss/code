@@ -39,8 +39,12 @@ URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
 Model = "glm-4.6"
 
 
-mcp_server_addr = ""
-mcp_server_port = 8000
+mcpServers = {"ddg-search":{"type":"http", "url":"http://"},
+        # "get-weather"{"type":"stdio","command":"uvx","args":["weather-forecast-server"]},
+        "get-weather": {"type":"http","url":"http://"}
+        }
+
+
 
 debug = True
 
@@ -68,36 +72,34 @@ create_access_token = lambda user_data, hash_key, algorithm, expired_minutes:\
 
 decode_token = lambda token, hash_key, algorithm: jwt.decode(token, hash_key, algorithm)
 
-async def mcp_client():
-    async with Client(f"http://{mcp_server_addr}:{mcp_server_port}/mcp") as client:
-        tools = await client.list_tools()
-        print(f"Available tools: {tools}") if debug else None
-        # result = client.call_tool("search", {"query": "Beijing"})
-        # print(f"Result: {result.content[0].text}")
-        # return [ tool.model_dump_json() for tool in tools]
-        openai_tools=[]
-        for tool in tools:
-            openai_tool={
-                    "type":"function",
-                    "function":{
-                        "name": tool.name,
-                        "description": tool.description,
-                        "parameters": tool.inputSchema
-                        }
-                    }
-            openai_tools.append(openai_tool)
-        return openai_tools
+async def mcp_client(mcpServers):
+    openai_tools=[]
+    for name, mcpServer in mcpServers.items():
+        if mcpServer["type"] == "http":
+            async with Client(f'{mcpServer["url"]}/mcp') as client:
+                tools = await client.list_tools()
+                print(f"Available tools: {tools}") if debug else None
+                for tool in tools:
+                    openai_tool={
+                            "type":"function",
+                            "function":{
+                                "name": f"{name}__{tool.name}",
+                                "description": tool.description,
+                                "parameters": tool.inputSchema
+                                }
+                            }
+                    openai_tools.append(openai_tool)
+
+    return openai_tools
 
 async def mcp_client_call_tool(tool_name, args_dict):
-    async with Client(f"http://{mcp_server_addr}:{mcp_server_port}/mcp") as client:
-        result = await client.call_tool(tool_name, args_dict)
+    key_name = tool_name.split("__")[0]
+    function_name = tool_name.split("__")[1]
+    async with Client(f"{mcpServers[key_name]['url']}/mcp") as client:
+        result = await client.call_tool(function_name, args_dict)
         return result
 
-async def f1(tool_name, args_dict):
-    loop=asyncio.get_running_loop()
-    loop.create_task(mcp_client_call_tool(tool_name, args_dict))
-
-mcp_tools = asyncio.run(mcp_client())
+mcp_tools = asyncio.run(mcp_client(mcpServers))
 
 mcp_tools_name = [tool['function']["name"] for tool in mcp_tools]
 print(f"mcp tools name {mcp_tools_name}") if debug else None
@@ -507,7 +509,7 @@ async def login(r: Request, response: Response, user: str = Form(), password: st
         # this response would shandow parameter Response, you need set cookie in response
         response = RedirectResponse(url="/chat", status_code=303)  
         for k,v in auth_dict.items():
-            response.set_cookie(key= k, value=v, max_age=3600*24)
+            response.set_cookie(key= k, value=v, max_age=3600*24*7)
         # return {"code": 200, "msg": "login success", "data": {"token": token}}
         # return RedirectResponse(url="/chat")
         # set_cookie(response, "Authorization", f"Bearer {result['access_token']}")
