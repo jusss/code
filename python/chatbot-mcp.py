@@ -43,8 +43,11 @@ MODEL = "glm-4.6"
 # 1.check the history to retrieval related context before you answer
 # 2.use the tool web_search for unknown question, like name something
 
-mcp_server_addr = ""
-mcp_server_port = 8000
+
+mcpServers = {"ddg-search":{"type":"http", "url":"http://"},
+        # "get-weather"{"type":"stdio","command":"uvx","args":["weather-forecast-server"]},
+        "get-weather": {"type":"http","url":"http://"}
+        }
 
 debug = False
 
@@ -96,32 +99,34 @@ find_string_in_string = lambda sub, words: [ i for i in range(len(words) - len(s
 # tools = []
 # tools = [load_plugins(f"{os.getenv('HOME')}/chat_plugin/get_weather.json")]
 
-async def mcp_client():
-    async with Client(f"http://{mcp_server_addr}:{mcp_server_port}/mcp") as client:
-        tools = await client.list_tools()
-        print(f"Available tools: {tools}") if debug else None
-        # result = client.call_tool("search", {"query": "Beijing"})
-        # print(f"Result: {result.content[0].text}")
-        # return [ tool.model_dump_json() for tool in tools]
-        openai_tools=[]
-        for tool in tools:
-            openai_tool={
-                    "type":"function",
-                    "function":{
-                        "name": tool.name,
-                        "description": tool.description,
-                        "parameters": tool.inputSchema
-                        }
-                    }
-            openai_tools.append(openai_tool)
-        return openai_tools
+async def mcp_client(mcpServers):
+    openai_tools=[]
+    for name, mcpServer in mcpServers.items():
+        if mcpServer["type"] == "http":
+            async with Client(f'{mcpServer["url"]}/mcp') as client:
+                tools = await client.list_tools()
+                print(f"Available tools: {tools}") if debug else None
+                for tool in tools:
+                    openai_tool={
+                            "type":"function",
+                            "function":{
+                                "name": f"{name}__{tool.name}",
+                                "description": tool.description,
+                                "parameters": tool.inputSchema
+                                }
+                            }
+                    openai_tools.append(openai_tool)
+
+    return openai_tools
 
 async def mcp_client_call_tool(tool_name, args_dict):
-    async with Client(f"http://{mcp_server_addr}:{mcp_server_port}/mcp") as client:
-        result = await client.call_tool(tool_name, args_dict)
+    key_name = tool_name.split("__")[0]
+    function_name = tool_name.split("__")[1]
+    async with Client(f"{mcpServers[key_name]['url']}/mcp") as client:
+        result = await client.call_tool(function_name, args_dict)
         return result
 
-mcp_tools = asyncio.run(mcp_client())
+mcp_tools = asyncio.run(mcp_client(mcpServers))
 
 mcp_tools_name = [tool['function']["name"] for tool in mcp_tools]
 print(f"mcp tools name {mcp_tools_name}") if debug else None
