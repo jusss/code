@@ -253,6 +253,9 @@ class Service:
                                     yield {"choices": [{"delta":{"content":""}}]}, ('data: ' + 
                                     json.dumps({"choices": [{"index": 0, "delta": {"content": f"function call {v['name']}({v['args']})"}}]})
                                     ).encode("utf-8"), []
+                                    yield {"choices": [{"delta":{"content":""}}]}, ('data: ' + 
+                                    json.dumps({"choices": [{"index": 0, "delta": {"content": "\n"}}]})
+                                    ).encode("utf-8"), []
 
                                     if v["name"] in mcp_tools_name:
                                         loop = asyncio.new_event_loop()
