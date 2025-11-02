@@ -44,9 +44,9 @@ MODEL = "glm-4.6"
 # 2.use the tool web_search for unknown question, like name something
 
 
-mcpServers = {"ddg-search":{"type":"http", "url":"http://"},
+mcpServers = {"ddg-search":{"type":"http", "url":""},
         # "get-weather"{"type":"stdio","command":"uvx","args":["weather-forecast-server"]},
-        "get-weather": {"type":"http","url":"http://"}
+        "get-weather": {"type":"http","url":""}
         }
 
 debug = False
@@ -409,8 +409,7 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
                     # _dict is {0: {'tool_id': 'search:0', 'name': 'search', 'args': '{\n  "query": "Pearl 电影",\n  "max_results": 5\n}'}}
                     for index, v in _dict.items():
 
-                        print(f'function call {v["name"]}') if debug else None
-                        print(f'parameter {v["args"]}') if debug else None
+                        print(f'function call {v["name"]}({v["args"]})')
 
                         if v["name"] in mcp_tools_name:
                             call_tool_result = asyncio.run(mcp_client_call_tool(v["name"], json.loads(v["args"])))
