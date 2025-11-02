@@ -39,9 +39,9 @@ URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
 Model = "glm-4.6"
 
 
-mcpServers = {"ddg-search":{"type":"http", "url":"http://"},
+mcpServers = {"ddg-search":{"type":"http", "url":""},
         # "get-weather"{"type":"stdio","command":"uvx","args":["weather-forecast-server"]},
-        "get-weather": {"type":"http","url":"http://"}
+        "get-weather": {"type":"http","url":""}
         }
 
 
@@ -248,6 +248,12 @@ class Service:
                                 print(f"\n _dict is {_dict}") if debug else None
                                 for index, v in _dict.items():
                                     print(f'in _dict index is {index}, function call {v["name"]}, parameter is {v["args"]}') if debug else None
+
+                                    # for showing function call
+                                    yield {"choices": [{"delta":{"content":""}}]}, ('data: ' + 
+                                    json.dumps({"choices": [{"index": 0, "delta": {"content": f"function call {v['name']}({v['args']})"}}]})
+                                    ).encode("utf-8"), []
+
                                     if v["name"] in mcp_tools_name:
                                         loop = asyncio.new_event_loop()
                                         with concurrent.futures.ThreadPoolExecutor() as executor:
