@@ -21,6 +21,8 @@ from pathlib import Path
 from itertools import accumulate
 from fastmcp import Client
 import asyncio
+from easydict import EasyDict as edict
+
 
 OPENAI_API_KEY = ""
 OPENAI_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3"
