@@ -110,8 +110,8 @@ def make_mcp_client_call_tool():
 
             print("\n\n\n*** time_list less than 5\n\n\n")
             async with Client(f"{mcpServers[key_name]['url']}/mcp") as client:
-                result = await client.call_tool(function_name, args_dict)
                 await asyncio.sleep(2)
+                result = await client.call_tool(function_name, args_dict)
                 return result
         else:
             if now - time_list[-2] > 20:
