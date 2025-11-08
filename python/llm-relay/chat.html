@@ -151,18 +151,24 @@
                 formData.append('prompt', ''); // Example prompt, adjust as needed
                 formData.append('conversation_id', currentConversationId); // Example ID, adjust as needed
 
+                chatArea.value += '\n\nUser: ' + message + '\n\nAI: ';
+                chatArea.scrollTop = chatArea.scrollHeight;
+                chatInput.value = ''; // Clear input
+
+
+
                 fetch('/api/chat', {
                     method: 'POST',
                     body: formData
                 })
-                .then(response => {
-                    if (response.ok) {
-
-                        chatArea.value += '\n\nUser: ' + message + '\n\nAI: ';
-                        chatArea.scrollTop = chatArea.scrollHeight;
-                        chatInput.value = ''; // Clear input
-                    }
-                })
+                <!-- .then(response => { -->
+                    <!-- if (response.ok) { -->
+ -->
+                        <!-- chatArea.value += '\n\nUser: ' + message + '\n\nAI: '; -->
+                        <!-- chatArea.scrollTop = chatArea.scrollHeight; -->
+                        <!-- chatInput.value = ''; // Clear input -->
+                    <!-- } -->
+                <!-- }) -->
                 .catch(error => {
                     chatArea.value += 'Error sending message: ' + error + '\n';
                     chatArea.scrollTop = chatArea.scrollHeight;
