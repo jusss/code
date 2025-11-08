@@ -119,13 +119,46 @@ async def mcp_client(mcpServers):
 
     return openai_tools
 
-async def mcp_client_call_tool(tool_name, args_dict):
-    key_name = tool_name.split("__")[0]
-    function_name = tool_name.split("__")[1]
-    async with Client(f"{mcpServers[key_name]['url']}/mcp") as client:
-        result = await client.call_tool(function_name, args_dict)
-        return result
+# async def mcp_client_call_tool(tool_name, args_dict):
+    # key_name = tool_name.split("__")[0]
+    # function_name = tool_name.split("__")[1]
+    # async with Client(f"{mcpServers[key_name]['url']}/mcp") as client:
+        # result = await client.call_tool(function_name, args_dict)
+        # return result
 
+# make a lexical scope for bind a variable to a function
+def make_mcp_client_call_tool():
+    time_list = []
+    async def _mcp_client_call_tool(tool_name, args_dict):
+
+        now = int(time.time())
+        nonlocal time_list
+        time_list.append(now)
+
+        key_name = tool_name.split("__")[0]
+        function_name = tool_name.split("__")[1]
+
+        if len(time_list) < 5:
+
+            print("\n\n\n*** time_list less than 5\n\n\n")
+            async with Client(f"{mcpServers[key_name]['url']}/mcp") as client:
+                result = await client.call_tool(function_name, args_dict)
+                await asyncio.sleep(2)
+                return result
+        else:
+            if now - time_list[-2] > 20:
+                print("\n\n\n*** time_list will be empty\n\n\n")
+                time_list = []
+                async with Client(f"{mcpServers[key_name]['url']}/mcp") as client:
+                    result = await client.call_tool(function_name, args_dict)
+                    return result
+            else:
+                print("\n\n\n*** time list return Nothing \n\n\n")
+                return edict({"content":[{"text":"No results found"}]})
+
+    return _mcp_client_call_tool
+
+mcp_client_call_tool = make_mcp_client_call_tool()
 mcp_tools = asyncio.run(mcp_client(mcpServers))
 
 mcp_tools_name = [tool['function']["name"] for tool in mcp_tools]
