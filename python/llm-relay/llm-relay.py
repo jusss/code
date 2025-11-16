@@ -307,8 +307,10 @@ class Service:
                                         # future = asyncio.run_coroutine_threadsafe(mcp_client_call_tool(v["name"], json.loads(v["args"])),loop)
                                         # call_tool_result = future.result(timeout=10)
                                         r = call_tool_result.content[0].text
-                                    else:
+                                    elif functions.get(v["name"]):
                                         r = functions[v["name"]](v["args"])
+                                    else:
+                                        r = f'this tool {v["name"]} is not found'
 
                                     print(f"function call result is {r}") if debug else None
                                     messages.append({"role": "tool", "tool_call_id": v["tool_id"], "name": v["name"], "content": r})
