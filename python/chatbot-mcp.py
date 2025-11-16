@@ -456,8 +456,11 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
                             # r = call_tool_result.model_dump_json(indent=2,exclude_none=True)
                             _r = call_tool_result.content
                             r = _r[0].text
-                        else:
+                        elif functions.get(v["name"]):
                             r = functions[v["name"]](v["args"])
+                        else:
+                            r = f'this tool {v["name"]} is not found'
+
                         print(f"function call result is {r}") if debug else None
                         message.append({
                             "role": "tool",
