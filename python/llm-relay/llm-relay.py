@@ -1,5 +1,7 @@
-from fastapi import FastAPI, Response, Query, Request, Form
+from fastapi import FastAPI, Response, Query, Request, Form, Body
 from fastapi.responses import FileResponse, RedirectResponse, HTMLResponse, StreamingResponse
+from fastapi import UploadFile, File
+from typing import List
 import requests
 import json
 import uuid
@@ -31,7 +33,7 @@ password=""
 token = ""
 
 api_key = ""
-URL="https://ark.cn-beijing.volces.com/api/v3/chat/completions"
+URL=""
 Authorization=f"Bearer {api_key}"
 Model = "ep-20241202112616-gwq48"
 
@@ -185,6 +187,8 @@ class Service:
     def __init__(self):
         self.conversations = {}
         self.query = {}
+        self.files = {}
+        self.cancel = {}
 
     def export(self, conversation_id):
         if self.conversations.get(conversation_id, ""):
@@ -236,13 +240,17 @@ class Service:
 
     # def do_post(self,url, headers, data):
     @classmethod
-    def do_post(cls,url, headers, data):
+    def do_post(cls,url, headers, data, conversation_id):
         _dict = {}
         tool_call_messages = []
         messages = []
         response = requests.post(url, headers=headers, json=data, stream=True)
         if response.status_code == 200:
             for line in response.iter_lines():
+                if service.cancel.get(conversation_id):
+                    response.close()
+                    break
+
                 try:
 
                     if not line:
@@ -422,23 +430,23 @@ class Service:
                                         # answer = answer + content
                                     # yield line + b'\n\n'
 
-            def recursive_tool_call(url, headers,data, answer, messages, tool_messages=[]):
+            def recursive_tool_call(url, headers,data, answer, messages, conversation_id, tool_messages=[]):
 
                 # print(f"\n\n\n *** call recursive tool call, data is {data}, answer is {answer}, messages is {messages}, \ntool is {tool_messages}\n\n\n")
                 if tool_messages:
                     messages = messages + tool_messages
                     data["messages"] = messages
 
-                for result, line, _tool_messages in Service.do_post(url, headers, data):
+                for result, line, _tool_messages in Service.do_post(url, headers, data, conversation_id):
                     if not _tool_messages:
                         content = result["choices"][0]["delta"].get("content")
                         if content:
                             answer = answer + content
                         yield line + b'\n\n', answer, messages
                     else:
-                        yield from recursive_tool_call(url, headers, data, answer, messages, _tool_messages)  
+                        yield from recursive_tool_call(url, headers, data, answer, messages, conversation_id, _tool_messages)  
 
-            for line, answer, messages in recursive_tool_call(url, headers, data, answer, messages):
+            for line, answer, messages in recursive_tool_call(url, headers, data, answer, messages, conversation_id):
                 answer = answer
                 messages = messages
                 yield line
@@ -513,10 +521,13 @@ async def sse_stream(conversation_id: str):
         n=n+1
         try:
             content = service.query.get(conversation_id, "")
+            file_content = service.files.get(conversation_id, "")
             if content:
-                for message in service.get_answer(content, "", conversation_id):
+                for message in service.get_answer(content + file_content, "", conversation_id):
                     yield message
                 service.query[conversation_id] = ""
+                service.files[conversation_id] = ""
+
             if ((n%20) ==0):
                 yield ': keep-alive\n\n'
             await asyncio.sleep(1)
@@ -547,6 +558,27 @@ async def chat(r: Request, content: str = Form(), prompt: str = Form(), conversa
     if check_login(r, auth_dict):
         # return EventSourceResponse(service.get_answer(content, prompt, conversation_id))
         service.query[conversation_id] = content
+        service.cancel[conversation_id] = False
+        return {"code": 200, "msg": "ok"}
+    return {"code": 401, "msg": "Unauthorized"}
+
+@app.post("/api/files")
+async def upload_files(r: Request, files: List[UploadFile] = File(...), conversation_id: str = Form(...)):
+    if check_login(r, auth_dict):
+        file_list = []
+
+        for f in files:
+            file_list.append("\n" + f.filename + "\n" + f.file.read().decode("utf-8"))
+
+        service.files[conversation_id] = "\n--------\n".join(file_list)
+
+        return {"code": 200, "msg": "ok"}
+    return {"code": 401, "msg": "Unauthorized"}
+
+@app.post("/api/chat/cancel")
+async def chat(r: Request, conversation_id: str = Form()):
+    if check_login(r, auth_dict):
+        service.cancel[conversation_id] = True
         return {"code": 200, "msg": "ok"}
     return {"code": 401, "msg": "Unauthorized"}
 
