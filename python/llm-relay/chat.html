@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSE Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        #chatArea {
+            width: 100%;
+            height: 560px;
+            border: 1px solid #ccc;
+            margin-bottom: 10px;
+            padding: 10px;
+            overflow-y: auto;
+            font-size: 14px; /* Smaller font for zoomed-out effect */
+            line-height: 1.4; /* Adjusted for readability */
+        }
+        #chatInput {
+            width: 80%;
+            padding: 10px;
+            margin-right: 10px;
+            font-size: 14px; /* Match chatArea font size */
+        }
+        #sendButton {
+            padding: 8px 16px;
+        }
+    </style>
+</head>
+<body>
+    <!-- <h1>SSE Chat</h1> -->
+    <div id="buttonContainer">
+        <button id="newConversationButton">New Conversation</button>
+        <button id="downloadConversationButton">Download Conversation</button>
+        <button id="stopBtn" onclick="stopGeneration()">Stop Generation</button>
+    </div>
+
+    <!-- <div id="upload_file"> -->
+    <!-- <form action="/api/files" method="post" enctype="multipart/form-data"> -->
+    <!-- <label for="file-upload">Select file:</label> -->
+    <!-- <input type="file" id="files" name="files"> -->
+    <!-- <input type="hidden" name="conversation_id" value="abc"> -->
+    <!-- <button type="submit">Upload File</button> -->
+    <!-- </form> -->
+    <!-- </div> -->
+
+
+    <br>
+        <form id="uploadForm" enctype="multipart/form-data" action="/api/files" method="post">
+        <input type="file" name="files" multiple="multiple">
+        <!-- <input type="hidden" name="conversation_id" value="abc"> -->
+        <!-- <input type="submit" value="Submit"> -->
+        </form>
+        <br>
+    <p id="status"></p>
+
+    <!-- <br> -->
+    <!-- <form id="uploadForm"> -->
+    <!-- <label for="fileInput">Select File:</label> -->
+    <!-- <input type="file" id="fileInput" name="fileToUpload"> -->
+    <!-- <button type="submit">Upload Data with JavaScript</button> -->
+    <!-- </form> -->
+    <!-- <p id="status"></p> -->
+    <!-- <br> -->
+
+    <textarea id="chatArea" readonly></textarea>
+    <div>
+        <input type="text" id="chatInput" placeholder="Type your message...">
+        <button id="sendButton">Send</button>
+    </div>
+
+    <script>
+        const chatArea = document.getElementById('chatArea');
+        const chatInput = document.getElementById('chatInput');
+        const sendButton = document.getElementById('sendButton');
+        const newConversationButton = document.getElementById('newConversationButton');
+        const downloadConversationButton = document.getElementById('downloadConversationButton');
+        const upload_form = document.querySelector('#uploadForm');
+
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        // Current conversation ID
+        currentConversationId = generateUUID();
+        let eventSource = null;
+
+        function startSSEConnection(conversationId) {
+            if (eventSource) {
+                eventSource.close(); // Close existing connection
+            }
+            const sseUrl = `/api/chat?conversation_id=${encodeURIComponent(conversationId)}`;
+            eventSource = new EventSource(sseUrl);
+
+            eventSource.onopen = function() {
+                console.log('SSE connection opened for conversation:', conversationId);
+                chatArea.value += `Connected to server (Conversation ID: ${conversationId}).\n`;
+                chatArea.scrollTop = chatArea.scrollHeight;
+            };
+
+            eventSource.onmessage = function(event) {
+             console.log('Raw SSE data:', event.data); // Debug raw data
+            if (!event.data || event.data.trim() === '') {
+                console.log('Skipping empty SSE data');
+                return; // Skip empty or whitespace-only data
+            }
+            try {
+                const data = JSON.parse(event.data);
+                console.log('Parsed SSE data:', data); // Debug parsed data
+                // Check for choices[0].delta.content
+                if (data.choices && data.choices[0] && data.choices[0].delta && data.choices[0].delta.content) {
+                    const content = data.choices[0].delta.content;
+                    chatArea.value += `${content}`;
+                    chatArea.scrollTop = chatArea.scrollHeight;
+                    // Close connection if finished
+                    if (data.choices[0].finish_reason === 'stop') {
+                        eventSource.close();
+                        eventSource = null;
+                        console.log('Chat complete, connection closed');
+                    }
+                } else {
+                    console.log('No content field in parsed data:', data);
+                    // chatArea.value += `Server sent data without content field: ${JSON.stringify(data)}\n`;
+                    // chatArea.scrollTop = chatArea.scrollHeight;
+                }
+            } catch (e) {
+                console.error('Failed to parse SSE data:', event.data, e);
+                chatArea.value += `Error parsing server data: ${event.data}\n`;
+                chatArea.scrollTop = chatArea.scrollHeight;
+            }
+        };
+
+        eventSource.onerror = function() {
+            chatArea.value += 'Error connecting to server.\n';
+            chatArea.scrollTop = chatArea.scrollHeight;
+        };
+        }
+        // Initialize SSE connection with initial conversation_id
+        startSSEConnection(currentConversationId);
+
+
+        // Handle new conversation button click
+        newConversationButton.addEventListener('click', function() {
+            currentConversationId = generateUUID();
+            chatArea.value += `\n \nStarted new conversation (ID: ${currentConversationId}).\n`;
+            chatArea.scrollTop = chatArea.scrollHeight;
+            chatArea.value = '';
+            startSSEConnection(currentConversationId);
+        });
+
+        downloadConversationButton.addEventListener('click', function() {
+            window.location.href = `/api/export?id=${encodeURIComponent(currentConversationId)}`
+            <!-- fetch (`/api/export?id=${encodeURIComponent(currentConversationId)}`, { -->
+                <!-- method: 'GET', -->
+            <!-- }) -->
+            <!-- .then(response => { if (!response.ok)  -->
+                <!-- {console.log("failed to download")}}) -->
+            <!-- .catch(error => { console.log("error: ", error); -->
+                    <!-- }) -->
+
+        });
+
+        // Send message when button is clicked
+        sendButton.addEventListener('click', function() {
+            const message = chatInput.value.trim();
+            if (message) {
+                const formData = new FormData();
+                formData.append('content', message);
+                formData.append('prompt', '');
+                formData.append('conversation_id', currentConversationId);
+                chatArea.value += '\n\nUser: ' + message + '\n\nAI: ';
+                chatArea.scrollTop = chatArea.scrollHeight;
+                chatInput.value = ''; // Clear input
+
+                const fileInput = upload_form.querySelector('input[type="file"]');
+                if (fileInput.files.length > 0) {
+                    const _formData = new FormData(upload_form);
+                    _formData.append('conversation_id', currentConversationId);
+                    try {
+                         fetch('/api/files', {
+                            method: 'POST',
+                            body: _formData, // The FormData object sets the correct headers automatically
+                        }).then(response => {
+                            document.getElementById('status').textContent = '';
+                            // Clear file input
+                            upload_form.querySelector('input[type="file"]').value = '';})
+                         .catch(error => {
+                            document.getElementById('status').textContent = 'Upload failed.';
+                        });
+                    } catch (error) {
+                    document.getElementById('status').textContent = 'Error during upload.';
+                    console.error(error);
+                    }
+                };
+
+                fetch('/api/chat', {
+                    method: 'POST',
+                    body: formData
+                })
+                <!-- .then(response => { -->
+                    <!-- if (response.ok) { -->
+                        <!-- chatArea.value += '\n\nUser: ' + message + '\n\nAI: '; -->
+                        <!-- chatArea.scrollTop = chatArea.scrollHeight; -->
+                        <!-- chatInput.value = ''; // Clear input -->
+                    <!-- } -->
+                <!-- }) -->
+                .catch(error => {
+                    chatArea.value += 'Error sending message: ' + error + '\n';
+                    chatArea.scrollTop = chatArea.scrollHeight;});
+                }});
+
+        // Allow sending message with Enter key
+        chatInput.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                sendButton.click();
+            }
+        });
+
+    upload_form.addEventListener('submit', async (event) => {
+        event.preventDefault(); // Prevent the default form submission
+
+        <!-- const formData = new FormData(upload_form); -->
+        <!-- formData.append('conversation_id', currentConversationId); -->
+        <!-- try { -->
+            <!-- const response = await fetch('/api/files', { -->
+                <!-- method: 'POST', -->
+                <!-- body: formData, // The FormData object sets the correct headers automatically -->
+            <!-- }); -->
+            <!-- if (response.ok) { -->
+                <!-- document.getElementById('status').textContent = 'Upload successful!'; -->
+            <!-- } else { -->
+                <!-- document.getElementById('status').textContent = 'Upload failed.'; -->
+            <!-- } -->
+        <!-- } catch (error) { -->
+            <!-- document.getElementById('status').textContent = 'Error during upload.'; -->
+            <!-- console.error(error); -->
+        <!-- } -->
+    });
+
+   function stopGeneration() {
+        const formData = new FormData();
+        formData.append('conversation_id', currentConversationId);
+        fetch('/api/chat/cancel', {
+            method: 'POST',
+            body: formData,
+        });
+    }
+
+    </script>
+</body>
+</html>
