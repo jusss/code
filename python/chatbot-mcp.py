@@ -39,6 +39,11 @@ OPENAI_API_KEY = ""
 OPENAI_BASE_URL = "https://open.bigmodel.cn/api/paas/v4"
 MODEL = "glm-4.6"
 
+# OPENAI_API_KEY = ""
+# OPENAI_BASE_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+# Model = "qwen3-32b"
+
+
 # glm need prompt to use web_search tool, moonshot doesn't
 # follow the next rules:
 # 1.check the history to retrieval related context before you answer
@@ -46,7 +51,7 @@ MODEL = "glm-4.6"
 
 
 mcpServers = {"ddg-search":{"type":"http", "url":""},
-        # "get-weather"{"type":"stdio","command":"uvx","args":["weather-forecast-server"]},
+        # "get-weather": {"type":"stdio","command":"uvx","args":["weather-forecast-server"]},
         "get-weather": {"type":"http","url":""}
         }
 
@@ -451,17 +456,24 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
 
                         print(f'function call {v["name"]}({v["args"]})')
 
-                        if v["name"] in mcp_tools_name:
-                            call_tool_result = asyncio.run(mcp_client_call_tool(v["name"], json.loads(v["args"])))
-                            # r = call_tool_result.model_dump_json(indent=2,exclude_none=True)
-                            _r = call_tool_result.content
-                            r = _r[0].text
-                        elif functions.get(v["name"]):
-                            r = functions[v["name"]](v["args"])
-                        else:
-                            r = f'this tool {v["name"]} is not found'
+                        try:
 
-                        print(f"function call result is {r}") if debug else None
+                            if v["name"] in mcp_tools_name:
+                                call_tool_result = asyncio.run(mcp_client_call_tool(v["name"], json.loads(v["args"])))
+                                # r = call_tool_result.model_dump_json(indent=2,exclude_none=True)
+                                _r = call_tool_result.content
+                                r = _r[0].text
+                            elif functions.get(v["name"]):
+                                r = functions[v["name"]](v["args"])
+                            else:
+                                r = f'this tool {v["name"]} is not found'
+    
+                            print(f"function call result is {r}") if debug else None
+
+                        except Exception as e:
+                            print(e)
+                            r = "invalid function or missing parameters"
+
                         message.append({
                             "role": "tool",
                             "tool_call_id": v["tool_id"],
@@ -685,7 +697,7 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
     while True:
         colored_text = get_colored_text(
                 "\n# Ctrl+D TO EXIT, ENTER TO SEND, N FOR NEW CONVERSATION, " +
-                "C FOR NEW PROMPT, M FOR MULTIPLE LINE, D FOR CREAT DATASET, R FOR CONNECT DATASET, S CLOSE DATASET, L LIST DATASET\n" + 
+                "C FOR NEW PROMPT, M FOR MULTIPLE LINE, D FOR CREAT DATASET, R FOR CONNECT DATASET, S CLOSE DATASET, L LIST DATASET, F FILES\n" + 
                 (prompt if not prompt else f"prompt: {prompt}") + 
                 (dataset_path if not dataset_path else f"dataset {dataset_path} is connected"), 
                 "green")
@@ -759,6 +771,18 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
                 print("no dataset")
             continue
 
+        if query == 'f':
+            file_path = input("file path: ")
+            query = input("input: ")
+            file_list = [i.strip() for i in file_path.split(",")]
+            file_content = []
+            for i in file_list:
+                with open(i, "r", encoding="utf-8") as f:
+                    data = f.read()
+                    file_content.append("\n" + i + "\n" + data)
+
+            query = query + "\n--------\n".join(file_content)
+            # print(f"query is {query}")
         
         result, history, write_content = chat(client, model, prompt, query, history, write_content, dataset, retrieval_func)
 

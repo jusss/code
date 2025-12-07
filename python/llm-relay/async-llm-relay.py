@@ -33,6 +33,13 @@ user=""
 password=""
 token = ""
 
+# api_key = ""
+# URL="https://ark.cn-beijing.volces.com/api/v3/chat/completions"
+# Authorization=f"Bearer {api_key}"
+# Model = "ep-20241121175541-nfczw"
+
+# https://console.volcengine.com/ark/region:ark+cn-beijing/endpoint/detail?Id=ep-20241202112616-gwq48&Tab=api
+# mine
 api_key = ""
 URL="https://ark.cn-beijing.volces.com/api/v3/chat/completions"
 Authorization=f"Bearer {api_key}"
@@ -43,10 +50,14 @@ Authorization = f"Bearer "
 URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
 Model = "glm-4.6"
 
+# Authorization = f"Bearer "
+# URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions"
+# Model = "qwen3-32b"
 
-mcpServers = {"ddg-search":{"type":"http", "url":""},
+
+mcpServers = {"ddg-search":{"type":"http", "url":"http://"},
         # "get-weather"{"type":"stdio","command":"uvx","args":["weather-forecast-server"]},
-        "get-weather": {"type":"http","url":""}
+        "get-weather": {"type":"http","url":"http://"}
         }
 
 
@@ -315,21 +326,28 @@ class Service:
                                             yield {"choices": [{"delta":{"content":""}}]}, ('data: ' + 
                                             json.dumps({"choices": [{"index": 0, "delta": {"content": "\n"}}]})
                                             ).encode("utf-8"), []
+
+                                            try:
             
-                                            if v["name"] in mcp_tools_name:
-                                                loop = asyncio.new_event_loop()
-                                                with concurrent.futures.ThreadPoolExecutor() as executor:
-                                                    future = executor.submit(lambda: asyncio.run(mcp_client_call_tool(v["name"], json.loads(v["args"]))))
-                                                    call_tool_result = future.result()
-                                                # future = asyncio.run_coroutine_threadsafe(mcp_client_call_tool(v["name"], json.loads(v["args"])),loop)
-                                                # call_tool_result = future.result(timeout=10)
-                                                r = call_tool_result.content[0].text
-                                            elif functions.get(v["name"]):
-                                                r = functions[v["name"]](v["args"])
-                                            else:
-                                                r = f'this tool {v["name"]} is not found'
-            
-                                            print(f"function call result is {r}") if debug else None
+                                                if v["name"] in mcp_tools_name:
+                                                    loop = asyncio.new_event_loop()
+                                                    with concurrent.futures.ThreadPoolExecutor() as executor:
+                                                        future = executor.submit(lambda: asyncio.run(mcp_client_call_tool(v["name"], json.loads(v["args"]))))
+                                                        call_tool_result = future.result()
+                                                    # future = asyncio.run_coroutine_threadsafe(mcp_client_call_tool(v["name"], json.loads(v["args"])),loop)
+                                                    # call_tool_result = future.result(timeout=10)
+                                                    r = call_tool_result.content[0].text
+                                                elif functions.get(v["name"]):
+                                                    r = functions[v["name"]](v["args"])
+                                                else:
+                                                    r = f'this tool {v["name"]} is not found'
+                
+                                                print(f"function call result is {r}") if debug else None
+
+                                            except Exception as e:
+                                                print(e)
+                                                r = "invalid function or missing parameters"
+
                                             messages.append({"role": "tool", "tool_call_id": v["tool_id"], "name": v["name"], "content": r})
                                         _dict = {}
             
