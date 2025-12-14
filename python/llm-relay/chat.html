@@ -93,6 +93,7 @@
         // Current conversation ID
         currentConversationId = generateUUID();
         let eventSource = null;
+        let thinking = false;
 
         function startSSEConnection(conversationId) {
             if (eventSource) {
@@ -117,16 +118,29 @@
                 const data = JSON.parse(event.data);
                 console.log('Parsed SSE data:', data); // Debug parsed data
                 // Check for choices[0].delta.content
-                if (data.choices && data.choices[0] && data.choices[0].delta && data.choices[0].delta.content) {
+
+                if (data.choices && data.choices[0] && data.choices[0].delta && data.choices[0].delta.reasoning_content) {
+                    if (!thinking) {
+                        chatArea.value += `\n##Thinking\n\n`;
+                        chatArea.scrollTop = chatArea.scrollHeight;
+                        thinking = true;
+                    }
+
+                    const reasoning_content = data.choices[0].delta.reasoning_content;
+                    chatArea.value += `${reasoning_content}`;
+                    chatArea.scrollTop = chatArea.scrollHeight;
+                }
+                else if (data.choices && data.choices[0] && data.choices[0].delta && data.choices[0].delta.content) {
+
+                    if (thinking) {
+                        chatArea.value += `\n\n##Answer\n\n`;
+                        chatArea.scrollTop = chatArea.scrollHeight;
+                        thinking = false;
+                    }
+
                     const content = data.choices[0].delta.content;
                     chatArea.value += `${content}`;
                     chatArea.scrollTop = chatArea.scrollHeight;
-                    // Close connection if finished
-                    if (data.choices[0].finish_reason === 'stop') {
-                        eventSource.close();
-                        eventSource = null;
-                        console.log('Chat complete, connection closed');
-                    }
                 } else {
                     console.log('No content field in parsed data:', data);
                     // chatArea.value += `Server sent data without content field: ${JSON.stringify(data)}\n`;

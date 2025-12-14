@@ -50,9 +50,9 @@ Authorization = f"Bearer "
 URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
 Model = "glm-4.6"
 
-# Authorization = f"Bearer "
-# URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions"
-# Model = "qwen3-32b"
+Authorization = f"Bearer "
+URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions"
+Model = "qwen3-4b"
 
 
 mcpServers = {"ddg-search":{"type":"http", "url":"http://"},
@@ -262,6 +262,12 @@ class Service:
 
                 if response.status == 200:
                     async for line in response.content:
+                        # b'data: {"choices":[{"finish_reason":"stop","delta":{"content":""}}]}'
+                        # finish_reason: not null, delta["content"]: "" is the final chunk message in openai streaming
+                        # finish_reason: null, mean it's on going
+                        # implement for idx, chunk in enumerate(completion)
+                        # "finish_reason":"tool_calls","delta":{} final chunk in openai streaming
+
                         if service.cancel.get(conversation_id):
                             response.close()
                             raise Exception("User cancel conversation")
@@ -270,6 +276,7 @@ class Service:
                             if not line:
                                 continue
                             if line:
+                                # print(f"line is {line}")
                                 if (line == b'data: [DONE]') or (line == b'data: [DONE]\n'):
                                     break
                                 else:
@@ -281,75 +288,73 @@ class Service:
                                     if not json_data:  # Skip if empty after removing "data: "
                                         continue
                                     result = json.loads(json_data, strict=False)
-
-                                    # result = json.loads(data[6:], strict=False)
-                                    # print(f"\n*** result is {result}\n")
-            
-                                    if result["choices"][0].get("finish_reason"):
-                                        continue
             
                                     if result["choices"][0]["delta"].get("tool_calls"):
+                                        print(line)
                                         if result["choices"][0]["delta"]["tool_calls"][0]["id"]:
                                             tool_call_messages.append(result["choices"][0]["delta"])
                                         for funcs in result["choices"][0]["delta"]["tool_calls"]:
                                             tool_index = funcs.get("index", 0)
-                                            if funcs["function"]["name"]:
+                                            if funcs["function"].get("name"):
                                                 _dict[tool_index] = {"tool_id": funcs["id"], "name": funcs["function"]["name"], "args": funcs["function"]["arguments"]}
-                                            else:
+                                            elif funcs["function"].get("arguments"):
                                                 _dict[tool_index]["args"] = _dict[tool_index]["args"] + funcs["function"]["arguments"]
-            
-                                    if tool_call_messages:
-                                        merge_tool_call = []
-                                        for t in tool_call_messages:
-                                            for b in t['tool_calls']:
-                                                if 'index' in b:
-                                                    print(f"delete b[index] is {b['index']}")
-                                                    del b['index']
-                                            merge_tool_call.append(t)
-                                
-                                        print(f"\n *** merge_tool_call is {merge_tool_call}\n") if debug else None
-                                        msg = reduce(lambda x, y: {**x, 'tool_calls': x['tool_calls'] + y['tool_calls']}, merge_tool_call)
-                                        print(f"\n msg is {msg}") if debug else None
-                                        msg["role"] = "assistant"
-                                        messages.append(msg)
-                                        tool_call_messages = []
-            
-                                    if _dict:
-                                        print(f"\n _dict is {_dict}") if debug else None
-                                        for index, v in _dict.items():
-                                            print(f'in _dict index is {index}, function call {v["name"]}, parameter is {v["args"]}') if debug else None
-            
-                                            # for showing function call
-                                            yield {"choices": [{"delta":{"content":""}}]}, ('data: ' + 
-                                            json.dumps({"choices": [{"index": 0, "delta": {"content": f"function call {v['name']}({v['args']})"}}]})
-                                            ).encode("utf-8"), []
-                                            yield {"choices": [{"delta":{"content":""}}]}, ('data: ' + 
-                                            json.dumps({"choices": [{"index": 0, "delta": {"content": "\n"}}]})
-                                            ).encode("utf-8"), []
 
-                                            try:
+
+                                    if result["choices"][0].get("finish_reason"):
             
-                                                if v["name"] in mcp_tools_name:
-                                                    loop = asyncio.new_event_loop()
-                                                    with concurrent.futures.ThreadPoolExecutor() as executor:
-                                                        future = executor.submit(lambda: asyncio.run(mcp_client_call_tool(v["name"], json.loads(v["args"]))))
-                                                        call_tool_result = future.result()
-                                                    # future = asyncio.run_coroutine_threadsafe(mcp_client_call_tool(v["name"], json.loads(v["args"])),loop)
-                                                    # call_tool_result = future.result(timeout=10)
-                                                    r = call_tool_result.content[0].text
-                                                elif functions.get(v["name"]):
-                                                    r = functions[v["name"]](v["args"])
-                                                else:
-                                                    r = f'this tool {v["name"]} is not found'
+                                        if tool_call_messages:
+                                            merge_tool_call = []
+                                            for t in tool_call_messages:
+                                                for b in t['tool_calls']:
+                                                    if 'index' in b:
+                                                        print(f"delete b[index] is {b['index']}")
+                                                        del b['index']
+                                                merge_tool_call.append(t)
+                                    
+                                            print(f"\n *** merge_tool_call is {merge_tool_call}\n") if debug else None
+                                            msg = reduce(lambda x, y: {**x, 'tool_calls': x['tool_calls'] + y['tool_calls']}, merge_tool_call)
+                                            print(f"\n msg is {msg}") if debug else None
+                                            msg["role"] = "assistant"
+                                            messages.append(msg)
+                                            tool_call_messages = []
                 
-                                                print(f"function call result is {r}") if debug else None
-
-                                            except Exception as e:
-                                                print(e)
-                                                r = "invalid function or missing parameters"
-
-                                            messages.append({"role": "tool", "tool_call_id": v["tool_id"], "name": v["name"], "content": r})
-                                        _dict = {}
+                                        if _dict:
+                                            print(f"\n _dict is {_dict}") if debug else None
+                                            for index, v in _dict.items():
+                                                print(f'in _dict index is {index}, function call {v["name"]}, parameter is {v["args"]}') if debug else None
+                
+                                                # for showing function call
+                                                yield {"choices": [{"delta":{"content":""}}]}, ('data: ' + 
+                                                json.dumps({"choices": [{"index": 0, "delta": {"content": f"function call {v['name']}({v['args']})"}}]})
+                                                ).encode("utf-8"), []
+                                                yield {"choices": [{"delta":{"content":""}}]}, ('data: ' + 
+                                                json.dumps({"choices": [{"index": 0, "delta": {"content": "\n"}}]})
+                                                ).encode("utf-8"), []
+    
+                                                try:
+                
+                                                    if v["name"] in mcp_tools_name:
+                                                        loop = asyncio.new_event_loop()
+                                                        with concurrent.futures.ThreadPoolExecutor() as executor:
+                                                            future = executor.submit(lambda: asyncio.run(mcp_client_call_tool(v["name"], json.loads(v["args"]))))
+                                                            call_tool_result = future.result()
+                                                        # future = asyncio.run_coroutine_threadsafe(mcp_client_call_tool(v["name"], json.loads(v["args"])),loop)
+                                                        # call_tool_result = future.result(timeout=10)
+                                                        r = call_tool_result.content[0].text
+                                                    elif functions.get(v["name"]):
+                                                        r = functions[v["name"]](v["args"])
+                                                    else:
+                                                        r = f'this tool {v["name"]} is not found'
+                    
+                                                    print(f"function call result is {r}") if debug else None
+    
+                                                except Exception as e:
+                                                    print(e)
+                                                    r = str(e)
+    
+                                                messages.append({"role": "tool", "tool_call_id": v["tool_id"], "name": v["name"], "content": r})
+                                            _dict = {}
             
                                     yield result, line, messages
 
@@ -399,8 +404,12 @@ class Service:
             if content:
                 messages.append({"role": "user", "content": content})
 
-            data = {"model": Model, "messages": messages, "temperature": 0.7, "top_p": 0.8,
-                "frequency_penalty": 0.0, # "max_tokens": 2048,
+            # data = {"model": Model, "messages": messages, "temperature": 0.7, "top_p": 0.8,
+                # "frequency_penalty": 0.0, # "max_tokens": 2048,
+                # "repetition_penalty": 1.2, "stream": True, "tools": tools}
+            
+            # qwen
+            data = {"model": Model, "messages": messages, "temperature": 0.6, "top_p": 0.95, "top_k": 20,
                 "repetition_penalty": 1.2, "stream": True, "tools": tools}
 
             async def recursive_tool_call(url, headers,data, answer, messages, conversation_id, tool_messages=[]):
@@ -411,6 +420,7 @@ class Service:
 
                 async for result, line, _tool_messages in Service.do_post(url, headers, data, conversation_id):
                     if not _tool_messages:
+                        # reasoning content b'data: {"choices":[{"delta":{"content":null,"reasoning_content":" out "},"finish_reason":null,}],}\n'
                         content = result["choices"][0]["delta"].get("content")
                         if content:
                             answer = answer + content
