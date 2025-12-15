@@ -52,7 +52,7 @@ Model = "glm-4.6"
 
 Authorization = f"Bearer "
 URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions"
-Model = "qwen3-4b"
+Model = "qwen3-8b"
 
 
 mcpServers = {"ddg-search":{"type":"http", "url":"http://"},
@@ -352,6 +352,9 @@ class Service:
                                                 except Exception as e:
                                                     print(e)
                                                     r = str(e)
+                                                    yield {"choices": [{"delta":{"content":""}}]},\
+                                                        ('data: ' + json.dumps({"choices": [{"delta": {"content": str(e)}}]})).encode("utf-8"),\
+                                                        []
     
                                                 messages.append({"role": "tool", "tool_call_id": v["tool_id"], "name": v["name"], "content": r})
                                             _dict = {}
@@ -362,7 +365,17 @@ class Service:
                             print(f"json_data is {json_data}")
                             print(f"line is {line}")
                             print(e)
+                            yield {"choices": [{"delta":{"content":""}}]},\
+                                ('data: ' + json.dumps({"choices": [{"delta": {"content": str(e)}}]})).encode("utf-8"),\
+                                []
                             raise
+                else:
+                    async for line in response.content:
+                        yield {"choices": [{"delta":{"content":""}}]},\
+                            ('data: ' + json.dumps({"choices": [{"delta": {"content": line.decode()}}]})).encode("utf-8"),\
+                            []
+
+                        print(line)
 
     async def get_answer(self, content, prompt, conversation_id, messages=[]):
 
