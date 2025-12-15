@@ -71,7 +71,8 @@ default_prompt = """
     when you're not sure on something, think twice, and ask directly for new information
 """
 
-default_prompt = ""
+#qwen thinking produce illusion
+default_prompt = "do not use thinking mode, search before answer"
 
 hash_key = hashlib.sha256(password.encode()).hexdigest()
 user_data = {"user_name": user, "user_id": 0}
@@ -422,7 +423,8 @@ class Service:
                 # "repetition_penalty": 1.2, "stream": True, "tools": tools}
             
             # qwen
-            data = {"model": Model, "messages": messages, "temperature": 0.6, "top_p": 0.95, "top_k": 20,
+            data = {"model": Model, "messages": messages, "temperature": 0.6, "top_p": 0.95, "top_k": 20, 
+                    "chat_template_kwargs":{"enable_thinking": False},
                 "repetition_penalty": 1.2, "stream": True, "tools": tools}
 
             async def recursive_tool_call(url, headers,data, answer, messages, conversation_id, tool_messages=[]):
