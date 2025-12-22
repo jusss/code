@@ -19,10 +19,11 @@ from copy import deepcopy
 import importlib.util
 from pathlib import Path
 from itertools import accumulate
-from fastmcp import Client
+# from fastmcp import Client
 import asyncio
 from easydict import EasyDict as edict
 from chat_api_requests import openai_requests
+from simple_mcp_client import MCPHTTPClient
 
 OPENAI_API_KEY = ""
 OPENAI_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
@@ -40,9 +41,9 @@ OPENAI_API_KEY = ""
 OPENAI_BASE_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
 MODEL = "glm-4.6"
 
-OPENAI_API_KEY = ""
-OPENAI_BASE_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions"
-MODEL = "qwen3-32b"
+# OPENAI_API_KEY = ""
+# OPENAI_BASE_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions"
+# MODEL = "qwen3-32b"
 
 
 # glm need prompt to use web_search tool, moonshot doesn't
@@ -53,9 +54,9 @@ MODEL = "qwen3-32b"
 # glm-4.6 does not need prompt to use web_search tool, but qwen3-32b does
 # do not enable thinking model, search related content and fetch on web before answer
 
-mcpServers = {"ddg-search":{"type":"http", "url":""},
+mcpServers = {"ddg-search":{"type":"http", "url":"http://"},
         # "get-weather": {"type":"stdio","command":"uvx","args":["weather-forecast-server"]},
-        "get-weather": {"type":"http","url":""}
+        "get-weather": {"type":"http","url":"http://"}
         }
 
 debug = False
@@ -108,37 +109,31 @@ find_string_in_string = lambda sub, words: [ i for i in range(len(words) - len(s
 # tools = []
 # tools = [load_plugins(f"{os.getenv('HOME')}/chat_plugin/get_weather.json")]
 
-async def mcp_client(mcpServers):
+def mcp_client(mcpServers):
     openai_tools=[]
     for name, mcpServer in mcpServers.items():
         if mcpServer["type"] == "http":
-            async with Client(f'{mcpServer["url"]}/mcp') as client:
-                tools = await client.list_tools()
-                print(f"Available tools: {tools}") if debug else None
-                for tool in tools:
-                    openai_tool={
-                            "type":"function",
-                            "function":{
-                                "name": f"{name}__{tool.name}",
-                                "description": tool.description,
-                                "parameters": tool.inputSchema
+            client = MCPHTTPClient(mcpServer["url"])
+            init_result = client.initialize()
+            tools = client.list_tools()
+            print(f"Available tools: {tools}") if debug else None
+            for tool in tools["tools"]:
+                openai_tool={
+                        "type":"function",
+                        "function":{
+                            "name": f"{name}__{tool['name']}",
+                                "description": tool["description"],
+                                "parameters": tool["inputSchema"]
                                 }
                             }
-                    openai_tools.append(openai_tool)
+                openai_tools.append(openai_tool)
 
     return openai_tools
-
-# async def mcp_client_call_tool(tool_name, args_dict):
-    # key_name = tool_name.split("__")[0]
-    # function_name = tool_name.split("__")[1]
-    # async with Client(f"{mcpServers[key_name]['url']}/mcp") as client:
-        # result = await client.call_tool(function_name, args_dict)
-        # return result
 
 # make a lexical scope closure for bind a variable to a function
 def make_mcp_client_call_tool():
     time_list = []
-    async def _mcp_client_call_tool(tool_name, args_dict):
+    def _mcp_client_call_tool(tool_name, args_dict):
 
         now = int(time.time())
         nonlocal time_list
@@ -151,30 +146,33 @@ def make_mcp_client_call_tool():
 
             if len(time_list) < 5:
     
-                print("\n\n\n*** time_list less than 5\n\n\n")
-                async with Client(f"{mcpServers[key_name]['url']}/mcp") as client:
-                    await asyncio.sleep(3)
-                    result = await client.call_tool(function_name, args_dict)
-                    return result
+                print("\n*** time_list less than 5\n")
+                client = MCPHTTPClient(f"{mcpServers[key_name]['url']}")
+                init_result = client.initialize()
+                time.sleep(3)
+                result = client.call_tool(function_name, args_dict)
+                return result
             else:
                 if now - time_list[-2] > 20:
-                    print("\n\n\n*** time_list will be empty\n\n\n")
+                    print("\n*** time_list will be empty\n")
                     time_list = []
-                    async with Client(f"{mcpServers[key_name]['url']}/mcp") as client:
-                        result = await client.call_tool(function_name, args_dict)
-                        return result
+                    client = MCPHTTPClient(f"{mcpServers[key_name]['url']}")
+                    init_result = client.initialize()
+                    result = client.call_tool(function_name, args_dict)
+                    return result
                 else:
-                    print("\n\n\n*** time list return Nothing \n\n\n")
+                    print("\n*** time list return Nothing \n")
                     return edict({"content":[{"text":"No results found"}]})
         else:
-            async with Client(f"{mcpServers[key_name]['url']}/mcp") as client:
-                result = await client.call_tool(function_name, args_dict)
-                return result
+            client = MCPHTTPClient(f"{mcpServers[key_name]['url']}")
+            init_result = client.initialize()
+            result = client.call_tool(function_name, args_dict)
+            return result
 
     return _mcp_client_call_tool
 
 mcp_client_call_tool = make_mcp_client_call_tool()
-mcp_tools = asyncio.run(mcp_client(mcpServers))
+mcp_tools = mcp_client(mcpServers)
 
 mcp_tools_name = [tool['function']["name"] for tool in mcp_tools]
 print(f"mcp tools name {mcp_tools_name}") if debug else None
@@ -462,13 +460,17 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
 
                         print(f'function call {v["name"]}({v["args"]})')
 
+                        r = "invalid function or missing parameters"
                         try:
-
                             if v["name"] in mcp_tools_name:
-                                call_tool_result = asyncio.run(mcp_client_call_tool(v["name"], json.loads(v["args"])))
+                                call_tool_result = mcp_client_call_tool(v["name"], json.loads(v["args"]))
                                 # r = call_tool_result.model_dump_json(indent=2,exclude_none=True)
-                                _r = call_tool_result.content
-                                r = _r[0].text
+
+                                if call_tool_result: 
+                                    if call_tool_result.get("content"):
+                                        _r = call_tool_result["content"]
+                                        r = _r[0]["text"]
+
                             elif functions.get(v["name"]):
                                 r = functions[v["name"]](v["args"])
                             else:
@@ -478,7 +480,6 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
 
                         except Exception as e:
                             print(e)
-                            r = "invalid function or missing parameters"
 
                         message.append({
                             "role": "tool",
