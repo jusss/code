@@ -5,7 +5,7 @@ import logging
 
 def openai_requests(api_key, base_url, model, messages, tools=[], temperature=0.3, stream = True, **kwargs):
     headers = {
-        "Authorization": f"Bearer {api_key}",
+        "Authorization": api_key,
         "Content-Type": "application/json"
     }
     

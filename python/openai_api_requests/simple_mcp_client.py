@@ -44,7 +44,7 @@ class MCPHTTPClient:
 
         try:
             response = requests.post(
-                f"{self.server_url}/mcp",
+                f"{self.server_url}",
                 json=request_data,
                 headers=headers,
                 timeout=30
@@ -138,7 +138,7 @@ class MCPHTTPClient:
             raise Exception(f"Failed to call tool {tool_name}")
 
 def main():
-    client = MCPHTTPClient("http://")
+    client = MCPHTTPClient("http://x/mcp")
     
     try:
         print("Initializing MCP session...")
@@ -155,7 +155,7 @@ def main():
             
             # Example arguments
             # args = {"a": 5, "b": 3} if tool_name == "add" else {}
-            args = {"query": "who is Rebecca"} if tool_name == "search" else {"city": "Beijing"}
+            args = {"query": "who is Rebecca Ferguson"} if tool_name == "search" else {"city": "Beijing"}
             
             result = client.call_tool(tool_name, args)
             print(f"Tool result: {result}")

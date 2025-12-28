@@ -33,15 +33,15 @@ MODEL="ep-20241202112616-gwq48" #
 #MODEL = "ep-20241202112646-vnvgv"   # moonshot moonshot-v1-128k-v1, will call one function, then another 
 #MODEL = "ep-20241202112824-5zvw9" # chatglm3-130b-fc-v1.0 support two functions at same time
 
-OPENAI_API_KEY = ""
+OPENAI_API_KEY = "Bearer "
 OPENAI_BASE_URL = "https://api.moonshot.cn/v1/chat/completions"
 MODEL = "moonshot-v1-32k" # 3 requests per minute
 
-OPENAI_API_KEY = ""
+OPENAI_API_KEY = "Bearer "
 OPENAI_BASE_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
 MODEL = "glm-4.6"
 
-# OPENAI_API_KEY = ""
+# OPENAI_API_KEY = "Bearer "
 # OPENAI_BASE_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions"
 # MODEL = "qwen3-32b"
 
@@ -54,9 +54,9 @@ MODEL = "glm-4.6"
 # glm-4.6 does not need prompt to use web_search tool, but qwen3-32b does
 # do not enable thinking model, search related content and fetch on web before answer
 
-mcpServers = {"ddg-search":{"type":"http", "url":"http://"},
+mcpServers = {"ddg-search":{"type":"http", "url":"http://1/mcp"},
         # "get-weather": {"type":"stdio","command":"uvx","args":["weather-forecast-server"]},
-        "get-weather": {"type":"http","url":"http://"}
+        "get-weather": {"type":"http","url":"http://1/mcp"}
         }
 
 debug = False
@@ -109,12 +109,28 @@ find_string_in_string = lambda sub, words: [ i for i in range(len(words) - len(s
 # tools = []
 # tools = [load_plugins(f"{os.getenv('HOME')}/chat_plugin/get_weather.json")]
 
-def mcp_client(mcpServers):
+def get_mcp_client():
+    _mcp_clients = {}
+    def _get_mcp_client(key_name):
+        if _mcp_clients.get(key_name):
+            return _mcp_clients[key_name]
+        else:
+            client = MCPHTTPClient(f"{mcpServers[key_name]['url']}")
+            print(f"Initializing MCP session {key_name}...")
+            init_result = client.initialize()
+            _mcp_clients[key_name] = client
+            return client
+    return _get_mcp_client
+
+mcp_clients = get_mcp_client()
+
+def initial_mcp_client(mcpServers):
     openai_tools=[]
     for name, mcpServer in mcpServers.items():
         if mcpServer["type"] == "http":
-            client = MCPHTTPClient(mcpServer["url"])
-            init_result = client.initialize()
+            # client = MCPHTTPClient(mcpServer["url"])
+            # init_result = client.initialize()
+            client = mcp_clients(name)
             tools = client.list_tools()
             print(f"Available tools: {tools}") if debug else None
             for tool in tools["tools"]:
@@ -147,8 +163,9 @@ def make_mcp_client_call_tool():
             if len(time_list) < 5:
     
                 print("\n*** time_list less than 5\n")
-                client = MCPHTTPClient(f"{mcpServers[key_name]['url']}")
-                init_result = client.initialize()
+                # client = MCPHTTPClient(f"{mcpServers[key_name]['url']}")
+                # init_result = client.initialize()
+                client = mcp_clients(key_name)
                 time.sleep(3)
                 result = client.call_tool(function_name, args_dict)
                 return result
@@ -156,23 +173,25 @@ def make_mcp_client_call_tool():
                 if now - time_list[-2] > 20:
                     print("\n*** time_list will be empty\n")
                     time_list = []
-                    client = MCPHTTPClient(f"{mcpServers[key_name]['url']}")
-                    init_result = client.initialize()
+                    # client = MCPHTTPClient(f"{mcpServers[key_name]['url']}")
+                    # init_result = client.initialize()
+                    client = mcp_clients(key_name)
                     result = client.call_tool(function_name, args_dict)
                     return result
                 else:
                     print("\n*** time list return Nothing \n")
                     return edict({"content":[{"text":"No results found"}]})
         else:
-            client = MCPHTTPClient(f"{mcpServers[key_name]['url']}")
-            init_result = client.initialize()
+            # client = MCPHTTPClient(f"{mcpServers[key_name]['url']}")
+            # init_result = client.initialize()
+            client = mcp_clients(key_name)
             result = client.call_tool(function_name, args_dict)
             return result
 
     return _mcp_client_call_tool
 
 mcp_client_call_tool = make_mcp_client_call_tool()
-mcp_tools = mcp_client(mcpServers)
+mcp_tools = initial_mcp_client(mcpServers)
 
 mcp_tools_name = [tool['function']["name"] for tool in mcp_tools]
 print(f"mcp tools name {mcp_tools_name}") if debug else None
