@@ -46,8 +46,9 @@ timeout = 3600
 #dns_server='119.29.29.29'
 dns_server='192.168.0.1'
 #dns_server='192.168.1.1'
-dns_server='172.18.208.1'
-dns_relay=False
+#dns_server='172.18.208.1'
+dns_server='223.6.6.6'
+dns_relay=True
 
 ads = [
         "sectigochina.com",
