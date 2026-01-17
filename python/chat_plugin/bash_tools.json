@@ -1,0 +1,17 @@
+ {
+        "type": "function",
+        "function": {
+            "name": "bash_tools",
+            "description": "this is a busybox tool, it contains some basic bash commands like ls, cat, echo",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "commands": {
+                        "type": "string",
+                        "description": "bash commands, like 'ls -a', 'cat /tmp/a.txt', 'ls -la|grep .txt'"
+                    }
+                },
+                "required": ["commands"]
+            }
+        }
+    }

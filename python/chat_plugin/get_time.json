@@ -1,0 +1,13 @@
+ {
+        "type": "function",
+        "function": {
+            "name": "get_time",
+            "description": "Get current time, no parameters",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                },
+                "required": []
+            }
+        }
+    }
