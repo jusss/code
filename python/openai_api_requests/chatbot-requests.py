@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import ast
 import time
 import json
@@ -430,7 +432,7 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
                 print(f"chunk_message is {chunk_message}") if debug else None
                 if hasattr(chunk_message,'tool_calls'):
                     print(f"chunk_message.tool_calls is {chunk_message.tool_calls}") if debug else None
-                    if chunk_message["tool_calls"][0]["id"]:
+                    if chunk_message["tool_calls"][0].get("id"):
                         tool_call_messages.append(chunk_message)
                     for funcs in chunk_message.tool_calls:
                         if hasattr(funcs.function,'name'):
@@ -806,7 +808,7 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
             for i in file_list:
                 with open(i, "r", encoding="utf-8") as f:
                     data = f.read()
-                    file_content.append("\n" + i + "\n" + data)
+                    file_content.append("\nfile: " + i + "\n" + data)
 
             query = query + "\n--------\n".join(file_content)
             # print(f"query is {query}")
