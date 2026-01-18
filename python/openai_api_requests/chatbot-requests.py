@@ -26,6 +26,7 @@ import asyncio
 from easydict import EasyDict as edict
 from chat_api_requests import openai_requests
 from simple_mcp_client import MCPHTTPClient
+import subprocess
 
 OPENAI_API_KEY = ""
 OPENAI_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
@@ -39,6 +40,7 @@ OPENAI_API_KEY = "Bearer "
 OPENAI_BASE_URL = "https://api.moonshot.cn/v1/chat/completions"
 MODEL = "moonshot-v1-32k" # 3 requests per minute
 
+
 OPENAI_API_KEY = "Bearer "
 OPENAI_BASE_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
 MODEL = "glm-4.6"
@@ -46,6 +48,7 @@ MODEL = "glm-4.6"
 # OPENAI_API_KEY = "Bearer "
 # OPENAI_BASE_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions"
 # MODEL = "qwen3-32b"
+
 
 
 # glm need prompt to use web_search tool, moonshot doesn't
@@ -477,6 +480,7 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
                 if _dict:
                     print(f"\n _dict is {_dict}") if debug else None
                     # _dict is {0: {'tool_id': 'search:0', 'name': 'search', 'args': '{\n  "query": "Pearl 电影",\n  "max_results": 5\n}'}}
+                    r = None
                     for index, v in _dict.items():
 
                         print(f'function call {v["name"]}({v["args"]})')
@@ -508,6 +512,9 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
                             "name": v["name"],
                             "content": r
                         })
+
+                    if not r:
+                        break
             else:
                 break
             
@@ -726,7 +733,7 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
     while True:
         colored_text = get_colored_text(
                 "\n# Ctrl+D TO EXIT, ENTER TO SEND, N FOR NEW CONVERSATION, " +
-                "C FOR NEW PROMPT, M FOR MULTIPLE LINE, D FOR CREAT DATASET, R FOR CONNECT DATASET, S CLOSE DATASET, L LIST DATASET, F FILES\n" + 
+                "C FOR NEW PROMPT, M FOR MULTIPLE LINE, D FOR CREAT DATASET, R FOR CONNECT DATASET, S CLOSE DATASET, L LIST DATASET, F FILES, !SHELL COMMAND\n" + 
                 (prompt if not prompt else f"prompt: {prompt}") + 
                 (dataset_path if not dataset_path else f"dataset {dataset_path} is connected"), 
                 "green")
@@ -812,6 +819,19 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
 
             query = query + "\n--------\n".join(file_content)
             # print(f"query is {query}")
+
+        if query.startswith("!"):
+            if query == "!cd":
+                os.chdir(os.path.expanduser('~'))
+            elif query.startswith("!cd "):
+                absolute_path = query[4:].replace(" ./", " " + os.getcwd() + "/")
+                absolute_path = query[4:].replace(" ../", " " + "/".join(os.getcwd().split("/")[:-1]) + "/")
+                absolute_path = query[4:].replace(" ..", " " + "/".join(os.getcwd().split("/")[:-1]) + "/")
+                os.chdir(absolute_path)
+            else:
+                result = subprocess.run(query[1:], shell=True, capture_output=True, text=True)
+                print(result.stdout)
+            continue
         
         result, history, write_content = chat(client, model, prompt, query, history, write_content, dataset, retrieval_func)
 
