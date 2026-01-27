@@ -61,7 +61,11 @@ MODEL = "glm-4.6"
 
 mcpServers = {"ddg-search":{"type":"http", "url":"http://1/mcp"},
         # "get-weather": {"type":"stdio","command":"uvx","args":["weather-forecast-server"]},
-        "get-weather": {"type":"http","url":"http://1/mcp"}
+        "get-weather": {"type":"http","url":"http://1/mcp"},
+        "sequential-thinking": {"type":"http","url":"http://1/mcp"},
+        "12306-mcp": {"type":"http","url":"http://1/mcp"},
+        "context7": {"type":"http","url":"http://1/mcp"},
+
         }
 
 debug = False
