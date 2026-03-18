@@ -317,6 +317,14 @@ class Service:
                                             msg = reduce(lambda x, y: {**x, 'tool_calls': x['tool_calls'] + y['tool_calls']}, merge_tool_call)
                                             print(f"\n msg is {msg}") if debug else None
                                             msg["role"] = "assistant"
+
+                                            if msg.get("content") == "":
+                                                msg["content"] = None
+                            
+                                            # {'role': 'assistant', 'tool_calls': [{'id': 'call_7', 'function': {'arguments': '', 'name': 'websearch'}, 'type': 'function'}]}
+                                            if not msg["tool_calls"][0]['function']['arguments']:
+                                                msg["tool_calls"][0]['function']['arguments'] = '{}'
+
                                             messages.append(msg)
                                             tool_call_messages = []
                 
