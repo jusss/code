@@ -83,26 +83,29 @@ from fastapi import FastAPI, Request, Response, Header
 
 # Configuration: map port -> MCP server command
 MCP_SERVERS = {
-    8006: {
-        "name": "server-memory",
-        "command": ["npx", "-y", "@modelcontextprotocol/server-memory"],
+    8000: {
+        "name": "ddg-search",
+        "command": ["uvx", "duckduckgo-mcp-server"],
     },
-    8007: {
+    8001: {
+        "name": "get-weather",
+        "command": ["uvx", "weather-forecast-server"],
+    },
+    8006: {
         "name": "sequential-thinking",
         "command": ["npx", "-y", "@modelcontextprotocol/server-sequential-thinking"],
     },
-    8008: {
+    8007: {
         "name": "12306-mcp",
         "command": ["npx", "-y", "12306-mcp"],
     },
-    8009: {
+    8008: {
         "name": "context7",
         "command": ["npx", "-y", "@upstash/context7-mcp"],
     },
-
-    8010: {
-        "name": "get-weather",
-        "command": ["uvx", "weather-forecast-server"],
+    8009: {
+        "name": "server-memory",
+        "command": ["npx", "-y", "@modelcontextprotocol/server-memory"],
     },
 }
 
