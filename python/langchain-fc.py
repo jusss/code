@@ -71,7 +71,8 @@ def chat(msg):
         ))
         
     final_response = llm_with_tools.invoke(messages)
-    print(final_response.content)
+    messages.append(final_response)
+    print("AI: ", final_response.content)
 
 if __name__ == "__main__":
     #chat("2025-12-12是星期几？")
