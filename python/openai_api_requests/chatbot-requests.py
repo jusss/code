@@ -509,7 +509,8 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
                                         r = _r[0]["text"]
 
                             elif functions.get(v["name"]):
-                                r = functions[v["name"]](v["args"])
+                                # r = functions[v["name"]](v["args"])
+                                r = functions[v["name"]](**(json.loads(v["args"])))
                             else:
                                 r = f'this tool {v["name"]} is not found'
     
