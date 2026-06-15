@@ -519,6 +519,8 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
 
                             elif functions.get(v["name"]):
                                 r = functions[v["name"]](**(json.loads(v["args"])))
+                                #r can not be empty string, otherwise it will always trigger to run this function calling in every round, because it is in context messages, and tool has empty content {"role":"tool","content":""} mean it is not completed so AI will run it again
+
                             else:
                                 r = f'this tool {v["name"]} is not found'
     
