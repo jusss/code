@@ -41,14 +41,13 @@ OPENAI_BASE_URL = "https://api.moonshot.cn/v1/chat/completions"
 MODEL = "moonshot-v1-32k" # 3 requests per minute
 
 
-OPENAI_API_KEY = "Bearer "
-OPENAI_BASE_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
-MODEL = "glm-4.6"
+# OPENAI_API_KEY = "Bearer "
+# OPENAI_BASE_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
+# MODEL = "glm-4.6"
 
 # OPENAI_API_KEY = "Bearer "
 # OPENAI_BASE_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions"
 # MODEL = "qwen3-32b"
-
 
 
 # glm need prompt to use web_search tool, moonshot doesn't
@@ -61,14 +60,15 @@ MODEL = "glm-4.6"
 
 mcpServers = {"ddg-search":{"type":"http", "url":"http://1/mcp"},
         # "get-weather": {"type":"stdio","command":"uvx","args":["weather-forecast-server"]},
-        "get-weather": {"type":"http","url":"http://1/mcp"},
-        "sequential-thinking": {"type":"http","url":"http://1/mcp"},
-        "12306-mcp": {"type":"http","url":"http://1/mcp"},
-        "context7": {"type":"http","url":"http://1/mcp"},
-
+        # "get-weather": {"type":"http","url":"http://1/mcp"},
+        # "sequential-thinking": {"type":"http","url":"http://1/mcp"},
+        # "12306-mcp": {"type":"http","url":"http://1/mcp"},
+        # "context7": {"type":"http","url":"http://1/mcp"},
+        # "server-memory": {"type":"http","url":"http://1/mcp"},
         }
 
 debug = False
+display_reasoning = True
 
 log_path = f"{os.getenv('HOME')}/chat_history"
 log_prefix = "chat_history"
@@ -454,11 +454,20 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
                     if chunk_message.content:
                         print(chunk_message.content, end='')
                         collected_messages.append(chunk_message)  
+
+                if hasattr(chunk_message, 'reasoning_content') and display_reasoning:
+                    print("chunk_message.reasoning_content ") if debug else None
+                    if chunk_message.reasoning_content:
+                        print(f"\033[32m{chunk_message.reasoning_content}\033[0m", end='')
+                        collected_messages.append(chunk_message)  
         
             if collected_messages:
-                result = ''.join([m.content for m in collected_messages if m.content])
+                result = ''.join([m.content for m in collected_messages if m.get('content')])
                 print('')
                 message.append({"role": "assistant", "content": result})
+                result = ''.join([m.reasoning_content for m in collected_messages if m.get('reasoning_content')])
+                print('')
+                message.append({"role": "assistant", "reasoning_content": result})
             if tool_call_messages:
                 merge_tool_call = []
                 for tool_call_message in tool_call_messages:
@@ -509,7 +518,6 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
                                         r = _r[0]["text"]
 
                             elif functions.get(v["name"]):
-                                # r = functions[v["name"]](v["args"])
                                 r = functions[v["name"]](**(json.loads(v["args"])))
                             else:
                                 r = f'this tool {v["name"]} is not found'
