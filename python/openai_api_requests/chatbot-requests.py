@@ -27,6 +27,7 @@ from easydict import EasyDict as edict
 from chat_api_requests import openai_requests
 from simple_mcp_client import MCPHTTPClient
 import subprocess
+import json_repair
 
 OPENAI_API_KEY = ""
 OPENAI_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
@@ -42,12 +43,19 @@ MODEL = "moonshot-v1-32k" # 3 requests per minute
 
 
 # OPENAI_API_KEY = "Bearer "
+# OPENAI_API_KEY = "Bearer "
 # OPENAI_BASE_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
 # MODEL = "glm-4.6"
+
 
 # OPENAI_API_KEY = "Bearer "
 # OPENAI_BASE_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions"
 # MODEL = "qwen3-32b"
+
+
+OPENAI_API_KEY = "Bearer "
+OPENAI_BASE_URL = "https://open.bigmodel.cn/api/coding/paas/v4/chat/completions"
+MODEL = "glm-4.6v"
 
 
 # glm need prompt to use web_search tool, moonshot doesn't
@@ -76,6 +84,7 @@ log_prefix = "chat_history"
 # Define the directory containing the Python files
 plugins_dir = Path.home() / 'chat_plugin'
 
+# system_prompt should contain project path, so AI can find other files in the project path
 prompt = ""
 history_limit = 6
 stream = True
@@ -449,11 +458,6 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
 
                 print(f" tool_call_messages is {tool_call_messages}") if debug else None
                 print(f" _dict is {_dict}") if debug else None
-                if hasattr(chunk_message, 'content'):
-                    print("chunk_message.content ") if debug else None
-                    if chunk_message.content:
-                        print(chunk_message.content, end='')
-                        collected_messages.append(chunk_message)  
 
                 if hasattr(chunk_message, 'reasoning_content') and display_reasoning:
                     print("chunk_message.reasoning_content ") if debug else None
@@ -461,13 +465,20 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
                         print(f"\033[32m{chunk_message.reasoning_content}\033[0m", end='')
                         collected_messages.append(chunk_message)  
         
+                if hasattr(chunk_message, 'content'):
+                    print("chunk_message.content ") if debug else None
+                    if chunk_message.content:
+                        print(chunk_message.content, end='')
+                        collected_messages.append(chunk_message)  
+
             if collected_messages:
+                # result = ''.join([m.reasoning_content for m in collected_messages if m.get('reasoning_content')])
+                # print('')
+                # # reasoning_content need empty content key
+                # message.append({"role": "assistant", "reasoning_content": result, "content":""})
                 result = ''.join([m.content for m in collected_messages if m.get('content')])
                 print('')
                 message.append({"role": "assistant", "content": result})
-                result = ''.join([m.reasoning_content for m in collected_messages if m.get('reasoning_content')])
-                print('')
-                message.append({"role": "assistant", "reasoning_content": result})
             if tool_call_messages:
                 merge_tool_call = []
                 for tool_call_message in tool_call_messages:
@@ -518,9 +529,9 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
                                         r = _r[0]["text"]
 
                             elif functions.get(v["name"]):
-                                r = functions[v["name"]](**(json.loads(v["args"])))
+                                # use json_repair handle invalid json from LLM, like 'f({)' for no parameter function calling on glm-4.7, glm-4.6 is better
+                                r = functions[v["name"]](**(json_repair.loads(v["args"])))
                                 #r can not be empty string, otherwise it will always trigger to run this function calling in every round, because it is in context messages, and tool has empty content {"role":"tool","content":""} mean it is not completed so AI will run it again
-
                             else:
                                 r = f'this tool {v["name"]} is not found'
     
