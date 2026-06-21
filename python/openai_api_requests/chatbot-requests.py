@@ -43,7 +43,6 @@ MODEL = "moonshot-v1-32k" # 3 requests per minute
 
 
 # OPENAI_API_KEY = "Bearer "
-# OPENAI_API_KEY = "Bearer "
 # OPENAI_BASE_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
 # MODEL = "glm-4.6"
 
@@ -51,7 +50,6 @@ MODEL = "moonshot-v1-32k" # 3 requests per minute
 # OPENAI_API_KEY = "Bearer "
 # OPENAI_BASE_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions"
 # MODEL = "qwen3-32b"
-
 
 OPENAI_API_KEY = "Bearer "
 OPENAI_BASE_URL = "https://open.bigmodel.cn/api/coding/paas/v4/chat/completions"
@@ -180,7 +178,7 @@ def make_mcp_client_call_tool():
 
             if len(time_list) < 5:
     
-                print("\n*** time_list less than 5\n")
+                # print("\n*** time_list less than 5\n")
                 # client = MCPHTTPClient(f"{mcpServers[key_name]['url']}")
                 # init_result = client.initialize()
                 client = mcp_clients(key_name)
@@ -189,7 +187,7 @@ def make_mcp_client_call_tool():
                 return result
             else:
                 if now - time_list[-2] > 20:
-                    print("\n*** time_list will be empty\n")
+                    print("\n*** search limit reset\n")
                     time_list = []
                     # client = MCPHTTPClient(f"{mcpServers[key_name]['url']}")
                     # init_result = client.initialize()
@@ -197,8 +195,8 @@ def make_mcp_client_call_tool():
                     result = client.call_tool(function_name, args_dict)
                     return result
                 else:
-                    print("\n*** time list return Nothing \n")
-                    return edict({"content":[{"text":"No results found"}]})
+                    print("\n*** web search reached limit, please search in 5s \n")
+                    return edict({"content":[{"text":"web search reached limit, please search in 5s"}]})
         else:
             # client = MCPHTTPClient(f"{mcpServers[key_name]['url']}")
             # init_result = client.initialize()
