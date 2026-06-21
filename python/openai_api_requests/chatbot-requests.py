@@ -43,13 +43,16 @@ MODEL = "moonshot-v1-32k" # 3 requests per minute
 
 
 # OPENAI_API_KEY = "Bearer "
+# OPENAI_API_KEY = "Bearer "
 # OPENAI_BASE_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
 # MODEL = "glm-4.6"
+
 
 
 # OPENAI_API_KEY = "Bearer "
 # OPENAI_BASE_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions"
 # MODEL = "qwen3-32b"
+
 
 OPENAI_API_KEY = "Bearer "
 OPENAI_BASE_URL = "https://open.bigmodel.cn/api/coding/paas/v4/chat/completions"
@@ -457,17 +460,23 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
                 print(f" tool_call_messages is {tool_call_messages}") if debug else None
                 print(f" _dict is {_dict}") if debug else None
 
-                if hasattr(chunk_message, 'reasoning_content') and display_reasoning:
-                    print("chunk_message.reasoning_content ") if debug else None
-                    if chunk_message.reasoning_content:
-                        print(f"\033[32m{chunk_message.reasoning_content}\033[0m", end='')
-                        collected_messages.append(chunk_message)  
-        
-                if hasattr(chunk_message, 'content'):
-                    print("chunk_message.content ") if debug else None
-                    if chunk_message.content:
-                        print(chunk_message.content, end='')
-                        collected_messages.append(chunk_message)  
+                try:
+
+                    if hasattr(chunk_message, 'reasoning_content') and display_reasoning:
+                        print("chunk_message.reasoning_content ") if debug else None
+                        if chunk_message.reasoning_content:
+                            print(f"\033[32m{chunk_message.reasoning_content}\033[0m", end='')
+                            collected_messages.append(chunk_message)  
+            
+                    if hasattr(chunk_message, 'content'):
+                        print("chunk_message.content ") if debug else None
+                        if chunk_message.content:
+                            print(chunk_message.content, end='')
+                            collected_messages.append(chunk_message)  
+
+                except KeyboardInterrupt:
+                    print("user interrupt")
+                    break
 
             if collected_messages:
                 # result = ''.join([m.reasoning_content for m in collected_messages if m.get('reasoning_content')])
@@ -765,7 +774,7 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
     while True:
         colored_text = get_colored_text(
                 "\n# Ctrl+D TO EXIT, ENTER TO SEND, N FOR NEW CONVERSATION, " +
-                "C FOR NEW PROMPT, M FOR MULTIPLE LINE, D FOR CREAT DATASET, R FOR CONNECT DATASET, S CLOSE DATASET, L LIST DATASET, F FILES, !SHELL COMMAND\n" + 
+                "C FOR NEW PROMPT, M FOR MULTIPLE LINE, D FOR CREAT DATASET, R FOR CONNECT DATASET, RE RESUME, S CLOSE DATASET, L LIST DATASET, F FILES, !SHELL COMMAND\n" + 
                 (prompt if not prompt else f"prompt: {prompt}") + 
                 (dataset_path if not dataset_path else f"dataset {dataset_path} is connected"), 
                 "green")
@@ -863,6 +872,12 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
             else:
                 result = subprocess.run(query[1:], shell=True, capture_output=True, text=True)
                 print(result.stdout)
+            continue
+
+        if query == 're':
+            resume_file_path = input("log file path: ")
+            with open(resume_file_path, "r", encoding="utf-8") as f:
+                history = [json.loads(line) for line in f]
             continue
         
         result, history, write_content = chat(client, model, prompt, query, history, write_content, dataset, retrieval_func)
