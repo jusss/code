@@ -1,0 +1,44 @@
+
+{
+        "type": "function",
+"function":{
+    "name": "global_search",
+    "description": "Search for files using glob pattern matching",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "pattern": {
+                "type": "string",
+                "description": "Glob pattern to search for. Use ** for recursive search."
+            },
+            "root_dir": {
+                "type": "string",
+                "description": "Root directory to search from (optional)"
+            },
+            "recursive": {
+                "type": "boolean",
+                "description": "Search recursively (default: true)"
+            },
+            "case_sensitive": {
+                "type": "boolean",
+                "description": "Case sensitive matching (default: true)"
+            },
+            "include_hidden": {
+                "type": "boolean",
+                "description": "Include hidden files/dirs (default: false)"
+            },
+            "exclude_patterns": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Patterns to exclude"
+            },
+            "max_results": {
+                "type": "integer",
+                "description": "Maximum results to return (default: 1000)"
+            }
+        },
+        "required": ["pattern"]
+    }
+}
+}
+

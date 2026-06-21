@@ -1,0 +1,14 @@
+ {
+        "type": "function",
+        "function": {
+            "name": "execute_bash",
+            "description": "Execute a bash command on the system",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "command": {"type": "string", "description": "The bash command to execute"}
+                },
+                "required": ["command"]
+            }
+        }
+    }
