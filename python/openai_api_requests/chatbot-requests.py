@@ -28,6 +28,7 @@ from chat_api_requests import openai_requests
 from simple_mcp_client import MCPHTTPClient
 import subprocess
 import json_repair
+import signal
 
 OPENAI_API_KEY = ""
 OPENAI_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
@@ -891,6 +892,19 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
             f.write(result)
 
     return query
+
+
+
+def handle_interrupt(signum, frame):
+    # print("\nCtrl+C pressed - continuing chat session...")
+    # Add any cleanup or state saving here if needed
+    with open("/dev/shm/chatbot-interrupt","w+", encoding="utf-8") as f:
+        f.write("true")
+
+# use signal to capture C-c event, and shared memory file to interrupt requests.post() in chat_api_requests.py
+signal.signal(signal.SIGINT, handle_interrupt)
+
+
 
 if __name__ == "__main__":
     logging.basicConfig(filename='chat_history.log', level=logging.DEBUG)

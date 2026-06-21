@@ -18,10 +18,24 @@ def openai_requests(api_key, base_url, model, messages, tools=[], temperature=0.
         "tools": tools,
     }
     payload.update(kwargs)
+
+
+    payload["chat_template_kwargs"]={"enable_thinking": False},
+
+
     response = requests.post(base_url, headers=headers, json=payload, stream=stream)
     if response.status_code == 200:
         if stream:
             for line in response.iter_lines():
+
+                with open("/dev/shm/chatbot-interrupt","r", encoding="utf-8") as f:
+                    content = f.read()
+                if content == "true":
+                    with open("/dev/shm/chatbot-interrupt","w+", encoding="utf-8") as f:
+                        f.write("false")
+                    response.close()
+                    break
+
                 try:
                     if not line:
                         continue
