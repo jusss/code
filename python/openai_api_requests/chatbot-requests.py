@@ -24,11 +24,12 @@ from itertools import accumulate
 # from fastmcp import Client
 import asyncio
 from easydict import EasyDict as edict
-from chat_api_requests import openai_requests
+# from chat_api_requests import openai_requests
 from simple_mcp_client import MCPHTTPClient
 import subprocess
 import json_repair
 import signal
+import requests
 
 OPENAI_API_KEY = ""
 OPENAI_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
@@ -79,6 +80,7 @@ mcpServers = {"ddg-search":{"type":"http", "url":"http://1/mcp"},
 
 debug = False
 display_reasoning = True
+interrupt = False
 
 log_path = f"{os.getenv('HOME')}/chat_history"
 log_prefix = "chat_history"
@@ -335,6 +337,71 @@ def get_colored_text(text, color):
     }
     color_str = _TEXT_COLOR_MAPPING[color]
     return f"\u001b[{color_str}m\033[1;3m{text}\u001b[0m"
+
+
+def openai_requests(api_key, base_url, model, messages, tools=[], temperature=0.3, stream = True, **kwargs):
+    global interrupt
+    headers = {
+        "Authorization": api_key,
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "model": model,
+        "messages": messages,
+        "max_tokens": 4096,  # The maximum number of tokens to generate in the completion
+        "temperature": temperature,  # How "creative" the response should be
+        "stream": stream,
+        "tools": tools,
+    }
+    payload.update(kwargs)
+
+
+    payload["chat_template_kwargs"]={"enable_thinking": False},
+
+
+    response = requests.post(base_url, headers=headers, json=payload, stream=stream)
+    if response.status_code == 200:
+        if stream:
+            for line in response.iter_lines():
+
+                # with open("/dev/shm/chatbot-interrupt","r", encoding="utf-8") as f:
+                    # content = f.read()
+                # if content == "true":
+                    # with open("/dev/shm/chatbot-interrupt","w+", encoding="utf-8") as f:
+                        # f.write("false")
+                    # response.close()
+                    # break
+
+                if interrupt:
+                    interrupt = False
+                    response.close()
+                    break
+
+                try:
+                    if not line:
+                        continue
+                    if line == b'data: [DONE]':
+                        break
+                    data = line.decode("utf-8")
+                    if data.startswith("data: ping"):
+                        continue
+                    if data.startswith("data: "):
+                        result = json.loads(data[6:], object_hook=lambda d: edict(d), strict=False)
+                        yield result
+
+                except Exception as e:
+                    logging.error(f"\n*** line is {line}")
+                    logging.error(str(e))
+                    print(f"\n*** data is {data}")
+                    print(f"*** result is {result}")
+                    raise Exception(e)
+        else:
+            yield edict(response.json())
+    else:
+        yield edict({"choices":[{"delta":{"content": response.text}}]})
+        logging.error(f"Error: {response.text}")
+
 
 def trim_length(history, length):
     d = list(map(lambda xs: len(json.dumps(xs,ensure_ascii=False).encode('utf8')), history))
@@ -898,8 +965,10 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
 def handle_interrupt(signum, frame):
     # print("\nCtrl+C pressed - continuing chat session...")
     # Add any cleanup or state saving here if needed
-    with open("/dev/shm/chatbot-interrupt","w+", encoding="utf-8") as f:
-        f.write("true")
+    # with open("/dev/shm/chatbot-interrupt","w+", encoding="utf-8") as f:
+        # f.write("true")
+    global interrupt
+    interrupt = True
 
 # use signal to capture C-c event, and shared memory file to interrupt requests.post() in chat_api_requests.py
 signal.signal(signal.SIGINT, handle_interrupt)
