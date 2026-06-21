@@ -1,0 +1,2 @@
+{"type": "function", "function": {"name": "glob_file", "description": "Find files by pattern", "parameters": {"type": "object", "properties": {"pattern": {"type": "string"}}, "required": ["pattern"]}}}
+

@@ -1,0 +1,2 @@
+{"type": "function", "function": {"name": "grep_file", "description": "Search files for pattern", "parameters": {"type": "object", "properties": {"pattern": {"type": "string"}, "path": {"type": "string"}}, "required": ["pattern"]}}}
+
