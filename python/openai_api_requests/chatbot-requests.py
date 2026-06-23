@@ -45,10 +45,8 @@ MODEL = "moonshot-v1-32k" # 3 requests per minute
 
 
 # OPENAI_API_KEY = "Bearer "
-# OPENAI_API_KEY = "Bearer "
 # OPENAI_BASE_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
 # MODEL = "glm-4.6"
-
 
 
 # OPENAI_API_KEY = "Bearer "
@@ -78,6 +76,14 @@ mcpServers = {"ddg-search":{"type":"http", "url":"http://1/mcp"},
         # "server-memory": {"type":"http","url":"http://1/mcp"},
         }
 
+skills = [Path.home() / 'chat_plugin/skills']
+skills_content = []
+for path in skills:
+    for plugin_path in path.glob('*.md'):
+        with open(plugin_path, "r") as f:
+            content = f.read()
+            skills_content.append(content)
+
 debug = False
 display_reasoning = True
 interrupt = False
@@ -90,6 +96,10 @@ plugins_dir = Path.home() / 'chat_plugin'
 
 # system_prompt should contain project path, so AI can find other files in the project path
 prompt = ""
+
+for i in skills_content:
+    prompt = prompt + f'<context> {i} </context>'
+
 history_limit = 6
 stream = True
 retrieval_limit = 6
