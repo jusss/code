@@ -74,6 +74,7 @@ import os
 import signal
 import subprocess
 import sys
+import time
 import uuid
 from typing import Dict, List, Optional
 from contextlib import asynccontextmanager
@@ -106,6 +107,7 @@ MCP_SERVERS = {
     8009: {
         "name": "server-memory",
         "command": ["npx", "-y", "@modelcontextprotocol/server-memory"],
+        "env":{"MEMORY_FILE_PATH": "/dev/shm/memory.json"}
     },
 }
 
@@ -129,11 +131,14 @@ class MCPStdioProxy:
         self.command = command
         self.name = name
         self.process: Optional[asyncio.subprocess.Process] = None
-        self.pending_requests: Dict[str, asyncio.Future] = {}
+        self.pending_requests: Dict[str, tuple] = {}
         self.reader_task: Optional[asyncio.Task] = None
         self.stderr_task: Optional[asyncio.Task] = None
         self.sessions: Dict[str, MCPSession] = {}
         self._lock = asyncio.Lock()
+        self._init_lock=asyncio.Lock()
+        self._init_response=None
+        self._initialized_notified=False
 
     async def start(self):
         """Start the stdio server process."""
@@ -146,6 +151,28 @@ class MCPStdioProxy:
         self.reader_task = asyncio.create_task(self._read_responses())
         self.stderr_task = asyncio.create_task(self._read_stderr())
         print(f"[{self.name}] Started MCP server: {' '.join(self.command)}")
+        
+    def _is_alive(self):
+        return self.process is not None and self.process.returncode is None
+    async def _ensure_alive(self):
+        if self._is_alive():
+            return
+        for internal_id, (future, _original_id) in list(self.pending_requests.items()):
+            if not future.done():
+                future.set_exception(RuntimeError("exited"))
+        self.pending_requests.clear()
+        if self.reader_task:
+            self.reader_task.cancel()
+        if self.stderr_task:
+            self.stderr_task.cancel()
+        self.process=None
+        self._init_response=None
+        self._initialized_notified=False
+        for sses in self.sessions.values():
+            sses.initialized=False
+        await self.start()
+        
+        
 
     async def stop(self):
         """Stop the stdio server process."""
@@ -179,8 +206,10 @@ class MCPStdioProxy:
                     response = json.loads(line_str)
                     request_id = response.get('id')
 
-                    if request_id and request_id in self.pending_requests:
-                        future = self.pending_requests.pop(request_id)
+                    if request_id is not None and request_id in self.pending_requests:
+                        future, original_id = self.pending_requests.pop(request_id)
+                        if original_id is not None:
+                            response['id']=original_id
                         if not future.done():
                             future.set_result(response)
                     else:
@@ -215,21 +244,31 @@ class MCPStdioProxy:
 
     async def send_request(self, message: dict, timeout: float = 30.0) -> dict:
         """Send a request to the MCP server and wait for response."""
+        await self._ensure_alive()
         if not self.process or not self.process.stdin:
             raise RuntimeError("MCP server process not running")
 
         # Clean up the message - remove session_id if present (it's HTTP-specific)
         cleaned_message = {k: v for k, v in message.items() if k != 'session_id'}
 
-        # Use client's request ID if provided, otherwise generate one
-        request_id = cleaned_message.get('id')
-        if not request_id:
-            request_id = str(uuid.uuid4())
-            cleaned_message['id'] = request_id
+        method=cleaned_message.get('method','')
+        is_notification=('id' not in cleaned_message or method.startswith('notifications/'))
+        if is_notification:
+            cleaned_message.pop('id',None)
+            async with self._lock:
+                request_data=json.dumps(cleaned_message)+'\n'
+                self.process.stdin.write(request_data.encode('utf-8'))
+                await self.process.stdin.drain()
+            return {"jsonrpc":"2.0","result":None}
+            
+        original_id=cleaned_message.get('id')
+        internal_id=str(uuid.uuid4())
+        cleaned_message['id']=internal_id
+        
 
         # Create future for response
         future = asyncio.Future()
-        self.pending_requests[request_id] = future
+        self.pending_requests[internal_id] = (future, original_id)
 
         try:
             # Use lock to ensure atomic write operations
@@ -244,10 +283,10 @@ class MCPStdioProxy:
             return response
 
         except asyncio.TimeoutError:
-            self.pending_requests.pop(request_id, None)
+            self.pending_requests.pop(internal_id, None)
             raise RuntimeError(f"Request timeout after {timeout}s")
         except Exception as e:
-            self.pending_requests.pop(request_id, None)
+            self.pending_requests.pop(internal_id, None)
             raise
 
     def get_or_create_session(self, session_id: Optional[str] = None) -> MCPSession:
@@ -326,8 +365,22 @@ def create_app(server_config: dict) -> FastAPI:
             if method == "initialize":
                 session.client_info = body.get("params", {}).get("clientInfo")
                 session.initialized = False
-
+                async with proxy._init_lock:
+                    if proxy._init_response is None:
+                        proxy._init_response=await proxy.send_request(body)
+                    response=dict(proxy._init_response)
+                    if 'id' in body:
+                        response['id']=body['id']
+                use_sse=accept and 'text/event-stream' in accept
+                headers ={"Mcp-Session-Id": session.session_id}
+                if use_sse:
+                    return Response(content=format_sse_response(response), media_type="text/event-stream", headers=headers,)
+                return Response(content=json.dumps(response), media_type="application/json",headers=headers)
             elif method == "notifications/initialized":
+                async with proxy._init_lock:
+                    if not proxy._initialized_notified:
+                        await proxy.send_request(body)
+                        proxy._initialized_notified=True
                 session.initialized = True
                 return Response(
                     status_code=202,
@@ -475,7 +528,14 @@ def create_app_from_env():
 
 
 # Default app instance for gunicorn (uses MCP_SERVER_PORT env var)
-app = create_app_from_env()
+def __getattr__(name):
+    if name=="app":
+        global app
+        app=create_app_from_env()
+        return app
+    raise AttributeError(" no attribute")
+    
+    
 
 
 def run_with_gunicorn(port: int, config: dict, workers: int, host: str = "0.0.0.0"):
@@ -496,20 +556,46 @@ def run_with_gunicorn(port: int, config: dict, workers: int, host: str = "0.0.0.
     ]
 
     print(f"[{config['name']}] Starting gunicorn on port {port} with {workers} workers")
-    return subprocess.Popen(cmd, env=env)
+    return subprocess.Popen(cmd, env=env, start_new_session=True)
 
 
 def run_all_with_gunicorn(workers: int, host: str = "0.0.0.0"):
     """Run all configured servers with gunicorn."""
     processes = []
+    shutting_down={"flag":False}
+    def _kill_group(proc, sig):
+        if proc.poll() is not None:
+            return
+        try:
+            os.killpg(os.getpgid(proc.pid), sig)
+        except ProcessLookupError:
+            pass
+        except Exception as e:
+            print(e)
+    def _wait_all(timeout):
+        deadline=time.monotonic()+timeout
+        while time.monotonic()<deadline:
+            if all(p.poll() is not None for p in processes):
+                return True
+            time.sleep(0.1)
+        return all(p.poll() is not None for p in processes)
+         
 
     def signal_handler(signum, frame):
         print("\nShutting down all servers...")
+        if shutting_down['flag']:
+            for proc in processes:
+                _kill_group(proc, signal.SIGKILL)
+            sys.exit(1)
+        shutting_down['flag']=True
         for proc in processes:
-            proc.terminate()
+            _kill_group(proc,signal.SIGTERM)
+        if _wait_all(timeout=10.0):
+            sys.exit(0)
         for proc in processes:
-            proc.wait()
-        sys.exit(0)
+            _kill_group(proc, signal.SIGKILL)
+        _wait_all(timeout=2.0)
+        sys.exit(1)
 
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
@@ -524,10 +610,14 @@ def run_all_with_gunicorn(workers: int, host: str = "0.0.0.0"):
 
     # Wait for all processes
     try:
-        for proc in processes:
-            proc.wait()
+        while processes and not shutting_down['flag']:
+            for proc in processes:
+                if proc.poll() is  not None:
+                    signal_handler(signal.SIGTERM, None)
+                    return
+            time.sleep(0.5)
     except KeyboardInterrupt:
-        signal_handler(None, None)
+        signal_handler(signal.SIGINT, None)
 
 
 async def run_server_uvicorn(port: int, config: dict):
@@ -620,10 +710,24 @@ if __name__ == "__main__":
             config = MCP_SERVERS[args.single]
             print(f"Starting single server (gunicorn): {config['name']} on port {args.single}")
             proc = run_with_gunicorn(args.single, config, args.workers, args.host)
+            def _kill_signal(sig):
+                if proc.poll() is not None:
+                    return
+                try:
+                    os.killpg(os.getpgid(proc.pid),sig)
+                except ProcessLookupError:
+                    pass
             try:
                 proc.wait()
             except KeyboardInterrupt:
-                proc.terminate()
-                proc.wait()
+                _kill_signal(signal.SIGTERM)
+                try:
+                    proc.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    _kill_signal(signal.SIGKILL)
+                    proc.wait(timeout=2)
+                except KeyboardInterrupt:
+                    _kill_signal(signal.SIGKILL)
+                    proc.wait(timeout=2)
         else:
             run_all_with_gunicorn(args.workers, args.host)
