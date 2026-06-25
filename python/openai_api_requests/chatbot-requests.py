@@ -96,11 +96,17 @@ log_prefix = "chat_history"
 # Define the directory containing the Python files
 plugins_dir = Path.home() / 'chat_plugin'
 
+# Get the current working directory
+current_dir = os.getcwd()
+
 # system_prompt should contain project path, so AI can find other files in the project path
 prompt = ""
 
 for i in skills_content:
-    prompt = prompt + f'<context> {i} </context>'
+    # prompt = prompt + f'<context> {i} </context>'
+    prompt = prompt + f'{i}'
+
+prompt = prompt.replace("$PATH", current_dir)
 
 history_limit = 6
 stream = True
