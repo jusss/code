@@ -49,6 +49,7 @@ MODEL = "moonshot-v1-32k" # 3 requests per minute
 # MODEL = "glm-4.6"
 
 
+
 # OPENAI_API_KEY = "Bearer "
 # OPENAI_BASE_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions"
 # MODEL = "qwen3-32b"
@@ -57,6 +58,7 @@ MODEL = "moonshot-v1-32k" # 3 requests per minute
 OPENAI_API_KEY = "Bearer "
 OPENAI_BASE_URL = "https://open.bigmodel.cn/api/coding/paas/v4/chat/completions"
 MODEL = "glm-4.6v"
+MODEL = "glm-4.7"
 
 
 # glm need prompt to use web_search tool, moonshot doesn't
@@ -70,10 +72,10 @@ MODEL = "glm-4.6v"
 mcpServers = {"ddg-search":{"type":"http", "url":"http://1/mcp"},
         # "get-weather": {"type":"stdio","command":"uvx","args":["weather-forecast-server"]},
         # "get-weather": {"type":"http","url":"http://1/mcp"},
-        # "sequential-thinking": {"type":"http","url":"http://1/mcp"},
+        "sequential-thinking": {"type":"http","url":"http://1/mcp"},
         # "12306-mcp": {"type":"http","url":"http://1/mcp"},
-        # "context7": {"type":"http","url":"http://1/mcp"},
-        # "server-memory": {"type":"http","url":"http://1/mcp"},
+        "context7": {"type":"http","url":"http://1/mcp"},
+        "server-memory": {"type":"http","url":"http://1/mcp"},
         }
 
 skills = [Path.home() / 'chat_plugin/skills']
@@ -494,7 +496,21 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
     # print(f"messages is {messages}")
 
     if len(json.dumps(messages,ensure_ascii=False).encode('utf8')) > 32000:
-        messages = [{"role": "system", "content": prompt}] + messages[-2:]
+        # server-memory mcp store long context
+        if "server-memory__create_entities" in mcp_tool_name:
+            entity_name=str(uuid.uuid4())
+            try:
+                mcp_client_call_tool("server-memory__create_entities",
+                   {"entities":[{"name":entity_name, "entityType":"Conversation","observations":[json.dumps(m, ensure_ascii=False) for m in messages]}]})
+                messages=[{"role":"system","contet":prompt+f", history archived to memory, entity name={entity_name}"}]+messages[-2:]
+                print("context store")
+
+            except Exception as e:
+                messages=[{"role":"system","content":prompt}]+messages[-2:]
+                print("memory failed")
+        else:
+            messages=[{"role":"system","content":prompt}]+messages[-2:]
+        history=history[-1:]
 
     result = ""
     while True:
