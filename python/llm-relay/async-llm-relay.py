@@ -23,6 +23,7 @@ import concurrent.futures
 from easydict import EasyDict as edict
 import time
 import aiohttp
+import json_repair
 
 
 """
@@ -50,14 +51,24 @@ Authorization = f"Bearer "
 URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
 Model = "glm-4.6"
 
-Authorization = f"Bearer "
-URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions"
-Model = "qwen3-8b"
+# Authorization = f"Bearer "
+# URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions"
+# Model = "qwen3-8b"
 
 
-mcpServers = {"ddg-search":{"type":"http", "url":"http://"},
-        # "get-weather"{"type":"stdio","command":"uvx","args":["weather-forecast-server"]},
-        "get-weather": {"type":"http","url":"http://"}
+Authorization = "Bearer "
+URL = "https://open.bigmodel.cn/api/coding/paas/v4/chat/completions"
+Model = "glm-4.6v"
+
+
+
+mcpServers = {"ddg-search":{"type":"http", "url":"http://127.0.0.1:8000"},
+        # "get-weather": {"type":"stdio","command":"uvx","args":["weather-forecast-server"]},
+        # "get-weather": {"type":"http","url":"http://127.0.0.1:8001"},
+        "sequential-thinking": {"type":"http","url":"http://127.0.0.1:8006"},
+        # "12306-mcp": {"type":"http","url":"http://127.0.0.1:8007"},
+        "context7": {"type":"http","url":"http://127.0.0.1:8008"},
+        "server-memory": {"type":"http","url":"http://127.0.0.1:8009"},
         }
 
 
@@ -72,7 +83,8 @@ default_prompt = """
 """
 
 #qwen thinking produce illusion
-default_prompt = "do not use thinking mode, search before answer"
+# default_prompt = "do not use thinking mode, search before answer"
+default_prompt = ""
 
 hash_key = hashlib.sha256(password.encode()).hexdigest()
 user_data = {"user_name": user, "user_id": 0}
@@ -93,6 +105,7 @@ async def mcp_client(mcpServers):
     openai_tools=[]
     for name, mcpServer in mcpServers.items():
         if mcpServer["type"] == "http":
+            print(f"initial mcp tools {mcpServer['url']}/mcp")
             async with Client(f'{mcpServer["url"]}/mcp') as client:
                 tools = await client.list_tools()
                 print(f"Available tools: {tools}") if debug else None
@@ -132,21 +145,21 @@ def make_mcp_client_call_tool():
 
             if len(time_list) < 5:
     
-                print("\n\n\n*** time_list less than 5\n\n\n")
+                # print("\n\n\n*** time_list less than 5\n\n\n")
                 async with Client(f"{mcpServers[key_name]['url']}/mcp") as client:
                     await asyncio.sleep(3)
                     result = await client.call_tool(function_name, args_dict)
                     return result
             else:
                 if now - time_list[-2] > 20:
-                    print("\n\n\n*** time_list will be empty\n\n\n")
+                    print("\n\n\n*** web search limit reset\n\n\n")
                     time_list = []
                     async with Client(f"{mcpServers[key_name]['url']}/mcp") as client:
                         result = await client.call_tool(function_name, args_dict)
                         return result
                 else:
-                    print("\n\n\n*** time list return Nothing \n\n\n")
-                    return edict({"content":[{"text":"No results found"}]})
+                    print("\n\n\n*** web search reached limit, please search in 5s \n\n\n")
+                    return edict({"content":[{"text":"web search reached limit, please search in 5s"}]})
         else:
             async with Client(f"{mcpServers[key_name]['url']}/mcp") as client:
                 result = await client.call_tool(function_name, args_dict)
@@ -156,6 +169,7 @@ def make_mcp_client_call_tool():
 
 mcp_client_call_tool = make_mcp_client_call_tool()
 
+# this asyncio.run before if __name__ == '__main__', so uvicorn asyncio event is not problem
 mcp_tools = asyncio.run(mcp_client(mcpServers))
 
 mcp_tools_name = [tool['function']["name"] for tool in mcp_tools]
@@ -346,13 +360,15 @@ class Service:
                                                     if v["name"] in mcp_tools_name:
                                                         loop = asyncio.new_event_loop()
                                                         with concurrent.futures.ThreadPoolExecutor() as executor:
-                                                            future = executor.submit(lambda: asyncio.run(mcp_client_call_tool(v["name"], json.loads(v["args"]))))
+                                                            future = executor.submit(lambda: asyncio.run(mcp_client_call_tool(v["name"], json_repair.loads(v["args"]))))
                                                             call_tool_result = future.result()
                                                         # future = asyncio.run_coroutine_threadsafe(mcp_client_call_tool(v["name"], json.loads(v["args"])),loop)
                                                         # call_tool_result = future.result(timeout=10)
                                                         r = call_tool_result.content[0].text
                                                     elif functions.get(v["name"]):
-                                                        r = functions[v["name"]](v["args"])
+                                                        # r = functions[v["name"]](v["args"])
+                                                        r = functions[v["name"]](**(json_repair.loads(v["args"])))
+
                                                     else:
                                                         r = f'this tool {v["name"]} is not found'
                     
@@ -410,8 +426,24 @@ class Service:
 
         # if len(messages) > 20:
             # messages = [{"role": "system", "content": prompt}] + messages[3:]
+        # if len(json.dumps(messages,ensure_ascii=False).encode('utf8')) > 32000:
+            # messages = [{"role": "system", "content": prompt}] + messages[-3:]
+
         if len(json.dumps(messages,ensure_ascii=False).encode('utf8')) > 32000:
-            messages = [{"role": "system", "content": prompt}] + messages[-3:]
+            # server-memory mcp store long context
+            if "server-memory__create_entities" in mcp_tools_name:
+                entity_name=str(uuid.uuid4())
+                try:
+                    mcp_client_call_tool("server-memory__create_entities",
+                       {"entities":[{"name":entity_name, "entityType":"Conversation","observations":[json.dumps(m, ensure_ascii=False) for m in messages]}]})
+                    messages=[{"role":"system","contet":prompt+f", history archived to memory, entity name={entity_name}"}]+messages[-3:]
+                    print("context store")
+    
+                except Exception as e:
+                    messages=[{"role":"system","content":prompt}]+messages[-3:]
+                    print("memory failed")
+            else:
+                messages=[{"role":"system","content":prompt}]+messages[-3:]
 
         if not prompt:
             prompt = default_prompt
@@ -426,14 +458,14 @@ class Service:
             if content:
                 messages.append({"role": "user", "content": content})
 
-            # data = {"model": Model, "messages": messages, "temperature": 0.7, "top_p": 0.8,
-                # "frequency_penalty": 0.0, # "max_tokens": 2048,
-                # "repetition_penalty": 1.2, "stream": True, "tools": tools}
+            data = {"model": Model, "messages": messages, "temperature": 0.7, "top_p": 0.8,
+                "frequency_penalty": 0.0, # "max_tokens": 2048,
+                "repetition_penalty": 1.2, "stream": True, "tools": tools}
             
             # qwen
-            data = {"model": Model, "messages": messages, "temperature": 0.6, "top_p": 0.95, "top_k": 20, 
-                    "chat_template_kwargs":{"enable_thinking": False},
-                "repetition_penalty": 1.2, "stream": True, "tools": tools}
+            # data = {"model": Model, "messages": messages, "temperature": 0.6, "top_p": 0.95, "top_k": 20, 
+                    # "chat_template_kwargs":{"enable_thinking": False},
+                # "repetition_penalty": 1.2, "stream": True, "tools": tools}
 
             async def recursive_tool_call(url, headers,data, answer, messages, conversation_id, tool_messages=[]):
 
