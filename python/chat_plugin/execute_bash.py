@@ -1,6 +1,6 @@
 def execute_bash(command):
     try:
-        if ("rm " in command) or ("mv " in command) or ("sed " in command):
+        if ("rm " in command) or ("mv " in command) or (("sed " in command) and ("sed -n" not in command)):
             p = input(f"{command}, y or n?: ")
             if p != "y":
                 print(f"{command} is aborted by user")

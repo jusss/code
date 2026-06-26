@@ -16,7 +16,7 @@ def bash_tools(commands):
                     print(f"{cmd} is aborted by user")
                     return "{cmd} is aborted by user"
 
-            if "sed " in cmd:
+            if ("sed " in cmd) and ("sed -n" not in cmd):
                 p = input(f"{cmd}, y or n?: ")
                 if p != "y":
                     print(f"{cmd} is aborted by user")
