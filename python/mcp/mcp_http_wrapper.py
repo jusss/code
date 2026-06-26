@@ -710,7 +710,7 @@ if __name__ == "__main__":
             config = MCP_SERVERS[args.single]
             print(f"Starting single server (gunicorn): {config['name']} on port {args.single}")
             proc = run_with_gunicorn(args.single, config, args.workers, args.host)
-            def _kill_signal(sig):
+            def _kill_single(sig):
                 if proc.poll() is not None:
                     return
                 try:
@@ -720,14 +720,14 @@ if __name__ == "__main__":
             try:
                 proc.wait()
             except KeyboardInterrupt:
-                _kill_signal(signal.SIGTERM)
+                _kill_single(signal.SIGTERM)
                 try:
                     proc.wait(timeout=10)
                 except subprocess.TimeoutExpired:
-                    _kill_signal(signal.SIGKILL)
+                    _kill_single(signal.SIGKILL)
                     proc.wait(timeout=2)
                 except KeyboardInterrupt:
-                    _kill_signal(signal.SIGKILL)
+                    _kill_single(signal.SIGKILL)
                     proc.wait(timeout=2)
         else:
             run_all_with_gunicorn(args.workers, args.host)

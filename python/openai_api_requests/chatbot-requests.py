@@ -503,7 +503,7 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
 
     if len(json.dumps(messages,ensure_ascii=False).encode('utf8')) > 32000:
         # server-memory mcp store long context
-        if "server-memory__create_entities" in mcp_tool_name:
+        if "server-memory__create_entities" in mcp_tools_name:
             entity_name=str(uuid.uuid4())
             try:
                 mcp_client_call_tool("server-memory__create_entities",
