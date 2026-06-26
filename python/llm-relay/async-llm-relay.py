@@ -62,13 +62,13 @@ Model = "glm-4.6v"
 
 
 
-mcpServers = {"ddg-search":{"type":"http", "url":"http://127.0.0.1:8000"},
+mcpServers = {"ddg-search":{"type":"http", "url":"http://127.0.0.1:8000/mcp"},
         # "get-weather": {"type":"stdio","command":"uvx","args":["weather-forecast-server"]},
-        # "get-weather": {"type":"http","url":"http://127.0.0.1:8001"},
-        "sequential-thinking": {"type":"http","url":"http://127.0.0.1:8006"},
-        # "12306-mcp": {"type":"http","url":"http://127.0.0.1:8007"},
-        "context7": {"type":"http","url":"http://127.0.0.1:8008"},
-        "server-memory": {"type":"http","url":"http://127.0.0.1:8009"},
+        # "get-weather": {"type":"http","url":"http://127.0.0.1:8001/mcp"},
+        "sequential-thinking": {"type":"http","url":"http://127.0.0.1:8006/mcp"},
+        # "12306-mcp": {"type":"http","url":"http://127.0.0.1:8007/mcp"},
+        "context7": {"type":"http","url":"http://127.0.0.1:8008/mcp"},
+        "server-memory": {"type":"http","url":"http://127.0.0.1:8009/mcp"},
         }
 
 
@@ -105,8 +105,8 @@ async def mcp_client(mcpServers):
     openai_tools=[]
     for name, mcpServer in mcpServers.items():
         if mcpServer["type"] == "http":
-            print(f"initial mcp tools {mcpServer['url']}/mcp")
-            async with Client(f'{mcpServer["url"]}/mcp') as client:
+            print(f"initial mcp tools {mcpServer['url']}")
+            async with Client(f'{mcpServer["url"]}') as client:
                 tools = await client.list_tools()
                 print(f"Available tools: {tools}") if debug else None
                 for tool in tools:
@@ -125,7 +125,7 @@ async def mcp_client(mcpServers):
 # async def mcp_client_call_tool(tool_name, args_dict):
     # key_name = tool_name.split("__")[0]
     # function_name = tool_name.split("__")[1]
-    # async with Client(f"{mcpServers[key_name]['url']}/mcp") as client:
+    # async with Client(f"{mcpServers[key_name]['url']}") as client:
         # result = await client.call_tool(function_name, args_dict)
         # return result
 
@@ -146,7 +146,7 @@ def make_mcp_client_call_tool():
             if len(time_list) < 5:
     
                 # print("\n\n\n*** time_list less than 5\n\n\n")
-                async with Client(f"{mcpServers[key_name]['url']}/mcp") as client:
+                async with Client(f"{mcpServers[key_name]['url']}") as client:
                     await asyncio.sleep(3)
                     result = await client.call_tool(function_name, args_dict)
                     return result
@@ -154,14 +154,14 @@ def make_mcp_client_call_tool():
                 if now - time_list[-2] > 20:
                     print("\n\n\n*** web search limit reset\n\n\n")
                     time_list = []
-                    async with Client(f"{mcpServers[key_name]['url']}/mcp") as client:
+                    async with Client(f"{mcpServers[key_name]['url']}") as client:
                         result = await client.call_tool(function_name, args_dict)
                         return result
                 else:
                     print("\n\n\n*** web search reached limit, please search in 5s \n\n\n")
                     return edict({"content":[{"text":"web search reached limit, please search in 5s"}]})
         else:
-            async with Client(f"{mcpServers[key_name]['url']}/mcp") as client:
+            async with Client(f"{mcpServers[key_name]['url']}") as client:
                 result = await client.call_tool(function_name, args_dict)
                 return result
 
