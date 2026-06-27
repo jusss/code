@@ -30,6 +30,7 @@ import subprocess
 import json_repair
 import signal
 import requests
+from token_count import count_chat_tokens
 
 OPENAI_API_KEY = ""
 OPENAI_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
@@ -47,7 +48,6 @@ MODEL = "moonshot-v1-32k" # 3 requests per minute
 # OPENAI_API_KEY = "Bearer "
 # OPENAI_BASE_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
 # MODEL = "glm-4.6"
-
 
 
 # OPENAI_API_KEY = "Bearer "
@@ -111,7 +111,8 @@ prompt = prompt.replace("$PATH", current_dir)
 history_limit = 6
 stream = True
 retrieval_limit = 6
-token_limit = 16000
+token_limit = 200000
+current_token = 0
 
 #1 creat log file for chat context, done
 #2 loop input, only write when exit, done
@@ -501,7 +502,10 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
 
     # print(f"messages is {messages}")
 
-    if len(json.dumps(messages,ensure_ascii=False).encode('utf8')) > 32000:
+    # if len(json.dumps(messages,ensure_ascii=False).encode('utf8')) > 32000:
+    global current_token
+    current_token = count_chat_tokens(messages)
+    if current_token > token_limit:
         # server-memory mcp store long context
         if "server-memory__create_entities" in mcp_tools_name:
             entity_name=str(uuid.uuid4())
@@ -662,6 +666,7 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
     # message.append({"role": "assistant", "content": result})
     history.append(message)
     write_content.append(message)
+    current_token = count_chat_tokens(messages+message)
 
     return result, history, write_content
 
@@ -867,6 +872,23 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
     with open(log_file, "r", encoding="utf-8") as f:
         history = [json.loads(line) for line in f]
 
+    global current_token
+    if history:
+        _messages = reduce(add, history)
+    
+        if _messages:
+            # delete old tool_calls in messages
+            # messages = filter(lambda d: if (d['role'] == "assistant" and d.get("tool_calls")) or d["role"] == "tool")
+            _new_message = []
+            for d in _messages:
+                if (d['role'] == "assistant" and d.get("tool_calls")) or d["role"] == "tool":
+                    continue
+                else:
+                    _new_message.append(d)
+            _messages = _new_message
+    
+        current_token = count_chat_tokens(_messages)
+
     # if prompt is empty, try get it from history file
     if not prompt:
         prompt = get_prompt_from_history(history)
@@ -874,8 +896,8 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
     while True:
         colored_text = get_colored_text(
                 "\n# Ctrl+D TO EXIT, ENTER TO SEND, N FOR NEW CONVERSATION, " +
-                "C FOR NEW PROMPT, M FOR MULTIPLE LINE, D FOR CREAT DATASET, R FOR CONNECT DATASET, RE RESUME, S CLOSE DATASET, L LIST DATASET, F FILES, !SHELL COMMAND\n" + 
-                (prompt if not prompt else f"prompt: {prompt}") + 
+                f"C FOR NEW PROMPT, M FOR MULTIPLE LINE, D FOR CREAT DATASET, R FOR CONNECT DATASET, RE RESUME, S CLOSE DATASET, L LIST DATASET, F FILES, !SHELL COMMAND, context {current_token/token_limit*100}%\n " +
+                (prompt if not prompt else f"prompt: {prompt}") +
                 (dataset_path if not dataset_path else f"dataset {dataset_path} is connected"), 
                 "green")
         print(colored_text)

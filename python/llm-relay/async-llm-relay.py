@@ -24,6 +24,7 @@ from easydict import EasyDict as edict
 import time
 import aiohttp
 import json_repair
+from token_count import count_chat_tokens
 
 
 """
@@ -85,6 +86,9 @@ default_prompt = """
 #qwen thinking produce illusion
 # default_prompt = "do not use thinking mode, search before answer"
 default_prompt = ""
+
+current_token=0
+token_limit = 200000
 
 hash_key = hashlib.sha256(password.encode()).hexdigest()
 user_data = {"user_name": user, "user_id": 0}
@@ -429,7 +433,11 @@ class Service:
         # if len(json.dumps(messages,ensure_ascii=False).encode('utf8')) > 32000:
             # messages = [{"role": "system", "content": prompt}] + messages[-3:]
 
-        if len(json.dumps(messages,ensure_ascii=False).encode('utf8')) > 32000:
+        # if len(json.dumps(messages,ensure_ascii=False).encode('utf8')) > 32000:
+        global current_token
+        current_token = count_chat_tokens(messages)
+        if current_token > token_limit:
+
             # server-memory mcp store long context
             if "server-memory__create_entities" in mcp_tools_name:
                 entity_name=str(uuid.uuid4())
