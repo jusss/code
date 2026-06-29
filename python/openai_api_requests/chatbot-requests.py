@@ -31,6 +31,7 @@ import json_repair
 import signal
 import requests
 from token_count import count_chat_tokens
+import uuid
 
 OPENAI_API_KEY = ""
 OPENAI_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
@@ -50,10 +51,10 @@ MODEL = "moonshot-v1-32k" # 3 requests per minute
 # MODEL = "glm-4.6"
 
 
+
 # OPENAI_API_KEY = "Bearer "
 # OPENAI_BASE_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions"
 # MODEL = "qwen3-32b"
-
 
 OPENAI_API_KEY = "Bearer "
 OPENAI_BASE_URL = "https://open.bigmodel.cn/api/coding/paas/v4/chat/completions"
@@ -75,7 +76,7 @@ mcpServers = {"ddg-search":{"type":"http", "url":"http://1/mcp"},
         "sequential-thinking": {"type":"http","url":"http://1/mcp"},
         # "12306-mcp": {"type":"http","url":"http://1/mcp"},
         "context7": {"type":"http","url":"http://1/mcp"},
-        "server-memory": {"type":"http","url":"http://1/mcp"},
+        # "server-memory": {"type":"http","url":"http://1/mcp"},
         }
 
 skills = [Path.home() / 'chat_plugin/skills']
@@ -111,7 +112,7 @@ prompt = prompt.replace("$PATH", current_dir)
 history_limit = 6
 stream = True
 retrieval_limit = 6
-token_limit = 200000
+token_limit = 20000
 current_token = 0
 
 #1 creat log file for chat context, done
@@ -311,7 +312,7 @@ def create_log_file(log_path, log_prefix):
         os.makedirs(log_path)
        
     postfix = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
-    log_file = f"{log_path}{log_prefix}_{postfix}.json"
+    log_file = f"{log_path}{log_prefix}_{postfix}.jsonl"
     with open(log_file, 'a'):
         os.utime(log_file, None)
     return log_file
@@ -323,12 +324,12 @@ def get_log_file(log_path, log_prefix):
         os.makedirs(log_path)
        
         postfix = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
-        log_file = f"{log_path}{log_prefix}_{postfix}.json"
+        log_file = f"{log_path}{log_prefix}_{postfix}.jsonl"
         with open(log_file, 'a'):
             os.utime(log_file, None)
         return log_file
 
-    file_list = filter(lambda x: x.startswith(log_prefix) and x.endswith(".json"), os.listdir(log_path))
+    file_list = filter(lambda x: x.startswith(log_prefix) and x.endswith(".jsonl"), os.listdir(log_path))
     latest_modified_file = None
     latest_modified_time = 0
 
@@ -479,8 +480,8 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
     message.append({"role": "user", "content": query})
 
     # history :: [[dict]], every [dict] is a complete conversation, is a message
-    if len(history) > history_limit:
-        history = history[-history_limit:]
+    # if len(history) > history_limit:
+        # history = history[-history_limit:]
 
     print(get_colored_text(f"\n{MODEL}: ", "green"), end='', flush=True)
 
@@ -494,7 +495,7 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
         # messages = filter(lambda d: if (d['role'] == "assistant" and d.get("tool_calls")) or d["role"] == "tool")
         new_message = []
         for d in messages:
-            if (d['role'] == "assistant" and d.get("tool_calls")) or d["role"] == "tool":
+            if (d['role'] == "assistant" and d.get("tool_calls")) or (d["role"] == "tool") or (d['role'] == "assistant" and d['content'] == ''):
                 continue
             else:
                 new_message.append(d)
@@ -507,20 +508,31 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
     current_token = count_chat_tokens(messages)
     if current_token > token_limit:
         # server-memory mcp store long context
-        if "server-memory__create_entities" in mcp_tools_name:
-            entity_name=str(uuid.uuid4())
-            try:
-                mcp_client_call_tool("server-memory__create_entities",
-                   {"entities":[{"name":entity_name, "entityType":"Conversation","observations":[json.dumps(m, ensure_ascii=False) for m in messages]}]})
-                messages=[{"role":"system","contet":prompt+f", history archived to memory, entity name={entity_name}"}]+messages[-2:]
-                print("context store")
+        # if "server-memory__create_entities" in mcp_tools_name:
+            # entity_name=str(uuid.uuid4())
+            # try:
+                # mcp_client_call_tool("server-memory__create_entities",
+                   # {"entities":[{"name":entity_name, "entityType":"Conversation","observations":[json.dumps(m, ensure_ascii=False) for m in messages]}]})
+                # messages=[{"role":"system","content":prompt+f", history archived to memory, entity name={entity_name}"}]+messages[-2:]
+                # print("context store")
 
-            except Exception as e:
-                messages=[{"role":"system","content":prompt}]+messages[-2:]
-                print("memory failed")
-        else:
-            messages=[{"role":"system","content":prompt}]+messages[-2:]
-        history=history[-1:]
+            # except Exception as e:
+                # messages=[{"role":"system","content":prompt}]+messages[-2:]
+                # print("memory failed")
+        # else:
+            # messages=[{"role":"system","content":prompt}]+messages[-2:]
+
+        # re-implement long context handle, put all the history into a new jsonl file, and system prompt insert 
+        # 'this context is too long, old context will write into a.jsonl, find old context in a.jsonl with grep or read tool when you need old context'
+        old_context_file = os.path.join(log_path, str(uuid.uuid4()) + ".jsonl")
+        prompt = prompt + f'\nthis context is too long, old context has written into {old_context_file}, find old context in {old_context_file} with grep_file or read_file tools when you need old context'
+
+        with open(old_context_file, "a+", encoding="utf-8") as f:
+            old_context_data = "".join(json.dumps(content, ensure_ascii=False) + "\n" for content in messages)
+            f.write(old_context_data)
+
+        messages=[{"role":"system","content":prompt}]
+        history=[messages]
 
     result = ""
     while True:
@@ -668,7 +680,7 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
     write_content.append(message)
     current_token = count_chat_tokens(messages+message)
 
-    return result, history, write_content
+    return result, history, write_content, prompt
 
 # def get_input(input_msg):
     # lines = []
@@ -881,7 +893,7 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
             # messages = filter(lambda d: if (d['role'] == "assistant" and d.get("tool_calls")) or d["role"] == "tool")
             _new_message = []
             for d in _messages:
-                if (d['role'] == "assistant" and d.get("tool_calls")) or d["role"] == "tool":
+                if (d['role'] == "assistant" and d.get("tool_calls")) or (d["role"] == "tool") or (d['role'] == "assistant" and d['content'] == ''):
                     continue
                 else:
                     _new_message.append(d)
@@ -889,9 +901,10 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
     
         current_token = count_chat_tokens(_messages)
 
-    # if prompt is empty, try get it from history file
-    if not prompt:
         prompt = get_prompt_from_history(history)
+    # if prompt is empty, try get it from history file
+    # if not prompt:
+        # prompt = get_prompt_from_history(history)
 
     while True:
         colored_text = get_colored_text(
@@ -1000,9 +1013,10 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
             resume_file_path = input("log file path: ")
             with open(resume_file_path, "r", encoding="utf-8") as f:
                 history = [json.loads(line) for line in f]
+            prompt = get_prompt_from_history(history)
             continue
         
-        result, history, write_content = chat(client, model, prompt, query, history, write_content, dataset, retrieval_func)
+        result, history, write_content, prompt = chat(client, model, prompt, query, history, write_content, dataset, retrieval_func)
 
     result = "".join(json.dumps(content) + "\n" for content in write_content)
 
