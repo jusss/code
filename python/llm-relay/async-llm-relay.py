@@ -69,7 +69,7 @@ mcpServers = {"ddg-search":{"type":"http", "url":"http://127.0.0.1:8000/mcp"},
         "sequential-thinking": {"type":"http","url":"http://127.0.0.1:8006/mcp"},
         # "12306-mcp": {"type":"http","url":"http://127.0.0.1:8007/mcp"},
         "context7": {"type":"http","url":"http://127.0.0.1:8008/mcp"},
-        "server-memory": {"type":"http","url":"http://127.0.0.1:8009/mcp"},
+        # "server-memory": {"type":"http","url":"http://127.0.0.1:8009/mcp"},
         }
 
 
@@ -87,7 +87,6 @@ default_prompt = """
 # default_prompt = "do not use thinking mode, search before answer"
 default_prompt = ""
 
-current_token=0
 token_limit = 200000
 
 hash_key = hashlib.sha256(password.encode()).hexdigest()
@@ -410,6 +409,7 @@ class Service:
 
         if not conversation_id:
             conversation_id = str(uuid.uuid4())
+            self.conversations[f"{conversation_id}_prompt"]=""
             # data = ('data: {"choices": [{"index": 0, "delta": {"id": "' + conversation_id + '"}}]}').encode("utf-8") + b'\n\n'
             data = 'data: {"choices": [{"index": 0, "delta": {"id": "' + conversation_id + '"}}]}\n\n'
             yield data
@@ -422,7 +422,7 @@ class Service:
             # messages = filter(lambda d: if (d['role'] == "assistant" and d.get("tool_calls")) or d["role"] == "tool")
             new_message = []
             for d in messages:
-                if (d['role'] == "assistant" and d.get("tool_calls")) or d["role"] == "tool":
+                if (d['role'] == "assistant" and d.get("tool_calls")) or (d["role"] == "tool") or (d['role'] == "assistant" and d['content'] == ''):
                     continue
                 else:
                     new_message.append(d)
@@ -434,24 +434,24 @@ class Service:
             # messages = [{"role": "system", "content": prompt}] + messages[-3:]
 
         # if len(json.dumps(messages,ensure_ascii=False).encode('utf8')) > 32000:
-        global current_token
         current_token = count_chat_tokens(messages)
         if current_token > token_limit:
 
-            # server-memory mcp store long context
-            if "server-memory__create_entities" in mcp_tools_name:
-                entity_name=str(uuid.uuid4())
-                try:
-                    mcp_client_call_tool("server-memory__create_entities",
-                       {"entities":[{"name":entity_name, "entityType":"Conversation","observations":[json.dumps(m, ensure_ascii=False) for m in messages]}]})
-                    messages=[{"role":"system","contet":prompt+f", history archived to memory, entity name={entity_name}"}]+messages[-3:]
-                    print("context store")
+            # re-implement long context handle, put all the history into a new jsonl file, and system prompt insert 
+            # 'this context is too long, old context will write into a.jsonl, find old context in a.jsonl with grep or read tool when you need old context'
+            old_context_file = os.path.join(str(Path.home()), str(uuid.uuid4()) + ".jsonl")
+            self.conversations[f"{conversation_id}_prompt"] += f'\nthis context is too long, old context has written into {old_context_file}, find old context in {old_context_file} with grep_file or read_file tools when you need old context'
+            prompt = prompt + self.conversations[f"{conversation_id}_prompt"]
     
-                except Exception as e:
-                    messages=[{"role":"system","content":prompt}]+messages[-3:]
-                    print("memory failed")
-            else:
-                messages=[{"role":"system","content":prompt}]+messages[-3:]
+            with open(old_context_file, "a+", encoding="utf-8") as f:
+                old_context_data = "".join(json.dumps(content, ensure_ascii=False) + "\n" for content in messages)
+                f.write(old_context_data)
+    
+            messages=[{"role":"system","content":prompt}] + messages[-1:]
+        else:
+            if self.conversations[f"{conversation_id}_prompt"]:
+                prompt = prompt + self.conversations[f"{conversation_id}_prompt"]
+                messages=messages[:-1] + [{"role":"system","content":prompt}] + messages[-1:]
 
         if not prompt:
             prompt = default_prompt
