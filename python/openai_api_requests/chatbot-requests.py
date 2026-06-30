@@ -90,6 +90,7 @@ for path in skills:
 debug = False
 display_reasoning = True
 interrupt = False
+exception_conversation = []
 
 log_path = f"{os.getenv('HOME')}/chat_history"
 log_prefix = "chat_history"
@@ -112,7 +113,7 @@ prompt = prompt.replace("$PATH", current_dir)
 history_limit = 6
 stream = True
 retrieval_limit = 6
-token_limit = 100000
+token_limit = 32000
 current_token = 0
 
 #1 creat log file for chat context, done
@@ -538,7 +539,7 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
             message = [{"role":"system","content":prompt_context}] + message
 
         prompt = prompt + prompt_context
-        messages=[-6:]
+        messages=messages[-6:]
         history=[messages]
 
     result = ""
@@ -1028,6 +1029,8 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
             continue
         
         result, history, write_content, prompt = chat(client, model, prompt, query, history, write_content, dataset, retrieval_func)
+        global exception_conversation
+        exception_conversation = history
 
     # result = "".join(json.dumps(content) + "\n" for content in write_content)
 
@@ -1076,3 +1079,10 @@ if __name__ == "__main__":
     except Exception as e:
         print(e)
         logging.error(str(e))
+        result = "".join(json.dumps(content) + "\n" for content in exception_conversation)
+    
+        if result:
+            with open(f"{log_path}/exception-conversation.jsonl", "w", encoding="utf-8") as f:
+                print(f"Write exception conversation into {log_path}/exception-conversation.jsonl")
+                # f.seek(0, os.SEEK_END)
+                f.write(result)
