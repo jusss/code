@@ -449,9 +449,11 @@ class Service:
     
             messages= messages[-7:-1] + [{"role":"system","content":prompt}] + messages[-1:]
         else:
-            if self.conversations[f"{conversation_id}_prompt"]:
+            if self.conversations.get(f"{conversation_id}_prompt"):
                 prompt = prompt + self.conversations[f"{conversation_id}_prompt"]
                 messages=messages[:-1] + [{"role":"system","content":prompt}] + messages[-1:]
+            else:
+                self.conversations[f"{conversation_id}_prompt"] = ""
 
         if not prompt:
             prompt = default_prompt
