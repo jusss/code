@@ -87,7 +87,7 @@ default_prompt = """
 # default_prompt = "do not use thinking mode, search before answer"
 default_prompt = ""
 
-token_limit = 200000
+token_limit = 100000
 
 hash_key = hashlib.sha256(password.encode()).hexdigest()
 user_data = {"user_name": user, "user_id": 0}
