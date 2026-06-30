@@ -51,10 +51,10 @@ MODEL = "moonshot-v1-32k" # 3 requests per minute
 # MODEL = "glm-4.6"
 
 
-
 # OPENAI_API_KEY = "Bearer "
 # OPENAI_BASE_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions"
 # MODEL = "qwen3-32b"
+
 
 OPENAI_API_KEY = "Bearer "
 OPENAI_BASE_URL = "https://open.bigmodel.cn/api/coding/paas/v4/chat/completions"
@@ -112,7 +112,7 @@ prompt = prompt.replace("$PATH", current_dir)
 history_limit = 6
 stream = True
 retrieval_limit = 6
-token_limit = 20000
+token_limit = 100000
 current_token = 0
 
 #1 creat log file for chat context, done
@@ -469,7 +469,7 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
     if dataset:
         # chunks :: [[String]], maybe try to use function call to do retrieval, write 'call this tool or not' in prompt for RAG
         chunks = retrieval_func(dataset, query, topK=20)
-        context = "\nthose messages may be useful: " + ",".join(reduce(add, chunks))
+        context = "\n<context name=RAG> those messages may be useful: " + ",".join(reduce(add, chunks)) + "</context>"
 
         print(f"retrieval msg: {context}")
         if prompt:
@@ -525,14 +525,21 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
         # re-implement long context handle, put all the history into a new jsonl file, and system prompt insert 
         # 'this context is too long, old context will write into a.jsonl, find old context in a.jsonl with grep or read tool when you need old context'
         old_context_file = os.path.join(log_path, str(uuid.uuid4()) + ".jsonl")
-        prompt = prompt + f'\nthis context is too long, old context has written into {old_context_file}, find old context in {old_context_file} with grep_file or read_file tools when you need old context'
+        prompt_context = f'\nthis context is too long, old context has written into {old_context_file}, find old context in {old_context_file} with grep_file or read_file tools when you need old context'
 
         with open(old_context_file, "a+", encoding="utf-8") as f:
             old_context_data = "".join(json.dumps(content, ensure_ascii=False) + "\n" for content in messages)
             f.write(old_context_data)
 
-        messages=[{"role":"system","content":prompt}]
-        history=[messages]
+        # message may contain system prompt
+        if message[0].get('role') == 'system':
+            message[0]['content'] += prompt_context
+        else:
+            message = [{"role":"system","content":prompt_context}] + message
+
+        prompt = prompt + prompt_context
+        messages=[]
+        history=[]
 
     result = ""
     while True:
@@ -678,7 +685,8 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
     # message.append({"role": "assistant", "content": result})
     history.append(message)
     write_content.append(message)
-    current_token = count_chat_tokens(messages+message)
+    # message cotain tool_call
+    current_token = count_chat_tokens(messages+ [m for m in message if m['role'] == 'assistant' and m.get('content')])
 
     return result, history, write_content, prompt
 
@@ -730,7 +738,10 @@ def get_prompt_from_history(history):
                 if "\nthose messages may be useful: " not in prompt:
                     return prompt
                 else:
-                    return prompt.split("\nthose messages may be useful: ")[0]
+                    # return prompt.split("\nthose messages may be useful: ")[0]
+                    rag_msg = prompt.split("\n<context name=RAG> those messages may be useful:")
+                    removed_rag_msg = rag_msg[0] + rag_msg[1].split("</context>")[1]
+                    return removed_rag_msg
 
         return ""
 
@@ -1018,13 +1029,22 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
         
         result, history, write_content, prompt = chat(client, model, prompt, query, history, write_content, dataset, retrieval_func)
 
-    result = "".join(json.dumps(content) + "\n" for content in write_content)
+    # result = "".join(json.dumps(content) + "\n" for content in write_content)
+
+    # if result:
+        # with open(log_file, "a", encoding="utf-8") as f:
+            # print(f"Write chat history into {log_file}")
+            # # f.seek(0, os.SEEK_END)
+            # f.write(result)
+
+    result = "".join(json.dumps(content) + "\n" for content in history)
 
     if result:
-        with open(log_file, "a", encoding="utf-8") as f:
+        with open(log_file, "w", encoding="utf-8") as f:
             print(f"Write chat history into {log_file}")
             # f.seek(0, os.SEEK_END)
             f.write(result)
+
 
     return query
 
