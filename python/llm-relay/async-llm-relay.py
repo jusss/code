@@ -444,10 +444,10 @@ class Service:
             prompt = prompt + self.conversations[f"{conversation_id}_prompt"]
     
             with open(old_context_file, "a+", encoding="utf-8") as f:
-                old_context_data = "".join(json.dumps(content, ensure_ascii=False) + "\n" for content in messages)
+                old_context_data = "".join(json.dumps(content, ensure_ascii=False) + "\n" for content in messages[:-7])
                 f.write(old_context_data)
     
-            messages=[{"role":"system","content":prompt}] + messages[-1:]
+            messages= messages[-7:-1] + [{"role":"system","content":prompt}] + messages[-1:]
         else:
             if self.conversations[f"{conversation_id}_prompt"]:
                 prompt = prompt + self.conversations[f"{conversation_id}_prompt"]
