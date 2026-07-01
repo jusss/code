@@ -952,6 +952,7 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
             query = get_multiple_line_input("enter then Ctrl-d to send:")
 
         if query == 'n':
+            current_token = 0
             break
 
         if query == 'c':
