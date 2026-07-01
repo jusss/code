@@ -33,33 +33,36 @@ import requests
 from token_count import count_chat_tokens
 import uuid
 
-OPENAI_API_KEY = ""
-OPENAI_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
+# OPENAI_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
 
-MODEL="ep-20241202112616-gwq48" # 
+# MODEL="ep-20241202112616-gwq48" # 
 #MODEL = "ep-20241202111844-2thng" # doubao-pro-128k-240628 support two functions at same time
 #MODEL = "ep-20241202112646-vnvgv"   # moonshot moonshot-v1-128k-v1, will call one function, then another 
 #MODEL = "ep-20241202112824-5zvw9" # chatglm3-130b-fc-v1.0 support two functions at same time
 
-OPENAI_API_KEY = "Bearer "
-OPENAI_BASE_URL = "https://api.moonshot.cn/v1/chat/completions"
-MODEL = "moonshot-v1-32k" # 3 requests per minute
+# OPENAI_BASE_URL = "https://api.moonshot.cn/v1/chat/completions"
+# MODEL = "moonshot-v1-32k" # 3 requests per minute
 
-
-# OPENAI_API_KEY = "Bearer "
 # OPENAI_BASE_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
 # MODEL = "glm-4.6"
 
 
-# OPENAI_API_KEY = "Bearer "
 # OPENAI_BASE_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions"
 # MODEL = "qwen3-32b"
 
 
-OPENAI_API_KEY = "Bearer "
-OPENAI_BASE_URL = "https://open.bigmodel.cn/api/coding/paas/v4/chat/completions"
-MODEL = "glm-4.6v"
-MODEL = "glm-4.7"
+# OPENAI_BASE_URL = "https://open.bigmodel.cn/api/coding/paas/v4/chat/completions"
+# MODEL = "glm-4.6v"
+# MODEL = "glm-4.7"
+
+
+
+with open(Path.home() / 'chatbot-config.json', "r") as f:
+    config_data = json.loads(f.read())
+
+OPENAI_API_KEY = config_data["zhipu-current1"]["OPENAI_API_KEY"]
+OPENAI_BASE_URL =config_data["zhipu-current1"]["OPENAI_BASE_URL"]
+MODEL = config_data["zhipu-current1"]["MODEL"]
 
 
 # glm need prompt to use web_search tool, moonshot doesn't
@@ -70,14 +73,16 @@ MODEL = "glm-4.7"
 # glm-4.6 does not need prompt to use web_search tool, but qwen3-32b does
 # do not enable thinking model, search related content and fetch on web before answer
 
-mcpServers = {"ddg-search":{"type":"http", "url":"http://1/mcp"},
-        # "get-weather": {"type":"stdio","command":"uvx","args":["weather-forecast-server"]},
-        # "get-weather": {"type":"http","url":"http://1/mcp"},
-        "sequential-thinking": {"type":"http","url":"http://1/mcp"},
-        # "12306-mcp": {"type":"http","url":"http://1/mcp"},
-        "context7": {"type":"http","url":"http://1/mcp"},
-        # "server-memory": {"type":"http","url":"http://1/mcp"},
-        }
+# mcpServers = {"ddg-search":{"type":"http", "url":"http://1/mcp"},
+        # # "get-weather": {"type":"stdio","command":"uvx","args":["weather-forecast-server"]},
+        # # "get-weather": {"type":"http","url":"http://1/mcp"},
+        # "sequential-thinking": {"type":"http","url":"http://1/mcp"},
+        # # "12306-mcp": {"type":"http","url":"http://1/mcp"},
+        # "context7": {"type":"http","url":"http://1/mcp"},
+        # # "server-memory": {"type":"http","url":"http://1/mcp"},
+        # }
+
+mcpServers = config_data["mcpServers"]
 
 skills = [Path.home() / 'chat_plugin/skills']
 skills_content = []

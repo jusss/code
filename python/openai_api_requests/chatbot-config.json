@@ -1,0 +1,48 @@
+{
+    "volces":{
+        "OPENAI_API_KEY":"",
+        "OPENAI_BASE_URL":"https://ark.cn-beijing.volces.com/api/v3/chat/completions",
+        "MODEL":"ep-20241202112616-gwq48"
+    },
+    "kimi":{
+        "OPENAI_API_KEY":"Bearer ",
+        "OPENAI_BASE_URL":"https://api.moonshot.cn/v1/chat/completions",
+        "MODEL":"moonshot-v1-32k"
+    },
+    "zhipu":{
+        "OPENAI_API_KEY":"Bearer ",
+        "OPENAI_BASE_URL":"https://open.bigmodel.cn/api/paas/v4/chat/completions",
+        "MODEL":"glm-4.6"
+    },
+    "zhipu2":{
+        "OPENAI_API_KEY":"Bearer ",
+        "OPENAI_BASE_URL":"https://open.bigmodel.cn/api/paas/v4/chat/completions",
+        "MODEL":"glm-4.6"
+    },
+    "qwen":{
+        "OPENAI_API_KEY":"Bearer ",
+        "OPENAI_BASE_URL":"https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions",
+        "MODEL":"qwen3-32b"
+    },
+    "zhipu3":{
+        "OPENAI_API_KEY":"Bearer ",
+        "OPENAI_BASE_URL":"https://open.bigmodel.cn/api/coding/paas/v4/chat/completions",
+        "MODEL":"glm-4.6v"
+    },
+    "zhipu-current1":{
+        "OPENAI_API_KEY":"Bearer ",
+        "OPENAI_BASE_URL":"https://open.bigmodel.cn/api/coding/paas/v4/chat/completions",
+        "MODEL":"glm-4.7"
+    },
+    "zhipu-current2":{
+        "OPENAI_API_KEY":"Bearer ",
+        "OPENAI_BASE_URL":"https://open.bigmodel.cn/api/coding/paas/v4/chat/completions",
+        "MODEL":"glm-4.6v"
+    },
+    "mcpServers": {
+        "ddg-search":{"type":"http", "url":"http://1/mcp"},
+        "sequential-thinking": {"type":"http","url":"http://1/mcp"},
+        "context7": {"type":"http","url":"http://1/mcp"}
+   }
+}
+
