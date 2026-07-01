@@ -31,48 +31,28 @@ from token_count import count_chat_tokens
 source env/bin/activate
 uvicorn llm-relay:app --reload
 """
-user=""
-password=""
-token = ""
 
-# api_key = ""
-# URL="https://ark.cn-beijing.volces.com/api/v3/chat/completions"
-# Authorization=f"Bearer {api_key}"
-# Model = "ep-20241121175541-nfczw"
+with open(Path.home() / 'llm-relay/llm-relay-config.json', "r") as f:
+    config_data = json.loads(f.read())
 
-# https://console.volcengine.com/ark/region:ark+cn-beijing/endpoint/detail?Id=ep-20241202112616-gwq48&Tab=api
-# mine
-api_key = ""
-URL="https://ark.cn-beijing.volces.com/api/v3/chat/completions"
-Authorization=f"Bearer {api_key}"
-Model = "ep-20241202112616-gwq48"
+user=config_data["user"]
+password=config_data["password"]
+token = config_data["token"]
 
+Authorization = config_data["zhipu-current1"]["Authorization"]
+URL = config_data["zhipu-current1"]["URL"]
+Model =config_data["zhipu-current1"]["Model"] 
 
-Authorization = f"Bearer "
-URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
-Model = "glm-4.6"
+# mcpServers = {"ddg-search":{"type":"http", "url":"http://127.0.0.1:8000/mcp"},
+        # # "get-weather": {"type":"stdio","command":"uvx","args":["weather-forecast-server"]},
+        # # "get-weather": {"type":"http","url":"http://127.0.0.1:8001/mcp"},
+        # "sequential-thinking": {"type":"http","url":"http://127.0.0.1:8006/mcp"},
+        # # "12306-mcp": {"type":"http","url":"http://127.0.0.1:8007/mcp"},
+        # "context7": {"type":"http","url":"http://127.0.0.1:8008/mcp"},
+        # # "server-memory": {"type":"http","url":"http://127.0.0.1:8009/mcp"},
+        # }
 
-# Authorization = f"Bearer "
-# URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions"
-# Model = "qwen3-8b"
-
-
-Authorization = "Bearer "
-URL = "https://open.bigmodel.cn/api/coding/paas/v4/chat/completions"
-Model = "glm-4.6v"
-
-
-
-mcpServers = {"ddg-search":{"type":"http", "url":"http://127.0.0.1:8000/mcp"},
-        # "get-weather": {"type":"stdio","command":"uvx","args":["weather-forecast-server"]},
-        # "get-weather": {"type":"http","url":"http://127.0.0.1:8001/mcp"},
-        "sequential-thinking": {"type":"http","url":"http://127.0.0.1:8006/mcp"},
-        # "12306-mcp": {"type":"http","url":"http://127.0.0.1:8007/mcp"},
-        "context7": {"type":"http","url":"http://127.0.0.1:8008/mcp"},
-        # "server-memory": {"type":"http","url":"http://127.0.0.1:8009/mcp"},
-        }
-
-
+mcpServers = config_data["mcpServers"]
 
 debug = True
 
