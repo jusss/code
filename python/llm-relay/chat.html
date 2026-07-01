@@ -131,16 +131,18 @@
                     chatArea.scrollTop = chatArea.scrollHeight;
                 }
                 else if (data.choices && data.choices[0] && data.choices[0].delta && data.choices[0].delta.content) {
-
-                    if (thinking) {
-                        chatArea.value += `\n\n##Answer\n\n`;
-                        chatArea.scrollTop = chatArea.scrollHeight;
-                        thinking = false;
-                    }
-
                     const content = data.choices[0].delta.content;
-                    chatArea.value += `${content}`;
-                    chatArea.scrollTop = chatArea.scrollHeight;
+
+                    if (content && content.trim() !== '') {
+                        if (thinking) {
+                            chatArea.value += `\n\n##Answer\n\n`;
+                            chatArea.scrollTop = chatArea.scrollHeight;
+                            thinking = false;
+                        }
+
+                        chatArea.value += `${content}`;
+                        chatArea.scrollTop = chatArea.scrollHeight;
+                    }
                 } else {
                     console.log('No content field in parsed data:', data);
                     // chatArea.value += `Server sent data without content field: ${JSON.stringify(data)}\n`;
