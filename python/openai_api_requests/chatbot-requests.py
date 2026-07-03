@@ -60,9 +60,9 @@ import uuid
 with open(Path.home() / 'chatbot-config.json', "r") as f:
     config_data = json.loads(f.read())
 
-OPENAI_API_KEY = config_data["zhipu-current1"]["OPENAI_API_KEY"]
-OPENAI_BASE_URL =config_data["zhipu-current1"]["OPENAI_BASE_URL"]
-MODEL = config_data["zhipu-current1"]["MODEL"]
+OPENAI_API_KEY = config_data["zhipu-current2"]["OPENAI_API_KEY"]
+OPENAI_BASE_URL =config_data["zhipu-current2"]["OPENAI_BASE_URL"]
+MODEL = config_data["zhipu-current2"]["MODEL"]
 
 
 # glm need prompt to use web_search tool, moonshot doesn't
@@ -114,6 +114,17 @@ for i in skills_content:
     prompt = prompt + f'{i}'
 
 prompt = prompt.replace("$PATH", current_dir)
+
+# load agents.md
+
+agents_file_list = filter(lambda x: x.endswith(".md"), os.listdir(current_dir))
+
+for md in agents_file_list:
+    md_path = os.path.join(current_dir,md)
+    print(md_path)
+    with open(md_path, "r") as f:
+        content = f.read()
+        prompt = prompt + content
 
 history_limit = 6
 stream = True
