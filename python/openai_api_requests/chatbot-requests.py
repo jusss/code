@@ -107,7 +107,7 @@ plugins_dir = Path.home() / 'chat_plugin'
 current_dir = os.getcwd()
 
 # system_prompt should contain project path, so AI can find other files in the project path
-prompt = ""
+prompt = f"<context name=Time> current time is {datetime.now().strftime('%Y_%m_%d %H:%M:%S')}</context>\n"
 
 for i in skills_content:
     # prompt = prompt + f'<context> {i} </context>'

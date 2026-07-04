@@ -60,14 +60,14 @@ debug = True
 
 plugins_dir = Path.home() / 'chat_plugin'
 
-default_prompt = """
-    You're an usefull assistant, Please answer the prompt, and then if you need to think or calculate, use <think> and </think> to show your thought process, but make sure to provide a clear and concise answer outside of the thought process, as if you didn't see the thought process itself. Think step by step. Please think.
-    when you're not sure on something, think twice, and ask directly for new information
-"""
+# default_prompt = """
+    # You're an usefull assistant, Please answer the prompt, and then if you need to think or calculate, use <think> and </think> to show your thought process, but make sure to provide a clear and concise answer outside of the thought process, as if you didn't see the thought process itself. Think step by step. Please think.
+    # when you're not sure on something, think twice, and ask directly for new information
+# """
 
 #qwen thinking produce illusion
 # default_prompt = "do not use thinking mode, search before answer"
-default_prompt = ""
+default_prompt = f"<context name=Time> current time is {datetime.now().strftime('%Y_%m_%d %H:%M:%S')}</context>\n"
 
 token_limit = 100000
 
