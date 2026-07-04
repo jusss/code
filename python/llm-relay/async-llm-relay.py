@@ -7,6 +7,7 @@ import json
 import uuid
 import asyncio
 import hashlib
+import os
 from sse_starlette import EventSourceResponse
 from http.cookies import SimpleCookie
 from datetime import datetime, timedelta
@@ -37,7 +38,8 @@ with open(Path.home() / 'llm-relay/llm-relay-config.json', "r") as f:
 
 user=config_data["user"]
 password=config_data["password"]
-token = config_data["token"]
+jwt_secret_key = config_data["secret"]
+enable_ssl = config_data["enable_ssl"]
 
 Authorization = config_data["zhipu-current1"]["Authorization"]
 URL = config_data["zhipu-current1"]["URL"]
@@ -69,20 +71,21 @@ default_prompt = ""
 
 token_limit = 100000
 
-hash_key = hashlib.sha256(password.encode()).hexdigest()
+# hash_key = hashlib.sha256(password.encode()).hexdigest()
+# Use the token from config as the JWT secret key
 user_data = {"user_name": user, "user_id": 0}
 algorithm = "HS256" 
 
-# JWT token use hashed_password as hash_key and a dict contain user name, user id, and expire date to encode 
+# JWT token use config token as secret and a dict contain user name, user id, and expire date to encode 
 # back-end will decode this token to get dict, check if expiration date is reached out
 # the old way is browser maintain expired cookies, use max_age or expires key in cookies
 # response.set_cookie(key="token", "value"="xxx", max_age=3600) expires in 1 hour
 
-create_access_token = lambda user_data, hash_key, algorithm, expired_minutes:\
-    jwt.encode(claims= user_data | {"expiration_date": datetime.utcnow() + timedelta(minutes=expired_minutes)}, 
-               key=hash_key, algorithm=algorithm)
+create_access_token = lambda user_data, secret_key, algorithm, expired_minutes:\
+    jwt.encode(claims= user_data | {"expiration_date": int((datetime.utcnow() + timedelta(minutes=expired_minutes)).timestamp())},
+               key=secret_key, algorithm=algorithm)
 
-decode_token = lambda token, hash_key, algorithm: jwt.decode(token, hash_key, algorithm)
+decode_token = lambda token, secret_key, algorithm: jwt.decode(token, secret_key, algorithm)
 
 async def mcp_client(mcpServers):
     openai_tools=[]
@@ -483,7 +486,18 @@ class Service:
 
             if answer:
                 messages.append({"role": "assistant", "content": answer})
+                # print(messages)
+
+                write_messages = [i for i in messages if i not in self.conversations.get(conversation_id,[])]
+
+                # print(f"write messages is {write_messages}")
+
                 self.conversations[conversation_id] = messages
+                
+                # with open(f"{str(Path.home())}/llm-relay/{user}-{conversation_id}.json", "w") as f:
+                    # f.write(json.dumps(messages))
+                with open(f"{str(Path.home())}/llm-relay/{user}-{conversation_id}.jsonl", "a+") as f:
+                    f.write(json.dumps(write_messages)+"\n")
 
         except Exception as e:
             print(e)
@@ -491,7 +505,7 @@ class Service:
 
 service = Service()
 # JWT token would start with Bearer
-auth_dict = {"Authorization": token}
+# auth_dict = {"Authorization": token}
 app = FastAPI()
 
 login_html = ""
@@ -505,23 +519,56 @@ with open("chat.html","r") as f:
 
 # jwt token expired, check_login decorator
 
-def check_login(r: Request, auth_dict: dict):
+# def check_login(r: Request, auth_dict: dict):
+    # cookie_string = r.headers.get("Cookie", "")
+    # if not cookie_string:
+        # return False
+
+    # cookie = SimpleCookie()
+    # cookie.load(cookie_string)
+    # cookie_dict = {key: cookie[key].value for key in cookie}
+    # for k,v in auth_dict.items():
+        # if cookie_dict.get(k, "") != v:
+            # return False
+    # return True
+
+def get_user_from_token(r: Request):
+    """Extract username from JWT token in cookie"""
     cookie_string = r.headers.get("Cookie", "")
     if not cookie_string:
-        return False
+        return None
 
     cookie = SimpleCookie()
     cookie.load(cookie_string)
-    cookie_dict = {key: cookie[key].value for key in cookie}
-    for k,v in auth_dict.items():
-        if cookie_dict.get(k, "") != v:
-            return False
-    return True
+    token = cookie.get("Authorization", None)
+    # print(f"get_user from token is {token}")
+    if not token:
+        return None
 
+    try:
+        # Remove "Bearer " prefix if present
+        token_value = token.value
+        if token.value.startswith("Bearer "):
+            token_value = token.value[7:]
+
+        payload = jwt.decode(token_value, jwt_secret_key, algorithms=["HS256"])
+        # print(f"payload is {payload}")
+        return payload.get("user_name")
+    except Exception as e:
+        print(e)
+        return None
+
+check_login = get_user_from_token
+
+def verify_password(password, hash_password):
+    hashed = hashlib.sha256(password.encode()).hexdigest()
+    if hashed == hash_password:
+        return True
+    return False
 
 @app.get("/")
 async def index(r: Request):
-    if check_login(r, auth_dict):
+    if check_login(r):
         return {"msg": "Hello World!"}
         # return HTMLResponse(content=chat_html)
     return RedirectResponse(url="/login")
@@ -536,7 +583,7 @@ def hello():
 
 @app.get("/chat")
 async def get_chat(r: Request):
-    if check_login(r, auth_dict):
+    if check_login(r):
         return HTMLResponse(content=chat_html)
     return RedirectResponse(url="/login")
 
@@ -583,7 +630,7 @@ async def chat_stream(conversation_id: str = Query()):
 
 @app.post("/api/chat")
 async def chat(r: Request, content: str = Form(), prompt: str = Form(), conversation_id: str = Form()):
-    if check_login(r, auth_dict):
+    if check_login(r):
         service.query[conversation_id] = content
         service.cancel[conversation_id] = False
         return {"code": 200, "msg": "ok"}
@@ -591,7 +638,7 @@ async def chat(r: Request, content: str = Form(), prompt: str = Form(), conversa
 
 @app.post("/api/files")
 async def upload_files(r: Request, files: List[UploadFile] = File(...), conversation_id: str = Form(...)):
-    if check_login(r, auth_dict):
+    if check_login(r):
         file_list = []
 
         for f in files:
@@ -604,30 +651,41 @@ async def upload_files(r: Request, files: List[UploadFile] = File(...), conversa
 
 @app.post("/api/chat/cancel")
 async def chat(r: Request, conversation_id: str = Form()):
-    if check_login(r, auth_dict):
+    if check_login(r):
         service.cancel[conversation_id] = True
         return {"code": 200, "msg": "ok"}
     return {"code": 401, "msg": "Unauthorized"}
 
 @app.get("/login")
 async def login(r: Request):
-    if check_login(r, auth_dict):
+    if check_login(r):
+        print("login is true")
         return RedirectResponse(url="/")
+    print("login is false")
     return HTMLResponse(content=login_html)
 
 @app.post("/api/login")
 async def login(r: Request, response: Response, user: str = Form(), password: str = Form()):
-    if (user == user) and (password == password):
-        # this response would shandow parameter Response, you need set cookie in response
-        response = RedirectResponse(url="/chat", status_code=303)  
-        for k,v in auth_dict.items():
-            response.set_cookie(key= k, value=v, max_age=3600*24*7)
-
-        # response.set_cookie(key="Authorization" , value=token, max_age=604800)
-
-        # return {"code": 200, "msg": "login success", "data": {"token": token}}
-        # return RedirectResponse(url="/chat")
-        # set_cookie(response, "Authorization", f"Bearer {result['access_token']}")
+    if (user == config_data["user"]) and verify_password(password, config_data["password"]):
+        # Create JWT token with proper expiration
+        access_token = create_access_token(
+            user_data={"user_name": user},
+            secret_key=jwt_secret_key,
+            algorithm=algorithm,
+            expired_minutes=60  # Token expires in 60 minutes
+        )
+        
+        # Set the JWT token as cookie
+        response = RedirectResponse(url="/chat", status_code=303)
+        response.set_cookie(
+            key="Authorization",
+            value=f"Bearer {access_token}",
+            max_age=3600*24*7,  # 1 hour
+            path="/",
+            httponly=True,
+            secure=enable_ssl  # Set to True if using HTTPS
+        )
+        
         return response
 
     else:
@@ -636,18 +694,132 @@ async def login(r: Request, response: Response, user: str = Form(), password: st
 @app.get("/api/export")
 async def export(r: Request, response: Response, id: str = Query()):
     print(r.headers)
-    if not check_login(r, auth_dict):
+    if not check_login(r):
         return {"code": 401, "msg": "Unauthorized"}
     if id:
         return service.export(id)
 
+@app.get("/api/old-contexts")
+async def get_old_contexts(r: Request):
+    if not check_login(r):
+        return {"code": 401, "msg": "Unauthorized"}
+
+    # Get the username from JWT token
+    user = get_user_from_token(r)
+    if not user:
+        return {"code": 401, "msg": "Unauthorized"}
+
+    relay_dir = Path.home() / "llm-relay"
+    if not relay_dir.exists():
+        return {"code": 200, "contexts": []}
+
+    contexts = []
+
+    # Look for files matching pattern: {user}-{conversation_id}.jsonl
+    pattern = f"{user}-*.jsonl"
+    for file_path in relay_dir.glob(pattern):
+        stat = file_path.stat()
+        first_line = ""
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                first_line = f.readline().strip()
+        except Exception as e:
+            print(f"Error reading first line of {file_path}: {e}")
+
+        contexts.append({
+            "filename": file_path.name,
+            "first_line": first_line,
+            "size": stat.st_size,
+            "modified": datetime.fromtimestamp(stat.st_mtime).isoformat()
+        })
+
+    return {"code": 200, "contexts": contexts}
+
+@app.get("/api/old-context/{filename}")
+async def get_old_context(r: Request, filename: str):
+    if not check_login(r):
+        return {"code": 401, "msg": "Unauthorized"}
+
+    relay_dir = Path.home() / "llm-relay"
+    file_path = relay_dir / filename
+
+    if not file_path.exists():
+        return {"code": 404, "msg": "Context file not found"}
+
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            # content = f.read().strip()
+            # if content:
+            history = [json.loads(line) for line in f]
+                # messages = json.loads(content)
+            messages = reduce(add, history)
+            # else:
+                # messages = []
+        return {"code": 200, "messages": messages}
+    except Exception as e:
+        print(f"Error reading context: {e}")
+        return {"code": 500, "msg": f"Error reading context: {str(e)}"}
+
+@app.post("/api/resume")
+async def resume_context(r: Request, conversation_uuid: str = Form()):
+    if not check_login(r):
+        return {"code": 401, "msg": "Unauthorized"}
+
+    # Extract conversation_id from filename (format: {user}-{conversation_id}.json)
+    # Remove the user prefix and .json suffix
+    # Filename is like: "john-abc123.json", we want "abc123"
+    if '-' in conversation_uuid and conversation_uuid.endswith('.jsonl'):
+        parts = conversation_uuid.split('-', 1)
+        if len(parts) == 2:
+            conversation_uuid = parts[1].replace('.jsonl', '')
+
+    relay_dir = Path.home() / "llm-relay"
+    # file_path = relay_dir / conversation_uuid
+
+    # # If the file doesn't exist, try with .json extension
+    # if not file_path.exists():
+        # file_path = relay_dir / f"{conversation_uuid}.json"
+
+    # # Also try to find files with user prefix
+    # if not file_path.exists():
+        # user = get_user_from_token(r)
+        # if user:
+    file_path = relay_dir / f"{user}-{conversation_uuid}.jsonl"
+
+    if not file_path.exists():
+        return {"code": 404, "msg": "Context file not found"}
+
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            # content = f.read().strip()
+            # if content:
+            history = [json.loads(line) for line in f]
+                # messages = json.loads(content)
+            messages = reduce(add, history)
+            # else:
+                # messages = []
+
+        service.conversations[conversation_uuid] = messages
+        return {"code": 200, "msg": "Context loaded successfully", "message_count": len(messages)}
+    except Exception as e:
+        print(f"Error loading context: {e}")
+        return {"code": 500, "msg": f"Error loading context: {str(e)}"}
+
 if __name__ == "__main__":
     import uvicorn
     # uvicorn.run(app, host="0.0.0.0", port=9000)
-    uvicorn.run(
-        app,
-        host="0.0.0.0",
-        port=9000,
-        # ssl_keyfile="./example.key",
-        # ssl_certfile="./example.crt"
-    )
+    if enable_ssl:
+        uvicorn.run(
+            app,
+            host="0.0.0.0",
+            port=9000,
+            ssl_keyfile="./example.key",
+            ssl_certfile="./example.crt"
+        )
+    else:
+        uvicorn.run(
+            app,
+            host="0.0.0.0",
+            port=9000,
+        )
+

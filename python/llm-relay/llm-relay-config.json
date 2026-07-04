@@ -1,7 +1,8 @@
 {
     "user":"",
     "password":"",
-    "token":"",
+    "secret":"",
+    "enable_ssl": false,
     "volces1":{
         "URL":"https://ark.cn-beijing.volces.com/api/v3/chat/completions",
         "Authorization": "Bearer ",

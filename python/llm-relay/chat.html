@@ -30,6 +30,34 @@
         #sendButton {
             padding: 8px 8px;
         }
+        #switchContextButton {
+            padding: 8px 8px;
+        }
+        .context-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .context-item:hover {
+            background: #e0e0e0;
+        }
+        .context-item small {
+            color: #666;
+            font-size: 11px;
+        }
+        .context-first-line {
+            color: #333;
+            font-size: 12px;
+            margin-top: 5px;
+            font-family: monospace;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
     </style>
 </head>
 <body>
@@ -37,6 +65,7 @@
     <div id="buttonContainer">
         <button id="newConversationButton">New Conversation</button>
         <button id="downloadConversationButton">Download Conversation</button>
+        <button id="switchContextButton">Switch to Old Context</button>
         <button id="stopBtn" onclick="stopGeneration()">Stop Generation</button>
     </div>
 
@@ -53,11 +82,35 @@
     <br>
         <form id="uploadForm" enctype="multipart/form-data" action="/api/files" method="post">
         <input type="file" name="files" multiple="multiple">
-        <!-- <input type="hidden" name="conversation_id" value="abc"> -->
-        <!-- <input type="submit" value="Submit"> -->
         </form>
-        <!-- <br> -->
-    <p id="status"></p>
+        <p id="status"></p>
+
+    <!-- Old Context Modal -->
+    <div id="oldContextModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+        <div style="position: relative; background: white; margin: 100px auto; padding: 20px; width: 600px; max-height: 400px; overflow-y: auto; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.3);">
+            <h2>Select Old Context</h2>
+            <button id="closeModal" style="float: right; padding: 5px 10px; cursor: pointer;">Close</button>
+            <div id="oldContextList" style="margin-top: 20px;">
+                <p>Loading old contexts...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Context Content Modal -->
+    <div id="contextContentModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1001;">
+        <div style="position: relative; background: white; margin: 50px auto; padding: 20px; width: 800px; max-height: 600px; overflow-y: auto; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.3);">
+            <h2 id="contextContentTitle">Context Content</h2>
+            <button id="closeContentModal" style="float: right; padding: 5px 10px; cursor: pointer;">Close</button>
+            <button id="resumeButton" style="padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">Resume This Context</button>
+            <div id="contextContent" style="margin-top: 20px; white-space: pre-wrap; font-family: monospace; font-size: 12px; background: #f5f5f5; padding: 10px; border-radius: 4px;">
+                <p>Loading content...</p>
+            </div>
+            <!-- <div style="display: flex; gap: 10px; margin-top: 15px;"> -->
+                <!-- <button id="closeContentModal" style="padding: 10px 20px; cursor: pointer;">Close</button> -->
+                <!-- <button id="resumeButton" style="padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">Resume This Context</button> -->
+            <!-- </div> -->
+        </div>
+    </div>
 
     <!-- <br> -->
     <!-- <form id="uploadForm"> -->
@@ -80,6 +133,7 @@
         const sendButton = document.getElementById('sendButton');
         const newConversationButton = document.getElementById('newConversationButton');
         const downloadConversationButton = document.getElementById('downloadConversationButton');
+        const switchContextButton = document.getElementById('switchContextButton');
         const upload_form = document.querySelector('#uploadForm');
 
         function generateUUID() {
@@ -270,6 +324,163 @@
             body: formData,
         });
     }
+
+    // Old Context Modal Functions
+    const oldContextModal = document.getElementById('oldContextModal');
+    const oldContextList = document.getElementById('oldContextList');
+    const closeModal = document.getElementById('closeModal');
+    const contextContentModal = document.getElementById('contextContentModal');
+    const contextContent = document.getElementById('contextContent');
+    const contextContentTitle = document.getElementById('contextContentTitle');
+    const closeContentModal = document.getElementById('closeContentModal');
+    const resumeButton = document.getElementById('resumeButton');
+    let currentContextFilename = null;
+
+    switchContextButton.addEventListener('click', async function() {
+        oldContextModal.style.display = 'block';
+        oldContextList.innerHTML = '<p>Loading old contexts...</p>';
+        
+        try {
+            const response = await fetch('/api/old-contexts', {
+                method: 'GET',
+            });
+            const data = await response.json();
+            
+            if (data.code === 200 && data.contexts.length > 0) {
+                oldContextList.innerHTML = '';
+                data.contexts.forEach(context => {
+                    const div = document.createElement('div');
+                    div.className = 'context-item';
+                    const sizeKB = (context.size / 1024).toFixed(2);
+                    const firstLine = context.first_line ? JSON.stringify(JSON.parse(context.first_line), null, 2) : '(empty)';
+                    div.innerHTML = `
+                        <strong>${context.filename}</strong><br>
+                        <small>Size: ${sizeKB} KB | Modified: ${new Date(context.modified).toLocaleString()}</small>
+                        <div class="context-first-line">${firstLine}</div>
+                    `;
+                    div.addEventListener('click', () => showContextContent(context.filename));
+                    oldContextList.appendChild(div);
+                });
+            } else if (data.code === 401) {
+                oldContextList.innerHTML = '<p>Unauthorized. Please login again.</p>';
+            } else {
+                oldContextList.innerHTML = '<p>No old contexts found.</p>';
+            }
+        } catch (error) {
+            oldContextList.innerHTML = '<p>Error loading old contexts: ' + error.message + '</p>';
+        }
+    });
+
+    closeModal.addEventListener('click', function() {
+        oldContextModal.style.display = 'none';
+    });
+
+    oldContextModal.addEventListener('click', function(e) {
+        if (e.target === oldContextModal) {
+            oldContextModal.style.display = 'none';
+        }
+    });
+
+    async function showContextContent(filename) {
+        contextContentModal.style.display = 'block';
+        contextContentTitle.textContent = `Context: ${filename}`;
+        contextContent.innerHTML = '<p>Loading content...</p>';
+        currentContextFilename = filename;
+
+        try {
+            const response = await fetch(`/api/old-context/${filename}`, {
+                method: 'GET',
+            });
+            const data = await response.json();
+
+            if (data.code === 200) {
+                const content = data.messages.map(msg => JSON.stringify(msg, null, 2)).join('\n\n');
+                contextContent.textContent = content;
+            } else if (data.code === 401) {
+                contextContent.innerHTML = '<p>Unauthorized. Please login again.</p>';
+            } else {
+                contextContent.innerHTML = '<p>Error loading context: ' + data.msg + '</p>';
+            }
+        } catch (error) {
+            contextContent.innerHTML = '<p>Error loading context: ' + error.message + '</p>';
+        }
+    }
+
+    // Function to extract conversation_id from filename (format: {user}-{conversation_id}.jsonl)
+    function extractConversationId(filename) {
+        // Filename format: "john-abc123.jsonl"
+        // We want to extract "abc123"
+        if (filename.endsWith('.jsonl')) {
+            filename = filename.slice(0, -6); // Remove .jsonl extension
+        }
+        <!-- if (filename.includes('-')) { -->
+            <!-- const parts = filename.split('-'); -->
+            <!-- if (parts.length >= 2) { -->
+                <!-- // Return the last part which should be the conversation_id -->
+                <!-- return parts[parts.length - 1]; -->
+            <!-- } -->
+        <!-- } -->
+
+        const dashIndex = filename.indexOf('-');
+        if (dashIndex !== -1) {
+            // Return everything after the first dash
+            return filename.substring(dashIndex + 1);
+        }
+
+        return filename;
+    }
+
+    closeContentModal.addEventListener('click', function() {
+        contextContentModal.style.display = 'none';
+    });
+
+    contextContentModal.addEventListener('click', function(e) {
+        if (e.target === contextContentModal) {
+            contextContentModal.style.display = 'none';
+        }
+    });
+
+    resumeButton.addEventListener('click', async function() {
+        if (!currentContextFilename) {
+            alert('No context selected');
+            return;
+        }
+
+        // Extract conversation_id from filename (format: {user}-{conversation_id}.jsonl)
+        const conversationUuid = extractConversationId(currentContextFilename);
+
+        // Update current conversation ID to match the UUID from filename
+        currentConversationId = conversationUuid;
+
+        // Close SSE connection and reopen with new conversation ID
+        if (eventSource) {
+            eventSource.close();
+        }
+        startSSEConnection(currentConversationId);
+
+        const formData = new FormData();
+        formData.append('conversation_uuid', conversationUuid);
+
+        try {
+            const response = await fetch('/api/resume', {
+                method: 'POST',
+                body: formData,
+            });
+            const data = await response.json();
+
+            if (data.code === 200) {
+                contextContentModal.style.display = 'none';
+                oldContextModal.style.display = 'none';
+                chatArea.value = `Successfully loaded ${data.message_count} messages from ${currentContextFilename}\n\n`;
+                chatArea.value += 'Your conversation context has been restored. You can continue the conversation now.\n\n';
+                chatArea.scrollTop = chatArea.scrollHeight;
+            } else {
+                alert('Failed to load context: ' + data.msg);
+            }
+        } catch (error) {
+            alert('Error loading context: ' + error.message);
+        }
+    });
 
     </script>
 </body>
