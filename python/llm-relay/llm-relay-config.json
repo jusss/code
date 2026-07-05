@@ -34,9 +34,9 @@
         "Model":"glm-4.7"
     },
     "default":{
-        "OPENAI_API_KEY":"Bearer ",
-        "OPENAI_BASE_URL":"https://api.deepseek.com/v1/chat/completions",
-        "MODEL": "deepseek-v4-flash"
+        "Authorization":"Bearer ",
+        "URL":"https://api.deepseek.com/v1/chat/completions",
+        "Model": "deepseek-v4-flash"
     },
     "mcpServers": {
         "ddg-search":{"type":"http", "url":"http://1/mcp"},

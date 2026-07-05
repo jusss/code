@@ -292,12 +292,12 @@ class Service:
             
                                     if result["choices"][0]["delta"].get("tool_calls"):
                                         print(line)
-                                        if result["choices"][0]["delta"]["tool_calls"][0]["id"]:
+                                        if result["choices"][0]["delta"]["tool_calls"][0].get("id"):
                                             tool_call_messages.append(result["choices"][0]["delta"])
                                         for funcs in result["choices"][0]["delta"]["tool_calls"]:
                                             tool_index = funcs.get("index", 0)
                                             if funcs["function"].get("name"):
-                                                _dict[tool_index] = {"tool_id": funcs["id"], "name": funcs["function"]["name"], "args": funcs["function"]["arguments"]}
+                                                _dict[tool_index] = {"tool_id": funcs.get("id"), "name": funcs["function"]["name"], "args": funcs["function"].get("arguments","")}
                                             elif funcs["function"].get("arguments"):
                                                 _dict[tool_index]["args"] = _dict[tool_index]["args"] + funcs["function"]["arguments"]
 
@@ -335,7 +335,7 @@ class Service:
                 
                                                 # for showing function call
                                                 yield {"choices": [{"delta":{"content":""}}]}, ('data: ' + 
-                                                json.dumps({"choices": [{"index": 0, "delta": {"content": f"function call {v['name']}({v['args']})"}}]})
+                                                json.dumps({"choices": [{"index": 0, "delta": {"content": f"\nfunction call {v['name']}({v['args']})\n"}}]})
                                                 ).encode("utf-8"), []
                                                 yield {"choices": [{"delta":{"content":""}}]}, ('data: ' + 
                                                 json.dumps({"choices": [{"index": 0, "delta": {"content": "\n"}}]})
