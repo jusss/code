@@ -16,11 +16,17 @@ def openai_requests(api_key, base_url, model, messages, tools=[], temperature=0.
         "temperature": temperature,  # How "creative" the response should be
         "stream": stream,
         "tools": tools,
+        "frequency_penalty": 0.1,
+        # "repetition_penalty": 1.2,
     }
     payload.update(kwargs)
 
-
-    payload["chat_template_kwargs"]={"enable_thinking": False},
+    if model.startswith("qwen"):
+        payload["chat_template_kwargs"]={"enable_thinking": False},
+    if model.startswith("deepseek"):
+        # https://api-docs.deepseek.com/guides/thinking_mode
+        payload["thinking"] = {"type": "enabled"}
+        payload["reasoning_effort"] = "max"
 
 
     response = requests.post(base_url, headers=headers, json=payload, stream=stream)

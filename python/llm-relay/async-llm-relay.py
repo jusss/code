@@ -41,9 +41,9 @@ password=config_data["password"]
 jwt_secret_key = config_data["secret"]
 enable_ssl = config_data["enable_ssl"]
 
-Authorization = config_data["zhipu-current1"]["Authorization"]
-URL = config_data["zhipu-current1"]["URL"]
-Model =config_data["zhipu-current1"]["Model"] 
+Authorization = config_data["default"]["Authorization"]
+URL = config_data["default"]["URL"]
+Model =config_data["default"]["Model"] 
 
 # mcpServers = {"ddg-search":{"type":"http", "url":"http://127.0.0.1:8000/mcp"},
         # # "get-weather": {"type":"stdio","command":"uvx","args":["weather-forecast-server"]},
@@ -455,10 +455,15 @@ class Service:
                 "frequency_penalty": 0.0, # "max_tokens": 2048,
                 "repetition_penalty": 1.2, "stream": True, "tools": tools}
             
-            # qwen
-            # data = {"model": Model, "messages": messages, "temperature": 0.6, "top_p": 0.95, "top_k": 20, 
-                    # "chat_template_kwargs":{"enable_thinking": False},
-                # "repetition_penalty": 1.2, "stream": True, "tools": tools}
+            if Model.startswith("qwen"):
+                data["temperature"] = 0.6
+                data["top_p"] = 0.95
+                data["top_k"] = 20
+                data["chat_template_kwargs"]={"enable_thinking": True}
+            if Model.startswith("deepseek"):
+                data["thinking"] = {"type": "enabled"}
+                data["reasoning_effort"] = "high"
+
 
             async def recursive_tool_call(url, headers,data, answer, messages, conversation_id, tool_messages=[]):
 

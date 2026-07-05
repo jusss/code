@@ -39,6 +39,11 @@
         "OPENAI_BASE_URL":"https://open.bigmodel.cn/api/coding/paas/v4/chat/completions",
         "MODEL":"glm-4.6v"
     },
+    "default":{
+        "OPENAI_API_KEY":"Bearer ",
+        "OPENAI_BASE_URL":"https://api.deepseek.com/v1/chat/completions",
+        "MODEL": "deepseek-v4-pro"
+    },
     "mcpServers": {
         "ddg-search":{"type":"http", "url":"http://1/mcp"},
         "sequential-thinking": {"type":"http","url":"http://1/mcp"},

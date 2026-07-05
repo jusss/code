@@ -60,9 +60,9 @@ import uuid
 with open(Path.home() / 'chatbot-config.json', "r") as f:
     config_data = json.loads(f.read())
 
-OPENAI_API_KEY = config_data["zhipu-current2"]["OPENAI_API_KEY"]
-OPENAI_BASE_URL =config_data["zhipu-current2"]["OPENAI_BASE_URL"]
-MODEL = config_data["zhipu-current2"]["MODEL"]
+OPENAI_API_KEY = config_data["default"]["OPENAI_API_KEY"]
+OPENAI_BASE_URL =config_data["default"]["OPENAI_BASE_URL"]
+MODEL = config_data["default"]["MODEL"]
 
 
 # glm need prompt to use web_search tool, moonshot doesn't
@@ -619,6 +619,7 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
                     break
 
             if collected_messages:
+                # deepseek require reasoning_content in function calling, https://api-docs.deepseek.com/guides/thinking_mode
                 # result = ''.join([m.reasoning_content for m in collected_messages if m.get('reasoning_content')])
                 # print('')
                 # # reasoning_content need empty content key
