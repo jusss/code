@@ -2,7 +2,7 @@
         "type": "function",
         "function": {
             "name": "read_file",
-            "description": "Read contents of a file",
+            "description": "Read contents of a file, parameter path is the path of the file",
             "parameters": {
                 "type": "object",
                 "properties": {

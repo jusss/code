@@ -1,2 +1,2 @@
-{"type": "function", "function": {"name": "edit", "description": "Replace string in file", "parameters": {"type": "object", "properties": {"path": {"type": "string"}, "old_string": {"type": "string"}, "new_string": {"type": "string"}}, "required": ["path", "old_string", "new_string"]}}}
+{"type": "function", "function": {"name": "edit", "description": "Replace string in file, parameter path is for file path, parameter old_string is the string you want to change, parameter new_string is the changes", "parameters": {"type": "object", "properties": {"path": {"type": "string"}, "old_string": {"type": "string"}, "new_string": {"type": "string"}}, "required": ["path", "old_string", "new_string"]}}}
 
