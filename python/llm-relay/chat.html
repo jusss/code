@@ -352,7 +352,7 @@
                     const div = document.createElement('div');
                     div.className = 'context-item';
                     const sizeKB = (context.size / 1024).toFixed(2);
-                    const firstLine = context.first_line ? JSON.stringify(JSON.parse(context.first_line), null, 2) : '(empty)';
+                    const firstLine = context.first_line || '(empty)';
                     div.innerHTML = `
                         <strong>${context.filename}</strong><br>
                         <small>Size: ${sizeKB} KB | Modified: ${new Date(context.modified).toLocaleString()}</small>

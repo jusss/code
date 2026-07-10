@@ -728,12 +728,18 @@ async def get_old_contexts(r: Request):
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 first_line = f.readline().strip()
+                data = json.loads(first_line)
+                question = "unknown"
+                for i in data:
+                    if i["role"] == "user":
+                        question = i["content"]
+
         except Exception as e:
             print(f"Error reading first line of {file_path}: {e}")
 
         contexts.append({
             "filename": file_path.name,
-            "first_line": first_line,
+            "first_line": question,
             "size": stat.st_size,
             "modified": datetime.fromtimestamp(stat.st_mtime).isoformat()
         })
