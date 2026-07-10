@@ -744,7 +744,9 @@ async def get_old_contexts(r: Request):
             "modified": datetime.fromtimestamp(stat.st_mtime).isoformat()
         })
 
-    return {"code": 200, "contexts": contexts}
+    sorted_list = sorted(contexts, key=lambda obj: obj.get("modified"), reverse=True)
+
+    return {"code": 200, "contexts": sorted_list}
 
 @app.get("/api/old-context/{filename}")
 async def get_old_context(r: Request, filename: str):
