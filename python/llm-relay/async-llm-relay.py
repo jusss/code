@@ -342,8 +342,9 @@ class Service:
                                                 ).encode("utf-8"), []
     
                                                 try:
-                
-                                                    if v["name"] in mcp_tools_name:
+                                                    if v["args"] == '{}':
+                                                        r= 'missing parameter, tools use JSON format parameter, read_file({"path":"/path"}), execute_bash({"command":"cmd"}), bash_tools({"commands":"cmd"}), edit({"path":"/path","old_string":"old","new_string":"new"}), ddg-search__search({"query":"question", "max_results":10, "region":"optional"}, ddg-search__fetch_content({"url":"address","start_index":0,"max_length":3000,"backend":"optional"}), etc'
+                                                    elif v["name"] in mcp_tools_name:
                                                         loop = asyncio.new_event_loop()
                                                         with concurrent.futures.ThreadPoolExecutor() as executor:
                                                             future = executor.submit(lambda: asyncio.run(mcp_client_call_tool(v["name"], json_repair.loads(v["args"]))))
@@ -362,7 +363,7 @@ class Service:
     
                                                 except Exception as e:
                                                     print(e)
-                                                    r = str(e)
+                                                    r= str(e) + ', tools use JSON format parameter, read_file({"path":"/path"}), execute_bash({"command":"cmd"}), bash_tools({"commands":"cmd"}), edit({"path":"/path","old_string":"old","new_string":"new"}), ddg-search__search({"query":"question", "max_results":10, "region":"optional"}, ddg-search__fetch_content({"url":"address","start_index":0,"max_length":3000,"backend":"optional"}), etc'
                                                     yield {"choices": [{"delta":{"content":""}}]},\
                                                         ('data: ' + json.dumps({"choices": [{"delta": {"content": str(e)}}]})).encode("utf-8"),\
                                                         []
