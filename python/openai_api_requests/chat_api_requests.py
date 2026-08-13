@@ -12,7 +12,7 @@ def openai_requests(api_key, base_url, model, messages, tools=[], temperature=0.
     payload = {
         "model": model,
         "messages": messages,
-        "max_tokens": 4096,  # The maximum number of tokens to generate in the completion
+        "max_tokens": 131072,  # The maximum number of tokens to generate in the completion
         "temperature": temperature,  # How "creative" the response should be
         "stream": stream,
         "tools": tools,
