@@ -94,6 +94,7 @@ for path in skills:
 
 debug = False
 display_reasoning = True
+reasoning_into_context = True
 interrupt = False
 exception_conversation = []
 
@@ -512,10 +513,17 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
         # messages = filter(lambda d: if (d['role'] == "assistant" and d.get("tool_calls")) or d["role"] == "tool")
         new_message = []
         for d in messages:
-            if (d['role'] == "assistant" and d.get("tool_calls")) or (d["role"] == "tool") or (d['role'] == "assistant" and d['content'] == ''):
-                continue
+            if reasoning_into_context:
+                # for reasoning_content
+                if (d['role'] == "assistant" and d.get("tool_calls")) or (d["role"] == "tool") or (d['role'] == "assistant" and d['content'] == '' and (not d.get("reasoning_content",""))):
+                    continue
+                else:
+                    new_message.append(d)
             else:
-                new_message.append(d)
+                if (d['role'] == "assistant" and d.get("tool_calls")) or (d["role"] == "tool") or (d['role'] == "assistant" and d['content'] == ''):
+                    continue
+                else:
+                    new_message.append(d)
         messages = new_message
 
     # print(f"messages is {messages}")
@@ -619,11 +627,12 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
                     break
 
             if collected_messages:
-                # deepseek require reasoning_content in function calling, https://api-docs.deepseek.com/guides/thinking_mode
-                # result = ''.join([m.reasoning_content for m in collected_messages if m.get('reasoning_content')])
-                # print('')
-                # # reasoning_content need empty content key
-                # message.append({"role": "assistant", "reasoning_content": result, "content":""})
+                if reasoning_into_context:
+                    # deepseek require reasoning_content in function calling, https://api-docs.deepseek.com/guides/thinking_mode
+                    result = ''.join([m.reasoning_content for m in collected_messages if m.get('reasoning_content')])
+                    print('')
+                    # # reasoning_content need empty content key
+                    message.append({"role": "assistant", "reasoning_content": result, "content":""})
                 result = ''.join([m.content for m in collected_messages if m.get('content')])
                 print('')
                 message.append({"role": "assistant", "content": result})
@@ -926,10 +935,17 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
             # messages = filter(lambda d: if (d['role'] == "assistant" and d.get("tool_calls")) or d["role"] == "tool")
             _new_message = []
             for d in _messages:
-                if (d['role'] == "assistant" and d.get("tool_calls")) or (d["role"] == "tool") or (d['role'] == "assistant" and d['content'] == ''):
-                    continue
+                if reasoning_into_context:
+                    # for reasoning_content
+                    if (d['role'] == "assistant" and d.get("tool_calls")) or (d["role"] == "tool") or (d['role'] == "assistant" and d['content'] == '' and (not d.get("reasoning_content",""))):
+                        continue
+                    else:
+                        _new_message.append(d)
                 else:
-                    _new_message.append(d)
+                    if (d['role'] == "assistant" and d.get("tool_calls")) or (d["role"] == "tool") or (d['role'] == "assistant" and d['content'] == ''):
+                        continue
+                    else:
+                        _new_message.append(d)
             _messages = _new_message
     
         current_token = count_chat_tokens(_messages)
