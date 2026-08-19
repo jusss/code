@@ -292,8 +292,9 @@ class Service:
             
                                     if result["choices"][0]["delta"].get("tool_calls"):
                                         print(line)
-                                        if result["choices"][0]["delta"]["tool_calls"][0].get("id"):
-                                            tool_call_messages.append(result["choices"][0]["delta"])
+                                        # if result["choices"][0]["delta"]["tool_calls"][0].get("id"):
+                                            # tool_call_messages.append(result["choices"][0]["delta"])
+                                        tool_call_messages.append(result["choices"][0]["delta"])
                                         for funcs in result["choices"][0]["delta"]["tool_calls"]:
                                             tool_index = funcs.get("index", 0)
                                             if funcs["function"].get("name"):
@@ -305,25 +306,43 @@ class Service:
                                     if result["choices"][0].get("finish_reason"):
             
                                         if tool_call_messages:
-                                            merge_tool_call = []
-                                            for t in tool_call_messages:
-                                                for b in t['tool_calls']:
-                                                    if 'index' in b:
-                                                        print(f"delete b[index] is {b['index']}")
-                                                        del b['index']
-                                                merge_tool_call.append(t)
+                                            # merge_tool_call = []
+                                            # for t in tool_call_messages:
+                                                # for b in t['tool_calls']:
+                                                    # if 'index' in b:
+                                                        # print(f"delete b[index] is {b['index']}")
+                                                        # del b['index']
+                                                # merge_tool_call.append(t)
                                     
-                                            print(f"\n *** merge_tool_call is {merge_tool_call}\n") if debug else None
-                                            msg = reduce(lambda x, y: {**x, 'tool_calls': x['tool_calls'] + y['tool_calls']}, merge_tool_call)
-                                            print(f"\n msg is {msg}") if debug else None
-                                            msg["role"] = "assistant"
+                                            # print(f"\n *** merge_tool_call is {merge_tool_call}\n") if debug else None
+                                            # msg = reduce(lambda x, y: {**x, 'tool_calls': x['tool_calls'] + y['tool_calls']}, merge_tool_call)
+                                            # print(f"\n msg is {msg}") if debug else None
+                                            # msg["role"] = "assistant"
 
-                                            if msg.get("content") == "":
-                                                msg["content"] = None
+                                            # if msg.get("content") == "":
+                                                # msg["content"] = None
                             
-                                            # {'role': 'assistant', 'tool_calls': [{'id': 'call_7', 'function': {'arguments': '', 'name': 'websearch'}, 'type': 'function'}]}
-                                            if not msg["tool_calls"][0]['function']['arguments']:
-                                                msg["tool_calls"][0]['function']['arguments'] = '{}'
+                                            # # {'role': 'assistant', 'tool_calls': [{'id': 'call_7', 'function': {'arguments': '', 'name': 'websearch'}, 'type': 'function'}]}
+                                            # if not msg["tool_calls"][0]['function']['arguments']:
+                                                # msg["tool_calls"][0]['function']['arguments'] = '{}'
+
+                                            tc_index=[]
+                                            tc_index_dict={}
+                                            for tc in tool_call_messages:
+                                                if tc.get('tool_calls'):
+                                                    for i in tc['tool_calls']:
+                                                        if tc_index_dict.get(i['index']):
+                                                            tc_index_dict[i['index']]["function"]["arguments"] += i["function"].get("arguments","")
+                                                        else:
+                                                            tc_index_dict[i['index']]=i
+                            
+                                            for k,v in tc_index_dict.items():
+                                                tc_index.append(v)
+
+                                            msg = {"tool_calls":tc_index, "role":"assistant"}
+                                            for i in msg["tool_calls"]:
+                                                if not i['function']['arguments']:
+                                                    i['function']['arguments'] = '{}'
 
                                             messages.append(msg)
                                             tool_call_messages = []
