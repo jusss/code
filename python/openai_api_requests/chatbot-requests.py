@@ -73,6 +73,11 @@ MODEL = config_data["default"]["MODEL"]
 # glm-4.6 does not need prompt to use web_search tool, but qwen3-32b does
 # do not enable thinking model, search related content and fetch on web before answer
 
+# deepseek-v4-pro has 3 problems!
+# 1. function call without parameter, f({}), use tool's error message as return feedback to model 
+# 2. thinking disconnect, output reasoning_content then disconnect without error, save incompelete thinking context into next query
+# 3. The `reasoning_content` in the thinking mode must be passed back to the API. every assistant role msg require reasoning_conttent, tool_calls need insert [{'role':'assistant','content':'','reasoning_content':'','tool_calls':[...]}], it can not be [{'role':'assistant':'content':''},{'role':'assistant':'reasoning_content':''},{'role':'assistant','tool_calls':[]}]
+
 # mcpServers = {"ddg-search":{"type":"http", "url":"http://1/mcp"},
         # # "get-weather": {"type":"stdio","command":"uvx","args":["weather-forecast-server"]},
         # # "get-weather": {"type":"http","url":"http://1/mcp"},
@@ -387,15 +392,21 @@ def openai_requests(api_key, base_url, model, messages, tools=[], temperature=0.
     payload = {
         "model": model,
         "messages": messages,
-        "max_tokens": 4096,  # The maximum number of tokens to generate in the completion
+        "max_tokens": 131072,  # The maximum number of tokens to generate in the completion
         "temperature": temperature,  # How "creative" the response should be
         "stream": stream,
         "tools": tools,
+        "frequency_penalty": 0.1,
+        # "repetition_penalty": 1.2,
     }
     payload.update(kwargs)
 
-
-    payload["chat_template_kwargs"]={"enable_thinking": False},
+    if model.startswith("qwen"):
+        payload["chat_template_kwargs"]={"enable_thinking": False}
+    if model.startswith("deepseek"):
+        # https://api-docs.deepseek.com/guides/thinking_mode
+        payload["thinking"] = {"type": "enabled"}
+        payload["reasoning_effort"] = "max"
 
 
     response = requests.post(base_url, headers=headers, json=payload, stream=stream)
@@ -526,6 +537,10 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
                     new_message.append(d)
         messages = new_message
 
+        # last msg is reasoning_content, meaning thinking is interrupted
+        if new_message[-1].get('reasoning_content'):
+            message[-1]["content"] = message[-1]["content"] + ", you were interrupted, the next is your old thinking:\n" + new_message[-1].get('reasoning_content')
+
     # print(f"messages is {messages}")
 
     # if len(json.dumps(messages,ensure_ascii=False).encode('utf8')) > 32000:
@@ -592,13 +607,14 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
             _dict = {}
             collected_messages = []
             tool_call_messages = []
+            reasoning_dict = {}
             for idx, chunk in enumerate(completion):
                 chunk_message = chunk.choices[0].delta
                 print(f"chunk_message is {chunk_message}") if debug else None
                 if hasattr(chunk_message,'tool_calls'):
                     print(f"chunk_message.tool_calls is {chunk_message.tool_calls}") if debug else None
-                    if chunk_message["tool_calls"][0].get("id"):
-                        tool_call_messages.append(chunk_message)
+                    # if chunk_message["tool_calls"][0].get("id"):
+                    tool_call_messages.append(chunk_message)
                     for funcs in chunk_message.tool_calls:
                         if hasattr(funcs.function,'name'):
                             _dict[funcs.index] = {"tool_id": funcs.id, "name": funcs.function.name, "args": funcs.function.arguments}
@@ -631,40 +647,74 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
                     # deepseek require reasoning_content in function calling, https://api-docs.deepseek.com/guides/thinking_mode
                     result = ''.join([m.reasoning_content for m in collected_messages if m.get('reasoning_content')])
                     print('')
-                    # # reasoning_content need empty content key
-                    message.append({"role": "assistant", "reasoning_content": result, "content":""})
+                    if result:
+                        if MODEL == "deepseek-v4-pro":
+                            reasoning_dict["role"] = "assistant"
+                            reasoning_dict["reasoning_content"] = result
+                            reasoning_dict["content"] = ""
+                            message.append(reasoning_dict)
+                        else:
+                            # reasoning_content need empty content key
+                            message.append({"role": "assistant", "reasoning_content": result, "content":""})
                 result = ''.join([m.content for m in collected_messages if m.get('content')])
                 print('')
-                message.append({"role": "assistant", "content": result})
+                if result:
+                    if MODEL == "deepseek-v4-pro":
+                        message[-1]["content"] = result
+                    else:
+                        message.append({"role": "assistant", "content": result})
             if tool_call_messages:
-                merge_tool_call = []
-                for tool_call_message in tool_call_messages:
-                    if tool_call_message:
-                        t = tool_call_message
-            
-                        for b in t['tool_calls']:
-                            del b['index']
-            
-                        merge_tool_call.append(t)
+                # merge_tool_call = []
+                # print(f"tool_call_messages is {tool_call_messages}")
+                tc_index=[]
+                tc_index_dict={}
+                for tc in tool_call_messages:
+                    if tc.get('tool_calls'):
+                        for i in tc['tool_calls']:
+                            if tc_index_dict.get(i['index']):
+                                tc_index_dict[i['index']]["function"]["arguments"] += i["function"].get("arguments","")
+                            else:
+                                tc_index_dict[i['index']]=i
+
+                for k,v in tc_index_dict.items():
+                    tc_index.append(v)
+                msg = {"tool_calls":tc_index, "role":"assistant"}
+
+
+#                for tool_call_message in tool_call_messages:
+#                    if tool_call_message:
+#                        t = tool_call_message
+#            
+#                        for b in t['tool_calls']:
+#                            del b['index']
+#            
+#                        merge_tool_call.append(t)
         
                 # message.append(
                     # reduce(lambda x, y: {**x, 'tool_calls': x['tool_calls'] + y['tool_calls']}, merge_tool_call)
                     # )
-                print(f"\n merge_tool_call is {merge_tool_call}") if debug else None
-                msg = reduce(lambda x, y: {**x, 'tool_calls': x['tool_calls'] + y['tool_calls']}, merge_tool_call)
-                print(f"\n msg is {msg}") if debug else None
-                msg["role"] = "assistant"
-
-                if msg.get("content") == "":
-                    msg["content"] = None
+#                print(f"\n merge_tool_call is {merge_tool_call}") 
+#                msg = reduce(lambda x, y: {**x, 'tool_calls': x['tool_calls'] + y['tool_calls']}, merge_tool_call)
+#                print(f"\n tool_calls is {msg}") 
+#                msg["role"] = "assistant"
+#
+#                if msg.get("content") == "":
+#                    msg["content"] = None
 
                 # {'role': 'assistant', 'tool_calls': [{'id': 'call_7', 'function': {'arguments': '', 'name': 'websearch'}, 'type': 'function'}]}
-                if not msg["tool_calls"][0]['function']['arguments']:
-                    msg["tool_calls"][0]['function']['arguments'] = '{}'
+#                if not msg["tool_calls"][0]['function']['arguments']:
+#                    msg["tool_calls"][0]['function']['arguments'] = '{}'
 
-                message.append(
-                    msg
-                )
+                for i in msg["tool_calls"]:
+                    if not i['function']['arguments']:
+                        i['function']['arguments'] = '{}'
+
+                if MODEL == "deepseek-v4-pro":
+                    message[-1]["tool_calls"] = msg["tool_calls"]
+                else:
+                    message.append(
+                        msg
+                    )
 
                 if _dict:
                     print(f"\n _dict is {_dict}") if debug else None
