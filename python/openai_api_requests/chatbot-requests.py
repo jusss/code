@@ -538,7 +538,7 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
         messages = new_message
 
         # last msg is reasoning_content, meaning thinking is interrupted
-        if new_message[-1].get('reasoning_content'):
+        if new_message[-1].get('reasoning_content') and (new_message[-1].get('content') == ''):
             message[-1]["content"] = message[-1]["content"] + ", you were interrupted, the next is your old thinking:\n" + new_message[-1].get('reasoning_content')
 
     # print(f"messages is {messages}")
@@ -604,7 +604,6 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
             print(result)
             break
         else:
-            _dict = {}
             collected_messages = []
             tool_call_messages = []
             reasoning_dict = {}
@@ -613,16 +612,9 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
                 print(f"chunk_message is {chunk_message}") if debug else None
                 if hasattr(chunk_message,'tool_calls'):
                     print(f"chunk_message.tool_calls is {chunk_message.tool_calls}") if debug else None
-                    # if chunk_message["tool_calls"][0].get("id"):
                     tool_call_messages.append(chunk_message)
-                    for funcs in chunk_message.tool_calls:
-                        if hasattr(funcs.function,'name'):
-                            _dict[funcs.index] = {"tool_id": funcs.id, "name": funcs.function.name, "args": funcs.function.arguments}
-                        else:
-                            _dict[funcs.index]["args"] = _dict[funcs.index]["args"] + (funcs.function.arguments if funcs.function.arguments else "")
 
                 print(f" tool_call_messages is {tool_call_messages}") if debug else None
-                print(f" _dict is {_dict}") if debug else None
 
                 try:
 
@@ -642,30 +634,24 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
                     print("user interrupt")
                     break
 
+            print('')
+
             if collected_messages:
                 if reasoning_into_context:
                     # deepseek require reasoning_content in function calling, https://api-docs.deepseek.com/guides/thinking_mode
-                    result = ''.join([m.reasoning_content for m in collected_messages if m.get('reasoning_content')])
-                    print('')
-                    if result:
-                        if MODEL == "deepseek-v4-pro":
-                            reasoning_dict["role"] = "assistant"
-                            reasoning_dict["reasoning_content"] = result
-                            reasoning_dict["content"] = ""
-                            message.append(reasoning_dict)
-                        else:
-                            # reasoning_content need empty content key
-                            message.append({"role": "assistant", "reasoning_content": result, "content":""})
-                result = ''.join([m.content for m in collected_messages if m.get('content')])
-                print('')
-                if result:
-                    if MODEL == "deepseek-v4-pro":
-                        message[-1]["content"] = result
-                    else:
-                        message.append({"role": "assistant", "content": result})
+                    # reasoning_content need empty content key
+                    reasoning_result = ''.join([m.reasoning_content for m in collected_messages if m.get('reasoning_content')])
+                    content_result = ''.join([m.content for m in collected_messages if m.get('content')])
+                    if reasoning_result:
+                        message.append({"role": "assistant", "reasoning_content": reasoning_result, "content": content_result if content_result else ""})
+                    elif content_result:
+                        message.append({"role": "assistant", "content": content_result})
+                else:
+                    content_result = ''.join([m.content for m in collected_messages if m.get('content')])
+                    if content_result:
+                        message.append({"role": "assistant", "content": content_result})
+
             if tool_call_messages:
-                # merge_tool_call = []
-                # print(f"tool_call_messages is {tool_call_messages}")
                 tc_index=[]
                 tc_index_dict={}
                 for tc in tool_call_messages:
@@ -680,31 +666,6 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
                     tc_index.append(v)
                 msg = {"tool_calls":tc_index, "role":"assistant"}
 
-
-#                for tool_call_message in tool_call_messages:
-#                    if tool_call_message:
-#                        t = tool_call_message
-#            
-#                        for b in t['tool_calls']:
-#                            del b['index']
-#            
-#                        merge_tool_call.append(t)
-        
-                # message.append(
-                    # reduce(lambda x, y: {**x, 'tool_calls': x['tool_calls'] + y['tool_calls']}, merge_tool_call)
-                    # )
-#                print(f"\n merge_tool_call is {merge_tool_call}") 
-#                msg = reduce(lambda x, y: {**x, 'tool_calls': x['tool_calls'] + y['tool_calls']}, merge_tool_call)
-#                print(f"\n tool_calls is {msg}") 
-#                msg["role"] = "assistant"
-#
-#                if msg.get("content") == "":
-#                    msg["content"] = None
-
-                # {'role': 'assistant', 'tool_calls': [{'id': 'call_7', 'function': {'arguments': '', 'name': 'websearch'}, 'type': 'function'}]}
-#                if not msg["tool_calls"][0]['function']['arguments']:
-#                    msg["tool_calls"][0]['function']['arguments'] = '{}'
-
                 for i in msg["tool_calls"]:
                     if not i['function']['arguments']:
                         i['function']['arguments'] = '{}'
@@ -716,50 +677,48 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
                         msg
                     )
 
-                if _dict:
-                    print(f"\n _dict is {_dict}") if debug else None
-                    # _dict is {0: {'tool_id': 'search:0', 'name': 'search', 'args': '{\n  "query": "Pearl 电影",\n  "max_results": 5\n}'}}
-                    r = None
-                    for index, v in _dict.items():
+                fc = [(i["function"]["name"], i["function"]["arguments"], i["id"]) for i in msg["tool_calls"]]
 
-                        print(f'function call {v["name"]}({v["args"]})')
+                tool_tips = ', tools use JSON format parameter, read_file({"path":"/path"}), execute_bash({"command":"cmd"}), bash_tools({"commands":"cmd"}), edit({"path":"/path","old_string":"old","new_string":"new"}), ddg-search__search({"query":"question", "max_results":10, "region":"optional"}, ddg-search__fetch_content({"url":"address","start_index":0,"max_length":3000,"backend":"optional"}), etc'
 
-                        r = "invalid function or missing parameters"
-                        try:
-                            if v["args"] == '{}':
-                                r= 'missing parameter, tools use JSON format parameter, read_file({"path":"/path"}), execute_bash({"command":"cmd"}), bash_tools({"commands":"cmd"}), edit({"path":"/path","old_string":"old","new_string":"new"}), ddg-search__search({"query":"question", "max_results":10, "region":"optional"}, ddg-search__fetch_content({"url":"address","start_index":0,"max_length":3000,"backend":"optional"}), etc'
-                            elif v["name"] in mcp_tools_name:
-                                call_tool_result = mcp_client_call_tool(v["name"], json.loads(v["args"]))
-                                # r = call_tool_result.model_dump_json(indent=2,exclude_none=True)
+                for name, parameter, tool_id in fc:
 
-                                if call_tool_result: 
-                                    if call_tool_result.get("content"):
-                                        _r = call_tool_result["content"]
-                                        r = _r[0]["text"]
+                    print(f'function call {name}({parameter})')
 
-                            elif functions.get(v["name"]):
-                                # use json_repair handle invalid json from LLM, like 'f({)' for no parameter function calling on glm-4.7, glm-4.6 is better
-                                r = functions[v["name"]](**(json_repair.loads(v["args"])))
-                                #r can not be empty string, otherwise it will always trigger to run this function calling in every round, because it is in context messages, and tool has empty content {"role":"tool","content":""} mean it is not completed so AI will run it again
-                            else:
-                                r = f'this tool {v["name"]} is not found'
+                    r = "invalid function or missing parameters"
+                    try:
+                        if parameter == '{}':
+                            r= 'missing parameter' + tool_tips
+                        elif name in mcp_tools_name:
+                            call_tool_result = mcp_client_call_tool(name, json.loads(parameter))
+                            # r = call_tool_result.model_dump_json(indent=2,exclude_none=True)
+
+                            if call_tool_result: 
+                                if call_tool_result.get("content"):
+                                    _r = call_tool_result["content"]
+                                    r = _r[0]["text"]
+
+                        elif functions.get(name):
+                            # use json_repair handle invalid json from LLM, like 'f({)' for no parameter function calling on glm-4.7, glm-4.6 is better
+                            r = functions[name](**(json_repair.loads(parameter)))
+                            #r can not be empty string, otherwise it will always trigger to run this function calling in every round, because it is in context messages, and tool has empty content {"role":"tool","content":""} mean it is not completed so AI will run it again
+                        else:
+                            r = f'this tool {name} is not found'
     
-                            print(f"function call result is {r}") if debug else None
+                        print(f"function call result is {r}") if debug else None
 
-                        except Exception as e:
-                            print(e)
-                            # r = str(e) + ', use read_file(path="/path/to/file"), execute_bash(command="command"), edit(path="/path/to/file",old_string="old",new_string="new"), grep_file(patter="...",path="/path")'
-                            r= str(e) + ', tools use JSON format parameter, read_file({"path":"/path"}), execute_bash({"command":"cmd"}), bash_tools({"commands":"cmd"}), edit({"path":"/path","old_string":"old","new_string":"new"}), ddg-search__search({"query":"question", "max_results":10, "region":"optional"}, ddg-search__fetch_content({"url":"address","start_index":0,"max_length":3000,"backend":"optional"}), etc'
+                    except Exception as e:
+                        print(e)
+                        # r = str(e) + ', use read_file(path="/path/to/file"), execute_bash(command="command"), edit(path="/path/to/file",old_string="old",new_string="new"), grep_file(patter="...",path="/path")'
+                        r= str(e) + tool_tips
 
-                        message.append({
-                            "role": "tool",
-                            "tool_call_id": v["tool_id"],
-                            "name": v["name"],
-                            "content": r
-                        })
+                    message.append({
+                        "role": "tool",
+                        "tool_call_id": tool_id,
+                        "name": name,
+                        "content": r
+                    })
 
-                    if not r:
-                        break
             else:
                 break
             
