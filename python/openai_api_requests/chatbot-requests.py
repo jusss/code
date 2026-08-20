@@ -76,7 +76,8 @@ MODEL = config_data["default"]["MODEL"]
 # deepseek-v4-pro has 3 problems!
 # 1. function call without parameter, f({}), use tool's error message as return feedback to model 
 # 2. thinking disconnect, output reasoning_content then disconnect without error, save incompelete thinking context into next query
-# 3. The `reasoning_content` in the thinking mode must be passed back to the API. every assistant role msg require reasoning_conttent, tool_calls need insert [{'role':'assistant','content':'','reasoning_content':'','tool_calls':[...]}], it can not be [{'role':'assistant':'content':''},{'role':'assistant':'reasoning_content':''},{'role':'assistant','tool_calls':[]}]
+# 3. The `reasoning_content` in the thinking mode must be passed back to the API. every assistant role msg require reasoning_conttent, tool_calls need insert [{'role':'assistant','content':'','reasoning_content':'','tool_calls':[...]}], it can not be [{'role':'assistant':'content':''},{'role':'assistant':'reasoning_content':'','content':''},{'role':'assistant','tool_calls':[]}], tool_calls need content key, reasoning_content need empty content ''
+# 4. funciton calling, order matters, tool_calls id index:0 id index:1, it need tool call_id by that same order
 
 # mcpServers = {"ddg-search":{"type":"http", "url":"http://1/mcp"},
         # # "get-weather": {"type":"stdio","command":"uvx","args":["weather-forecast-server"]},
@@ -99,9 +100,10 @@ for path in skills:
 
 debug = False
 display_reasoning = True
-reasoning_into_context = True
+reasoning_into_context = False
 interrupt = False
 exception_conversation = []
+max_tokens = 31072
 
 log_path = f"{os.getenv('HOME')}/chat_history"
 log_prefix = "chat_history"
@@ -392,7 +394,7 @@ def openai_requests(api_key, base_url, model, messages, tools=[], temperature=0.
     payload = {
         "model": model,
         "messages": messages,
-        "max_tokens": 131072,  # The maximum number of tokens to generate in the completion
+        "max_tokens": max_tokens,  # The maximum number of tokens to generate in the completion
         "temperature": temperature,  # How "creative" the response should be
         "stream": stream,
         "tools": tools,
@@ -409,7 +411,7 @@ def openai_requests(api_key, base_url, model, messages, tools=[], temperature=0.
         payload["reasoning_effort"] = "max"
 
 
-    response = requests.post(base_url, headers=headers, json=payload, stream=stream)
+    response = requests.post(base_url, headers=headers, json=payload, stream=stream, timeout=30)
     if response.status_code == 200:
         if stream:
             for line in response.iter_lines():
@@ -538,7 +540,7 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
         messages = new_message
 
         # last msg is reasoning_content, meaning thinking is interrupted
-        if new_message[-1].get('reasoning_content') and (new_message[-1].get('content') == ''):
+        if new_message[-1].get('reasoning_content') and (new_message[-1].get('content') == '') and reasoning_into_context:
             message[-1]["content"] = message[-1]["content"] + ", you were interrupted, the next is your old thinking:\n" + new_message[-1].get('reasoning_content')
 
     # print(f"messages is {messages}")
@@ -606,50 +608,40 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
         else:
             collected_messages = []
             tool_call_messages = []
-            reasoning_dict = {}
             for idx, chunk in enumerate(completion):
                 chunk_message = chunk.choices[0].delta
-                print(f"chunk_message is {chunk_message}") if debug else None
+                collected_messages.append(chunk_message)  
+                # print(f"chunk_message is {chunk_message}")
                 if hasattr(chunk_message,'tool_calls'):
-                    print(f"chunk_message.tool_calls is {chunk_message.tool_calls}") if debug else None
                     tool_call_messages.append(chunk_message)
-
-                print(f" tool_call_messages is {tool_call_messages}") if debug else None
-
                 try:
-
                     if hasattr(chunk_message, 'reasoning_content') and display_reasoning:
-                        print("chunk_message.reasoning_content ") if debug else None
                         if chunk_message.reasoning_content:
                             print(f"\033[32m{chunk_message.reasoning_content}\033[0m", end='')
-                            collected_messages.append(chunk_message)  
-            
                     if hasattr(chunk_message, 'content'):
-                        print("chunk_message.content ") if debug else None
                         if chunk_message.content:
                             print(chunk_message.content, end='')
-                            collected_messages.append(chunk_message)  
-
                 except KeyboardInterrupt:
                     print("user interrupt")
                     break
-
             print('')
-
             if collected_messages:
-                if reasoning_into_context:
-                    # deepseek require reasoning_content in function calling, https://api-docs.deepseek.com/guides/thinking_mode
-                    # reasoning_content need empty content key
-                    reasoning_result = ''.join([m.reasoning_content for m in collected_messages if m.get('reasoning_content')])
-                    content_result = ''.join([m.content for m in collected_messages if m.get('content')])
-                    if reasoning_result:
-                        message.append({"role": "assistant", "reasoning_content": reasoning_result, "content": content_result if content_result else ""})
-                    elif content_result:
-                        message.append({"role": "assistant", "content": content_result})
-                else:
-                    content_result = ''.join([m.content for m in collected_messages if m.get('content')])
-                    if content_result:
-                        message.append({"role": "assistant", "content": content_result})
+                # deepseek require reasoning_content in function calling, https://api-docs.deepseek.com/guides/thinking_mode
+                # reasoning_content need empty content key ''
+                reasoning_contents = []
+                contents = []
+                content_msg = {"role": "assistant"}
+                for i in collected_messages:
+                    for k,v in i.items():
+                        if k == "reasoning_content":
+                            reasoning_contents.append(v)
+                        if k == "content":
+                            contents.append(v)
+                if reasoning_contents and reasoning_into_context:
+                    content_msg["reasoning_content"] = "".join(["" if i is None else i for i in reasoning_contents])
+                if contents:
+                    content_msg["content"] = "".join(["" if i is None else i for i in contents])
+                message.append(content_msg)
 
             if tool_call_messages:
                 tc_index=[]
@@ -664,27 +656,21 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
 
                 for k,v in tc_index_dict.items():
                     tc_index.append(v)
-                msg = {"tool_calls":tc_index, "role":"assistant"}
+                msg = {"tool_calls":tc_index}
 
                 for i in msg["tool_calls"]:
                     if not i['function']['arguments']:
                         i['function']['arguments'] = '{}'
 
-                if MODEL == "deepseek-v4-pro":
-                    message[-1]["tool_calls"] = msg["tool_calls"]
-                else:
-                    message.append(
-                        msg
-                    )
+                # tool_calls need content, even content is None
+                message[-1]["tool_calls"] = msg["tool_calls"]
 
                 fc = [(i["function"]["name"], i["function"]["arguments"], i["id"]) for i in msg["tool_calls"]]
 
                 tool_tips = ', tools use JSON format parameter, read_file({"path":"/path"}), execute_bash({"command":"cmd"}), bash_tools({"commands":"cmd"}), edit({"path":"/path","old_string":"old","new_string":"new"}), ddg-search__search({"query":"question", "max_results":10, "region":"optional"}, ddg-search__fetch_content({"url":"address","start_index":0,"max_length":3000,"backend":"optional"}), etc'
 
                 for name, parameter, tool_id in fc:
-
                     print(f'function call {name}({parameter})')
-
                     r = "invalid function or missing parameters"
                     try:
                         if parameter == '{}':
