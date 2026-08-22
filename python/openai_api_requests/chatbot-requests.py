@@ -644,7 +644,6 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
                 message.append(content_msg)
 
             if tool_call_messages:
-                tc_index=[]
                 tc_index_dict={}
                 for tc in tool_call_messages:
                     if tc.get('tool_calls'):
@@ -654,9 +653,7 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
                             else:
                                 tc_index_dict[i['index']]=i
 
-                for k,v in tc_index_dict.items():
-                    tc_index.append(v)
-                msg = {"tool_calls":tc_index}
+                msg = {"tool_calls":[v for k,v in sorted(tc_index_dict.items(), key=lambda x: x[0])]}
 
                 for i in msg["tool_calls"]:
                     if not i['function']['arguments']:
