@@ -224,6 +224,7 @@ def make_mcp_client_call_tool():
 
         key_name = tool_name.split("__")[0]
         function_name = tool_name.split("__")[1]
+        call_tool_result = {}
 
         if tool_name == "ddg-search__search":
 
@@ -234,8 +235,7 @@ def make_mcp_client_call_tool():
                 # init_result = client.initialize()
                 client = mcp_clients(key_name)
                 time.sleep(3)
-                result = client.call_tool(function_name, args_dict)
-                return result
+                call_tool_result = client.call_tool(function_name, args_dict)
             else:
                 if now - time_list[-2] > 20:
                     print("\n*** search limit reset\n")
@@ -243,17 +243,21 @@ def make_mcp_client_call_tool():
                     # client = MCPHTTPClient(f"{mcpServers[key_name]['url']}")
                     # init_result = client.initialize()
                     client = mcp_clients(key_name)
-                    result = client.call_tool(function_name, args_dict)
-                    return result
+                    call_tool_result = client.call_tool(function_name, args_dict)
                 else:
                     print("\n*** web search reached limit, please search in 5s \n")
-                    return edict({"content":[{"text":"web search reached limit, please search in 5s"}]})
+                    call_tool_result = edict({"content":[{"text":"web search reached limit, please search in 5s"}]})
         else:
             # client = MCPHTTPClient(f"{mcpServers[key_name]['url']}")
             # init_result = client.initialize()
             client = mcp_clients(key_name)
-            result = client.call_tool(function_name, args_dict)
-            return result
+            call_tool_result = client.call_tool(function_name, args_dict)
+
+        if call_tool_result: 
+            if call_tool_result.get("content"):
+                _r = call_tool_result["content"]
+                r = _r[0]["text"]
+                return r
 
     return _mcp_client_call_tool
 
@@ -606,6 +610,7 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
             print(result)
             break
         else:
+            # handler, gather, loop.run_in_executor 
             collected_messages = []
             tool_call_messages = []
             for idx, chunk in enumerate(completion):
@@ -666,42 +671,35 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
 
                 tool_tips = ', tools use JSON format parameter, read_file({"path":"/path"}), execute_bash({"command":"cmd"}), bash_tools({"commands":"cmd"}), edit({"path":"/path","old_string":"old","new_string":"new"}), ddg-search__search({"query":"question", "max_results":10, "region":"optional"}, ddg-search__fetch_content({"url":"address","start_index":0,"max_length":3000,"backend":"optional"}), etc'
 
-                for name, parameter, tool_id in fc:
+                async def run_fc(name, parameter, tool_tips):
                     print(f'function call {name}({parameter})')
-                    r = "invalid function or missing parameters"
+                    # r = "invalid function or missing parameters"
                     try:
+                        loop = asyncio.get_running_loop()
                         if parameter == '{}':
-                            r= 'missing parameter' + tool_tips
+                            # stupid construct Task with concret value, it should be return to construct, or Task(3)
+                            return 'missing parameter' + tool_tips
                         elif name in mcp_tools_name:
-                            call_tool_result = mcp_client_call_tool(name, json.loads(parameter))
-                            # r = call_tool_result.model_dump_json(indent=2,exclude_none=True)
-
-                            if call_tool_result: 
-                                if call_tool_result.get("content"):
-                                    _r = call_tool_result["content"]
-                                    r = _r[0]["text"]
-
+                            return await loop.run_in_executor(None, lambda: mcp_client_call_tool(name, json.loads(parameter)))
                         elif functions.get(name):
-                            # use json_repair handle invalid json from LLM, like 'f({)' for no parameter function calling on glm-4.7, glm-4.6 is better
-                            r = functions[name](**(json_repair.loads(parameter)))
-                            #r can not be empty string, otherwise it will always trigger to run this function calling in every round, because it is in context messages, and tool has empty content {"role":"tool","content":""} mean it is not completed so AI will run it again
+                            return await loop.run_in_executor(None, lambda: functions[name](**(json_repair.loads(parameter))))
                         else:
-                            r = f'this tool {name} is not found'
-    
-                        print(f"function call result is {r}") if debug else None
-
+                            return f'this tool {name} is not found'
                     except Exception as e:
                         print(e)
-                        # r = str(e) + ', use read_file(path="/path/to/file"), execute_bash(command="command"), edit(path="/path/to/file",old_string="old",new_string="new"), grep_file(patter="...",path="/path")'
-                        r= str(e) + tool_tips
+                        return str(e) + tool_tips
 
+                async def f():
+                    return await asyncio.gather(*[asyncio.create_task(run_fc(name, parameter, tool_tips)) for name, parameter, tool_id in fc])
+
+                rs = asyncio.run(f())
+                for name, parameter, tool_id, r in [*map(lambda t, x: t+(x,), fc, rs)]:
                     message.append({
                         "role": "tool",
                         "tool_call_id": tool_id,
                         "name": name,
                         "content": r
                     })
-
             else:
                 break
             
