@@ -23,6 +23,7 @@ from pathlib import Path
 from itertools import accumulate
 # from fastmcp import Client
 import asyncio
+import threading
 from easydict import EasyDict as edict
 # from chat_api_requests import openai_requests
 from simple_mcp_client import MCPHTTPClient
@@ -216,11 +217,9 @@ def initial_mcp_client(mcpServers):
 # make a lexical scope closure for bind a variable to a function
 def make_mcp_client_call_tool():
     time_list = []
+    # one lock shared by every ddg-search call, no matter which thread runs it
+    search_lock = threading.Lock()
     def _mcp_client_call_tool(tool_name, args_dict):
-
-        now = int(time.time())
-        nonlocal time_list
-        time_list.append(now)
 
         key_name = tool_name.split("__")[0]
         function_name = tool_name.split("__")[1]
@@ -228,28 +227,26 @@ def make_mcp_client_call_tool():
 
         if tool_name == "ddg-search__search":
 
-            if len(time_list) < 5:
-    
-                # print("\n*** time_list less than 5\n")
-                # client = MCPHTTPClient(f"{mcpServers[key_name]['url']}")
-                # init_result = client.initialize()
+            # rate-limit check is atomic: only one thread reads/updates time_list
+            with search_lock:
+                now = int(time.time())
+                # prune timestamps older than 20s, in-place (no rebinding)
+                time_list[:] = [t for t in time_list if now - t <= 20]
+                if len(time_list) < 5:
+                    time_list.append(now)
+                    allowed = True
+                else:
+                    print("\n*** web search reached limit, please search in 5s \n")
+                    allowed = False
+
+            # call the server OUTSIDE the lock, so other tools still run concurrently
+            if allowed:
                 client = mcp_clients(key_name)
                 time.sleep(3)
                 call_tool_result = client.call_tool(function_name, args_dict)
             else:
-                if now - time_list[-2] > 20:
-                    print("\n*** search limit reset\n")
-                    time_list = []
-                    # client = MCPHTTPClient(f"{mcpServers[key_name]['url']}")
-                    # init_result = client.initialize()
-                    client = mcp_clients(key_name)
-                    call_tool_result = client.call_tool(function_name, args_dict)
-                else:
-                    print("\n*** web search reached limit, please search in 5s \n")
-                    call_tool_result = edict({"content":[{"text":"web search reached limit, please search in 5s"}]})
+                call_tool_result = edict({"content":[{"text":"web search reached limit, please search in 5s"}]})
         else:
-            # client = MCPHTTPClient(f"{mcpServers[key_name]['url']}")
-            # init_result = client.initialize()
             client = mcp_clients(key_name)
             call_tool_result = client.call_tool(function_name, args_dict)
 
