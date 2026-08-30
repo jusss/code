@@ -132,7 +132,7 @@ class RecvLocalThenSend(asyncio.DatagramProtocol):
         # else:
             # latest.append((query_data[:2], qname, qtype))
 
-        print(f"{query_addr} {qname} {qtype}")
+        print(f"> {qname} {qtype}")
         cached_value = cache.get((qname, qtype))
         if cached_value and enable_cache:
             answer_data = transaction_id + cached_value
@@ -141,7 +141,7 @@ class RecvLocalThenSend(asyncio.DatagramProtocol):
             _transaction_id, _qr, _tc, _rcode, _qname, _qtype, _answer = parse(answer_data)
 
             # print(f"############## read cache {qname, qtype, _qname, _qtype, _answer}   #################################")
-            print(f"############## read cache {_qname, _qtype, _answer[-1].Type, _answer[-1].RData} #################################")
+            print(f"                          < read cache {_qname, _qtype, _answer[-1].Type, _answer[-1].RData}")
             return
 
         headers = {
