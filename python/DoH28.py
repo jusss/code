@@ -30,14 +30,14 @@ import aiohttp
 import asyncudp
 from dns_package_parser import parse
 
-url = "https://doh.pub/dns-query"
+#url = "https://doh.pub/dns-query"
 #url = "https://dns.alidns.com/dns-query"
 #url = "https://tyo02.dnscry.pt/dns-query"
 #url = "https://jp01.dns4me.net"
 #url = "https://dns-unfiltered.adguard.com/dns-query"
 #url = "https://cloudflare-dns.com/dns-query"
 #url = "https://1.1.1.1/dns-query"
-#url = "https://dns.google/dns-query"
+url = "https://dns.google/dns-query"
 #url = "https://doh.opendns.com/dns-query"
 #url = "https://185.222.222.222/dns-query"
 #url = "https://45.11.45.11/dns-query"
@@ -47,10 +47,10 @@ enable_cache = True
 #enable_cache = False
 timeout = 3600
 sock = None
-#dns_server='8.8.8.8'
+dns_server='8.8.8.8'
 #dns_server='114.114.114.114'
 #dns_server='119.29.29.29'
-dns_server='192.168.0.1'
+#dns_server='192.168.0.1'
 #dns_server='192.168.1.1'
 #dns_server='172.18.208.1'
 #dns_server='223.6.6.6'
