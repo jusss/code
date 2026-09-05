@@ -1,2 +1,35 @@
-{"type": "function", "function": {"name": "edit", "description": "Replace string in file, parameter path is for file path, parameter old_string is the string you want to change, parameter new_string is the changes", "parameters": {"type": "object", "properties": {"path": {"type": "string"}, "old_string": {"type": "string"}, "new_string": {"type": "string"}}, "required": ["path", "old_string", "new_string"]}}}
-
+{
+    "type": "function",
+    "function": {
+        "name": "edit",
+        "description": "Replace string in file with optional line range parameters. Supports start/end line numbers to specify the search range.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Path to the file"
+                },
+                "old_string": {
+                    "type": "string",
+                    "description": "String to be replaced"
+                },
+                "new_string": {
+                    "type": "string",
+                    "description": "Replacement string"
+                },
+                "start": {
+                    "type": "integer",
+                    "description": "Starting line number (1-based) to search in"
+                },
+                "end": {
+                    "type": "integer",
+                    "description": "Ending line number to search in"
+                }
+            },
+            "required": ["path", "old_string", "new_string"],
+            "additionalProperties": false
+        },
+        "strict": true
+    }
+}

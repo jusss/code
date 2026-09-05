@@ -1,14 +1,36 @@
 {
-        "type": "function",
-        "function": {
-            "name": "read_file",
-            "description": "Read contents of a file, parameter path is the path of the file",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "path": {"type": "string", "description": "Path to the file"}
+    "type": "function",
+    "function": {
+        "name": "read_file",
+        "description": "Read contents of a file with optional range parameters. Supports start/end line numbers, line offset, and maximum line limit.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Path to the file"
                 },
-                "required": ["path"]
-            }
-        }
+                "start": {
+                    "type": "integer",
+                    "description": "Starting line number (1-based) to read from"
+                },
+                "end": {
+                    "type": "integer",
+                    "description": "Ending line number to read to"
+                },
+                "offset": {
+                    "type": "integer",
+                    "description": "Line offset to start reading from (1-based)"
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Maximum number of lines to read from offset"
+                }
+            },
+            "required": ["path"],
+            "additionalProperties": false
+        },
+        "strict": true
+    }
 }
+
