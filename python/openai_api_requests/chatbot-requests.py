@@ -949,7 +949,7 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
     while True:
         colored_text = get_colored_text(
                 "\n# Ctrl+D TO EXIT, ENTER TO SEND, N FOR NEW CONVERSATION, " +
-                f"C FOR NEW PROMPT, M FOR MULTIPLE LINE, D FOR CREAT DATASET, R FOR CONNECT DATASET, RE RESUME, S CLOSE DATASET, L LIST DATASET, F FILES, !SHELL COMMAND, context {current_token/max_input_tokens*100}%\n " +
+                f"C FOR NEW PROMPT, M FOR MULTIPLE LINE, D FOR CREAT DATASET, R FOR CONNECT DATASET, RE RESUME, S CLOSE DATASET, L LIST DATASET, F FILES, W WRITE CHECKPOINT LOG, !SHELL COMMAND, context {current_token/max_input_tokens*100}%\n " +
                 (prompt if not prompt else f"prompt: {prompt}") +
                 (dataset_path if not dataset_path else f"dataset {dataset_path} is connected"), 
                 "green")
@@ -1056,6 +1056,15 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
                 history = [json.loads(line) for line in f]
             prompt = get_prompt_from_history(history)
             continue
+
+        if query == 'w':
+            result = "".join(json.dumps(content) + "\n" for content in history)
+            checkpoint_file = create_log_file(log_path, "checkpoint")
+            with open(checkpoint_file, "w", encoding="utf-8") as f:
+                print(f"Write chat checkpoint into {checkpoint_file}")
+                f.write(result)
+            continue
+
         
         result, history, write_content, prompt = chat(client, model, prompt, query, history, write_content, dataset, retrieval_func)
         global exception_conversation
