@@ -90,6 +90,7 @@ MODEL = config_data["default"]["MODEL"]
         # }
 
 mcpServers = config_data["mcpServers"]
+#mcpServers = {}
 
 skills = [Path.home() / 'chat_plugin/skills']
 skills_content = []
@@ -104,7 +105,8 @@ display_reasoning = True
 reasoning_into_context = False
 interrupt = False
 exception_conversation = []
-max_tokens = 31072
+max_input_tokens = 32000
+max_output_tokens = 31072
 
 log_path = f"{os.getenv('HOME')}/chat_history"
 log_prefix = "chat_history"
@@ -138,7 +140,6 @@ for md in agents_file_list:
 history_limit = 6
 stream = True
 retrieval_limit = 6
-token_limit = 32000
 current_token = 0
 
 #1 creat log file for chat context, done
@@ -395,12 +396,12 @@ def openai_requests(api_key, base_url, model, messages, tools=[], temperature=0.
     payload = {
         "model": model,
         "messages": messages,
-        "max_tokens": max_tokens,  # The maximum number of tokens to generate in the completion
+        "max_tokens": max_output_tokens,  # The maximum number of tokens to generate in the completion
         "temperature": temperature,  # How "creative" the response should be
         "stream": stream,
         "tools": tools,
         "frequency_penalty": 0.1,
-        # "repetition_penalty": 1.2,
+        "repetition_penalty": 1.2,
     }
     payload.update(kwargs)
 
@@ -412,7 +413,7 @@ def openai_requests(api_key, base_url, model, messages, tools=[], temperature=0.
         payload["reasoning_effort"] = "max"
 
 
-    response = requests.post(base_url, headers=headers, json=payload, stream=stream, timeout=30)
+    response = requests.post(base_url, headers=headers, json=payload, stream=stream, timeout=120)
     if response.status_code == 200:
         if stream:
             for line in response.iter_lines():
@@ -517,9 +518,9 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
 
     print(get_colored_text(f"\n{MODEL}: ", "green"), end='', flush=True)
 
-    # limit messages length by token_limit, only trim history which item is a complete conversation, 
+    # limit messages length by max_input_tokens, only trim history which item is a complete conversation, 
     # do not trim message, trim message can cause incomplete conversation
-    # history = trim_length(history, token_limit - len(json.dumps(message)))
+    # history = trim_length(history, max_input_tokens - len(json.dumps(message)))
     messages = reduce(add, history) if history else []
 
     if messages:
@@ -534,6 +535,9 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
                 else:
                     new_message.append(d)
             else:
+                # if "reasoning_content" in d:
+                    # del d['reasoning_content']
+
                 if (d['role'] == "assistant" and d.get("tool_calls")) or (d["role"] == "tool") or (d['role'] == "assistant" and d['content'] == ''):
                     continue
                 else:
@@ -549,7 +553,7 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
     # if len(json.dumps(messages,ensure_ascii=False).encode('utf8')) > 32000:
     global current_token
     current_token = count_chat_tokens(messages)
-    if current_token > token_limit:
+    if current_token > max_input_tokens:
         # server-memory mcp store long context
         # if "server-memory__create_entities" in mcp_tools_name:
             # entity_name=str(uuid.uuid4())
@@ -632,7 +636,7 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
                 # reasoning_content need empty content key ''
                 reasoning_contents = []
                 contents = []
-                content_msg = {"role": "assistant"}
+                content_msg = {"role": "assistant", "content": ""}
                 for i in collected_messages:
                     for k,v in i.items():
                         if k == "reasoning_content":
@@ -945,7 +949,7 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
     while True:
         colored_text = get_colored_text(
                 "\n# Ctrl+D TO EXIT, ENTER TO SEND, N FOR NEW CONVERSATION, " +
-                f"C FOR NEW PROMPT, M FOR MULTIPLE LINE, D FOR CREAT DATASET, R FOR CONNECT DATASET, RE RESUME, S CLOSE DATASET, L LIST DATASET, F FILES, !SHELL COMMAND, context {current_token/token_limit*100}%\n " +
+                f"C FOR NEW PROMPT, M FOR MULTIPLE LINE, D FOR CREAT DATASET, R FOR CONNECT DATASET, RE RESUME, S CLOSE DATASET, L LIST DATASET, F FILES, !SHELL COMMAND, context {current_token/max_input_tokens*100}%\n " +
                 (prompt if not prompt else f"prompt: {prompt}") +
                 (dataset_path if not dataset_path else f"dataset {dataset_path} is connected"), 
                 "green")
