@@ -590,7 +590,8 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
 
     result = ""
     while True:
-        # print(f"**** the messages is {reduce(add, history + [message])}")
+        # print(f"**** the messages is {messages + message}")
+        # logging.info(f"**** the history messages is {reduce(add, history + [message])}")
         try:
             # completion = client.chat.completions.create(
                 # model = model,
@@ -601,6 +602,7 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
             # )
             completion = openai_requests(OPENAI_API_KEY, OPENAI_BASE_URL, MODEL, messages + message, tools)
         except Exception as e:
+            logging.error(str(e))
             print(e)
             print(f"*** messages is {messages + message}")
             exit()
@@ -694,6 +696,7 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
                             return f'this tool {name} is not found'
                     except Exception as e:
                         print(e)
+                        logging.error(str(e))
                         return str(e) + tool_tips
 
                 async def f():
@@ -1086,21 +1089,21 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
         global exception_conversation
         exception_conversation = history
 
-    result = "".join(json.dumps(content) + "\n" for content in write_content)
+    write_result = "".join(json.dumps(content, indent=4) + "\n" for content in write_content)
 
-    if result:
-        with open(log_file, "a", encoding="utf-8") as f:
+    if write_result:
+        with open(create_log_file(log_path, "format"), "a", encoding="utf-8") as f:
+            # print(f"Write chat history into {log_file}")
+            # f.seek(0, os.SEEK_END)
+            f.write(write_result)
+
+    history_result = "".join(json.dumps(content) + "\n" for content in history)
+
+    if history_result:
+        with open(log_file, "w", encoding="utf-8") as f:
             print(f"Write chat history into {log_file}")
             # f.seek(0, os.SEEK_END)
-            f.write(result)
-
-    # result = "".join(json.dumps(content) + "\n" for content in history)
-
-    # if result:
-        # with open(log_file, "w", encoding="utf-8") as f:
-            # print(f"Write chat history into {log_file}")
-            # # f.seek(0, os.SEEK_END)
-            # f.write(result)
+            f.write(history_result)
 
 
     return query
@@ -1121,7 +1124,7 @@ signal.signal(signal.SIGINT, handle_interrupt)
 
 
 if __name__ == "__main__":
-    logging.basicConfig(filename='chat_history.log', level=logging.DEBUG)
+    logging.basicConfig(filename=f'chat_history_{datetime.now().strftime("%Y_%m_%d_%H_%M_%S")}.log', level=logging.DEBUG)
     try:
         last_input = run(OPENAI_API_KEY, OPENAI_BASE_URL, MODEL, log_path, log_prefix, prompt)
         while last_input == 'n':
