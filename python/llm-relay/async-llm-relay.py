@@ -57,7 +57,7 @@ Model =config_data["default"]["Model"]
 mcpServers = config_data["mcpServers"]
 
 debug = True
-
+reasoning_into_context = False
 plugins_dir = Path.home() / 'chat_plugin'
 
 # default_prompt = """
@@ -254,9 +254,12 @@ class Service:
     # def do_post(self,url, headers, data):
     @classmethod
     async def do_post(cls,url, headers, data, conversation_id):
-        _dict = {}
+        # do_post only handle function calling, normal content is handled outside of do_post, do_post return normal content
+        # do_post return [{"role":"assistant", "content":"...", "tool_calls":...}, {"role": "tool",...}],
+        collected_messages = []
         tool_call_messages = []
         messages = []
+        tool_call = False
 
         async with aiohttp.ClientSession() as session:
             async with session.post(url, headers=headers, json=data) as response:
@@ -289,44 +292,29 @@ class Service:
                                     if not json_data:  # Skip if empty after removing "data: "
                                         continue
                                     result = json.loads(json_data, strict=False)
-            
-                                    if result["choices"][0]["delta"].get("tool_calls"):
-                                        print(line)
-                                        # if result["choices"][0]["delta"]["tool_calls"][0].get("id"):
-                                            # tool_call_messages.append(result["choices"][0]["delta"])
-                                        tool_call_messages.append(result["choices"][0]["delta"])
-                                        for funcs in result["choices"][0]["delta"]["tool_calls"]:
-                                            tool_index = funcs.get("index", 0)
-                                            if funcs["function"].get("name"):
-                                                _dict[tool_index] = {"tool_id": funcs.get("id"), "name": funcs["function"]["name"], "args": funcs["function"].get("arguments","")}
-                                            elif funcs["function"].get("arguments"):
-                                                _dict[tool_index]["args"] = _dict[tool_index]["args"] + funcs["function"]["arguments"]
 
+                                    collected_messages.append(result["choices"][0]["delta"])
+                                    if result["choices"][0]["delta"].get("tool_calls"):
+                                        tool_call_messages.append(result["choices"][0]["delta"])
 
                                     if result["choices"][0].get("finish_reason"):
-            
+                                        msg = {"role": "assistant", "content": ""}
+                                        if collected_messages:
+                                            contents = []
+                                            reasoning_contents = []
+                                            for i in collected_messages:
+                                                for k, v in i.items():
+                                                    if k == "content":
+                                                        contents.append(v)
+                                                    if k == "reasoning_contents":
+                                                        reasoning_contents.append(v)
+                                            if contents:
+                                                msg["content"] = "".join(["" if i is None else i for i in contents])
+                                            if reasoning_contents and reasoning_into_context:
+                                                msg["reasoning_content"] = "".join(["" if i is None else i for i in reasoning_contents])
+
                                         if tool_call_messages:
-                                            # merge_tool_call = []
-                                            # for t in tool_call_messages:
-                                                # for b in t['tool_calls']:
-                                                    # if 'index' in b:
-                                                        # print(f"delete b[index] is {b['index']}")
-                                                        # del b['index']
-                                                # merge_tool_call.append(t)
-                                    
-                                            # print(f"\n *** merge_tool_call is {merge_tool_call}\n") if debug else None
-                                            # msg = reduce(lambda x, y: {**x, 'tool_calls': x['tool_calls'] + y['tool_calls']}, merge_tool_call)
-                                            # print(f"\n msg is {msg}") if debug else None
-                                            # msg["role"] = "assistant"
-
-                                            # if msg.get("content") == "":
-                                                # msg["content"] = None
-                            
-                                            # # {'role': 'assistant', 'tool_calls': [{'id': 'call_7', 'function': {'arguments': '', 'name': 'websearch'}, 'type': 'function'}]}
-                                            # if not msg["tool_calls"][0]['function']['arguments']:
-                                                # msg["tool_calls"][0]['function']['arguments'] = '{}'
-
-                                            tc_index=[]
+                                            tool_call = True
                                             tc_index_dict={}
                                             for tc in tool_call_messages:
                                                 if tc.get('tool_calls'):
@@ -335,49 +323,39 @@ class Service:
                                                             tc_index_dict[i['index']]["function"]["arguments"] += i["function"].get("arguments","")
                                                         else:
                                                             tc_index_dict[i['index']]=i
-                            
-                                            for k,v in tc_index_dict.items():
-                                                tc_index.append(v)
 
-                                            msg = {"tool_calls":tc_index, "role":"assistant"}
+                                            msg["tool_calls"] = [v for k, v in sorted(tc_index_dict.items(), key=lambda x: x[0])]
+
                                             for i in msg["tool_calls"]:
                                                 if not i['function']['arguments']:
                                                     i['function']['arguments'] = '{}'
 
                                             messages.append(msg)
                                             tool_call_messages = []
-                
-                                        if _dict:
-                                            print(f"\n _dict is {_dict}") if debug else None
-                                            for index, v in _dict.items():
-                                                print(f'in _dict index is {index}, function call {v["name"]}, parameter is {v["args"]}') if debug else None
-                
-                                                # for showing function call
-                                                yield {"choices": [{"delta":{"content":""}}]}, ('data: ' + 
-                                                json.dumps({"choices": [{"index": 0, "delta": {"content": f"\nfunction call {v['name']}({v['args']})\n"}}]})
-                                                ).encode("utf-8"), []
-                                                yield {"choices": [{"delta":{"content":""}}]}, ('data: ' + 
-                                                json.dumps({"choices": [{"index": 0, "delta": {"content": "\n"}}]})
-                                                ).encode("utf-8"), []
-    
-                                                try:
-                                                    if v["args"] == '{}':
-                                                        r= 'missing parameter, tools use JSON format parameter, read_file({"path":"/path"}), execute_bash({"command":"cmd"}), bash_tools({"commands":"cmd"}), edit({"path":"/path","old_string":"old","new_string":"new"}), ddg-search__search({"query":"question", "max_results":10, "region":"optional"}, ddg-search__fetch_content({"url":"address","start_index":0,"max_length":3000,"backend":"optional"}), etc'
-                                                    elif v["name"] in mcp_tools_name:
-                                                        loop = asyncio.new_event_loop()
-                                                        with concurrent.futures.ThreadPoolExecutor() as executor:
-                                                            future = executor.submit(lambda: asyncio.run(mcp_client_call_tool(v["name"], json_repair.loads(v["args"]))))
-                                                            call_tool_result = future.result()
-                                                        # future = asyncio.run_coroutine_threadsafe(mcp_client_call_tool(v["name"], json.loads(v["args"])),loop)
-                                                        # call_tool_result = future.result(timeout=10)
-                                                        r = call_tool_result.content[0].text
-                                                    elif functions.get(v["name"]):
-                                                        # r = functions[v["name"]](v["args"])
-                                                        r = functions[v["name"]](**(json_repair.loads(v["args"])))
 
+                                            fc = [(i["function"]["name"], i["function"]["arguments"], i["id"]) for i in msg["tool_calls"]]
+
+                                            for name, parameter, tool_id in fc:
+                                                print(f'function call {name}, parameter is {parameter}') if debug else None
+                                                # for showing function call
+                                                yield {"choices": [{"delta":{"content":""}}]}, ('data: ' +
+                                                json.dumps({"choices": [{"index": 0, "delta": {"content": f"\nfunction call {name}({parameter})\n"}}]})
+                                                ).encode("utf-8"), [], False
+                                                yield {"choices": [{"delta":{"content":""}}]}, ('data: ' +
+                                                json.dumps({"choices": [{"index": 0, "delta": {"content": "\n"}}]})
+                                                ).encode("utf-8"), [], False
+                                                try:
+                                                    # if parameter == '{}':
+                                                        # r= 'missing parameter, tools use JSON format parameter, read_file({"path":"/path"}), execute_bash({"command":"cmd"}), bash_tools({"commands":"cmd"}), edit({"path":"/path","old_string":"old","new_string":"new"}), ddg-search__search({"query":"question", "max_results":10, "region":"optional"}, ddg-search__fetch_content({"url":"address","start_index":0,"max_length":3000,"backend":"optional"}), etc'
+                                                    if name in mcp_tools_name:
+                                                        call_tool_result = await mcp_client_call_tool(name, json_repair.loads(parameter))
+                                                        r = call_tool_result.content[0].text
+                                                    elif functions.get(name):
+                                                        loop = asyncio.get_running_loop()
+                                                        r = await loop.run_in_executor(None, lambda: functions[name](**(json_repair.loads(parameter))))
                                                     else:
                                                         r = f'this tool {v["name"]} is not found'
-                    
+
                                                     print(f"function call result is {r}") if debug else None
     
                                                 except Exception as e:
@@ -385,12 +363,11 @@ class Service:
                                                     r= str(e) + ', tools use JSON format parameter, read_file({"path":"/path"}), execute_bash({"command":"cmd"}), bash_tools({"commands":"cmd"}), edit({"path":"/path","old_string":"old","new_string":"new"}), ddg-search__search({"query":"question", "max_results":10, "region":"optional"}, ddg-search__fetch_content({"url":"address","start_index":0,"max_length":3000,"backend":"optional"}), etc'
                                                     yield {"choices": [{"delta":{"content":""}}]},\
                                                         ('data: ' + json.dumps({"choices": [{"delta": {"content": str(e)}}]})).encode("utf-8"),\
-                                                        []
+                                                        [], False
     
-                                                messages.append({"role": "tool", "tool_call_id": v["tool_id"], "name": v["name"], "content": r})
-                                            _dict = {}
-            
-                                    yield result, line, messages
+                                                messages.append({"role": "tool", "tool_call_id": tool_id, "name": name, "content": r})
+
+                                    yield result, line, messages, tool_call
 
                         except Exception as e:
                             print(f"json_data is {json_data}")
@@ -398,13 +375,13 @@ class Service:
                             print(e)
                             yield {"choices": [{"delta":{"content":""}}]},\
                                 ('data: ' + json.dumps({"choices": [{"delta": {"content": str(e)}}]})).encode("utf-8"),\
-                                []
+                                [], False
                             raise
                 else:
                     async for line in response.content:
                         yield {"choices": [{"delta":{"content":""}}]},\
                             ('data: ' + json.dumps({"choices": [{"delta": {"content": line.decode()}}]})).encode("utf-8"),\
-                            []
+                            [], False
 
                         print(line)
 
@@ -491,8 +468,8 @@ class Service:
                     messages = messages + tool_messages
                     data["messages"] = messages
 
-                async for result, line, _tool_messages in Service.do_post(url, headers, data, conversation_id):
-                    if not _tool_messages:
+                async for result, line, _tool_messages, tool_call in Service.do_post(url, headers, data, conversation_id):
+                    if not tool_call:
                         # reasoning content b'data: {"choices":[{"delta":{"content":null,"reasoning_content":" out "},"finish_reason":null,}],}\n'
                         content = result["choices"][0]["delta"].get("content")
                         if content:
