@@ -677,10 +677,10 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
                     # r = "invalid function or missing parameters"
                     try:
                         loop = asyncio.get_running_loop()
-                        if parameter == '{}':
-                            # stupid construct Task with concret value, it should be return to construct, or Task(3)
-                            return 'missing parameter' + tool_tips
-                        elif name in mcp_tools_name:
+                        # if parameter == '{}':
+                            # # stupid construct Task with concret value, it should be return to construct, or Task(3)
+                            # return 'missing parameter' + tool_tips
+                        if name in mcp_tools_name:
                             return await loop.run_in_executor(None, lambda: mcp_client_call_tool(name, json.loads(parameter)))
                         elif functions.get(name):
                             return await loop.run_in_executor(None, lambda: functions[name](**(json_repair.loads(parameter))))
