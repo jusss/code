@@ -575,8 +575,9 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
         prompt_context = f'\nthis context is too long, old context has written into {old_context_file}, find old context in {old_context_file} with grep_file or read_file tools when you need old context'
 
         with open(old_context_file, "a+", encoding="utf-8") as f:
-            old_context_data = "".join(json.dumps(content, ensure_ascii=False) + "\n" for content in messages[:-6])
-            f.write(old_context_data)
+            for content in messages[:-6]:
+                json.dump(content, f, ensure_ascii=False)
+                f.write("\n")
 
         # message may contain system prompt
         if message[0].get('role') == 'system':
