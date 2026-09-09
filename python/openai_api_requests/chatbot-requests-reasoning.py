@@ -575,8 +575,9 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
         prompt_context = f'\nthis context is too long, old context has written into {old_context_file}, find old context in {old_context_file} with grep_file or read_file tools when you need old context'
 
         with open(old_context_file, "a+", encoding="utf-8") as f:
-            old_context_data = "".join(json.dumps(content, ensure_ascii=False) + "\n" for content in messages[:-6])
-            f.write(old_context_data)
+            for content in messages[:-6]:
+                json.dump(content, f, ensure_ascii=False)
+                f.write("\n")
 
         # message may contain system prompt
         if message[0].get('role') == 'system':
@@ -1077,11 +1078,14 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
             continue
 
         if query == 'w':
-            result = "".join(json.dumps(content) + "\n" for content in write_content)
-            checkpoint_file = create_log_file(log_path, "checkpoint")
-            with open(checkpoint_file, "a", encoding="utf-8") as f:
-                print(f"Write chat checkpoint into {checkpoint_file}")
-                f.write(result)
+            if write_content:
+                prefix = input("checkpoint file prefix: ")
+                checkpoint_file = create_log_file(log_path, prefix)
+                with open(checkpoint_file, "a", encoding="utf-8") as f:
+                    for content in write_content:
+                        json.dump(content, f, ensure_ascii=False)
+                        f.write("\n")
+                    print(f"Write chat checkpoint into {checkpoint_file}")
             continue
 
         
@@ -1089,22 +1093,18 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
         global exception_conversation
         exception_conversation = history
 
-    write_result = "".join(json.dumps(content, indent=4) + "\n" for content in write_content)
-
-    if write_result:
+    if write_content:
         with open(create_log_file(log_path, "format"), "a", encoding="utf-8") as f:
-            # print(f"Write chat history into {log_file}")
-            # f.seek(0, os.SEEK_END)
-            f.write(write_result)
+            for content in write_content:
+                json.dump(content, f, indent=4, ensure_ascii=False)
+                f.write("\n")
 
-    history_result = "".join(json.dumps(content) + "\n" for content in history)
-
-    if history_result:
+    if history:
         with open(log_file, "w", encoding="utf-8") as f:
+            for content in history:
+                json.dump(content, f, ensure_ascii=False)
+                f.write("\n")
             print(f"Write chat history into {log_file}")
-            # f.seek(0, os.SEEK_END)
-            f.write(history_result)
-
 
     return query
 
