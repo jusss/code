@@ -631,7 +631,7 @@ async def chat_stream(conversation_id: str = Query()):
     )
 
 @app.post("/api/chat")
-async def chat(r: Request, content: str = Form(), prompt: str = Form(), conversation_id: str = Form()):
+async def chat(r: Request, content: str = Form(), prompt: str = Form(""), conversation_id: str = Form()):
     if check_login(r):
         service.query[conversation_id] = content
         service.cancel[conversation_id] = False
