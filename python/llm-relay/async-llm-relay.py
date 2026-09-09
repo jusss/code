@@ -31,6 +31,7 @@ from token_count import count_chat_tokens
 """
 source env/bin/activate
 uvicorn llm-relay:app --reload
+password in llm-relay-config can be made by 'echo -n "password"|sha256sum'
 """
 
 with open(Path.home() / 'llm-relay/llm-relay-config.json', "r") as f:
