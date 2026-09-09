@@ -220,8 +220,9 @@ class Service:
             text_content = "\n".join(result)
 
             with open(conversation_id + ".txt", "w") as f:
-                f.write(text_content)
-
+                for i in result:
+                    f.write(i)
+                    f.write("\n")
 
             # text_content = json.dumps(data, ensure_ascii=False, indent=4)
             # return Response(content=text_content, media_type='text/plain',
@@ -425,8 +426,9 @@ class Service:
             prompt = prompt + self.conversations[f"{conversation_id}_prompt"]
     
             with open(old_context_file, "a+", encoding="utf-8") as f:
-                old_context_data = "".join(json.dumps(content, ensure_ascii=False) + "\n" for content in messages[:-7])
-                f.write(old_context_data)
+                for content in messages[:-7]:
+                    json.dump(content, f, ensure_ascii=False)
+                    f.write("\n")
     
             messages= messages[-7:-1] + [{"role":"system","content":prompt}] + messages[-1:]
         else:
@@ -500,7 +502,9 @@ class Service:
                 # with open(f"{str(Path.home())}/llm-relay/{user}-{conversation_id}.json", "w") as f:
                     # f.write(json.dumps(messages))
                 with open(f"{str(Path.home())}/llm-relay/{user}-{conversation_id}.jsonl", "a+") as f:
-                    f.write(json.dumps(write_messages)+"\n")
+                    for content in write_messages:
+                        json.dump(content, f, ensure_ascii=False)
+                        f.write("\n")
 
         except Exception as e:
             print(e)
