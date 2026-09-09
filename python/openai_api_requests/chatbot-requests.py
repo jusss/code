@@ -1058,11 +1058,14 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
             continue
 
         if query == 'w':
-            result = "".join(json.dumps(content) + "\n" for content in history)
-            checkpoint_file = create_log_file(log_path, "checkpoint")
-            with open(checkpoint_file, "w", encoding="utf-8") as f:
-                print(f"Write chat checkpoint into {checkpoint_file}")
-                f.write(result)
+            if history:
+                prefix = input("checkpoint file prefix: ")
+                checkpoint_file = create_log_file(log_path, prefix)
+                with open(checkpoint_file, "w", encoding="utf-8") as f:
+                    for content in history:
+                        json.dump(content, f, ensure_ascii=False)
+                        f.write("\n")
+                    print(f"Write chat checkpoint into {checkpoint_file}")
             continue
 
         
@@ -1078,14 +1081,13 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
             # # f.seek(0, os.SEEK_END)
             # f.write(result)
 
-    result = "".join(json.dumps(content) + "\n" for content in history)
-
-    if result:
+    if history:
         with open(log_file, "w", encoding="utf-8") as f:
+            for content in history:
+                json.dump(content, f, ensure_ascii=False)
+                f.write("\n")
             print(f"Write chat history into {log_file}")
             # f.seek(0, os.SEEK_END)
-            f.write(result)
-
 
     return query
 
