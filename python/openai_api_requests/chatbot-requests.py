@@ -528,8 +528,7 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
         # messages = filter(lambda d: if (d['role'] == "assistant" and d.get("tool_calls")) or d["role"] == "tool")
         new_message = []
         for d in messages:
-            if d['role'] == "assistant" and d.get("tool_calls"):
-                d = {k: v for k, v in d.items() if k != "tool_calls"}
+            d = {k: v for k, v in d.items() if k != "tool_calls"}
             if reasoning_into_context:
                 # for reasoning_content
                 if (d['role'] == "assistant" and d.get("tool_calls")) or (d["role"] == "tool") or (d['role'] == "assistant" and d['content'] == '' and (not d.get("reasoning_content",""))):
@@ -539,7 +538,7 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
             else:
                 # if "reasoning_content" in d:
                     # del d['reasoning_content']
-
+                d = {k: v for k, v in d.items() if k != "reasoning_content"}
                 if (d['role'] == "assistant" and d.get("tool_calls")) or (d["role"] == "tool") or (d['role'] == "assistant" and d['content'] == ''):
                     continue
                 else:
@@ -602,7 +601,13 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
                 # stream = stream,
                 # tools = tools
             # )
-            completion = openai_requests(OPENAI_API_KEY, OPENAI_BASE_URL, MODEL, messages + message, tools)
+            _message = deepcopy(message)
+            if not reasoning_into_context:
+                for d in _message:
+                    if d['role'] == "assistant" and "reasoning_content" in d:
+                        del d["reasoning_content"]
+            # print(f"context is {messages + _message}")
+            completion = openai_requests(OPENAI_API_KEY, OPENAI_BASE_URL, MODEL, messages + _message, tools)
         except Exception as e:
             print(e)
             print(f"*** messages is {messages + message}")
@@ -646,7 +651,7 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
                             reasoning_contents.append(v)
                         if k == "content":
                             contents.append(v)
-                if reasoning_contents and reasoning_into_context:
+                if reasoning_contents:
                     content_msg["reasoning_content"] = "".join(["" if i is None else i for i in reasoning_contents])
                 if contents:
                     content_msg["content"] = "".join(["" if i is None else i for i in contents])
@@ -929,8 +934,7 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
             # messages = filter(lambda d: if (d['role'] == "assistant" and d.get("tool_calls")) or d["role"] == "tool")
             _new_message = []
             for d in _messages:
-                if d['role'] == "assistant" and d.get("tool_calls"):
-                    d = {k: v for k, v in d.items() if k != "tool_calls"}
+                d = {k: v for k, v in d.items() if k != "tool_calls"}
                 if reasoning_into_context:
                     # for reasoning_content
                     if (d['role'] == "assistant" and d.get("tool_calls")) or (d["role"] == "tool") or (d['role'] == "assistant" and d['content'] == '' and (not d.get("reasoning_content",""))):
@@ -938,6 +942,7 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
                     else:
                         _new_message.append(d)
                 else:
+                    d = {k: v for k, v in d.items() if k != "reasoning_content"}
                     if (d['role'] == "assistant" and d.get("tool_calls")) or (d["role"] == "tool") or (d['role'] == "assistant" and d['content'] == ''):
                         continue
                     else:
