@@ -404,6 +404,8 @@ class Service:
             # messages = filter(lambda d: if (d['role'] == "assistant" and d.get("tool_calls")) or d["role"] == "tool")
             new_message = []
             for d in messages:
+                if d['role'] == "assistant" and d.get("tool_calls"):
+                    d = {k: v for k, v in d.items() if k != "tool_calls"}
                 if (d['role'] == "assistant" and d.get("tool_calls")) or (d["role"] == "tool") or (d['role'] == "assistant" and d['content'] == ''):
                     continue
                 else:
