@@ -1,4 +1,5 @@
 import tiktoken
+import json
 
 def count_chat_tokens(messages, model="gpt-4o"):
     """
@@ -30,6 +31,10 @@ def count_chat_tokens(messages, model="gpt-4o"):
         
         # Count tokens for content
         total_tokens += len(encoding.encode(message.get("content","")))
+
+        total_tokens += len(encoding.encode(message.get("reasoning_content","")))
+
+        total_tokens += len(encoding.encode(json.dumps(message.get("tool_calls",{}))))
         
         # Count tokens for name if present
         if "name" in message:

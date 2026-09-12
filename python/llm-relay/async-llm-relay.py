@@ -70,7 +70,8 @@ plugins_dir = Path.home() / 'chat_plugin'
 # default_prompt = "do not use thinking mode, search before answer"
 default_prompt = f"<context name=Time> current time is {datetime.now().strftime('%Y_%m_%d %H:%M:%S')}</context>\n"
 
-token_limit = 100000
+max_input_tokens = 100000
+max_output_tokens = 20000
 
 # hash_key = hashlib.sha256(password.encode()).hexdigest()
 # Use the token from config as the JWT secret key
@@ -367,7 +368,7 @@ class Service:
                                                         ('data: ' + json.dumps({"choices": [{"delta": {"content": str(e)}}]})).encode("utf-8"),\
                                                         [], False
     
-                                                messages.append({"role": "tool", "tool_call_id": tool_id, "name": name, "content": r})
+                                                messages.append({"role": "tool", "tool_call_id": tool_id, "name": name, "content": r[:max_input_tokens]})
 
                                     yield result, line, messages, tool_call
 
@@ -418,7 +419,7 @@ class Service:
 
         # if len(json.dumps(messages,ensure_ascii=False).encode('utf8')) > 32000:
         current_token = count_chat_tokens(messages)
-        if current_token > token_limit:
+        if current_token > max_input_tokens:
 
             # re-implement long context handle, put all the history into a new jsonl file, and system prompt insert 
             # 'this context is too long, old context will write into a.jsonl, find old context in a.jsonl with grep or read tool when you need old context'
@@ -453,7 +454,7 @@ class Service:
                 messages.append({"role": "user", "content": content})
 
             data = {"model": Model, "messages": messages, "temperature": 0.7, "top_p": 0.8,
-                "frequency_penalty": 0.0, # "max_tokens": 2048,
+                "frequency_penalty": 0.0, "max_tokens": max_output_tokens,
                 "repetition_penalty": 1.2, "stream": True, "tools": tools}
             
             if Model.startswith("qwen"):

@@ -710,7 +710,7 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
                         "role": "tool",
                         "tool_call_id": tool_id,
                         "name": name,
-                        "content": r
+                        "content": r[:max_input_tokens]
                     })
 
                     explicit_message.append({
@@ -1103,11 +1103,12 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
                 f.write("\n")
 
     if history:
-        with open(log_file, "w", encoding="utf-8") as f:
+        with open(log_file+".swap", "w", encoding="utf-8") as f:
             for content in history:
                 json.dump(content, f, ensure_ascii=False)
                 f.write("\n")
-            print(f"Write chat history into {log_file}")
+        os.replace(log_file+".swap", log_file)
+        print(f"Write chat history into {log_file}")
 
     return query
 
