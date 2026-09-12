@@ -70,8 +70,8 @@ plugins_dir = Path.home() / 'chat_plugin'
 # default_prompt = "do not use thinking mode, search before answer"
 default_prompt = f"<context name=Time> current time is {datetime.now().strftime('%Y_%m_%d %H:%M:%S')}</context>\n"
 
-max_input_tokens = 100000
-max_output_tokens = 20000
+max_input_tokens = 32000
+max_output_tokens = 31072
 
 # hash_key = hashlib.sha256(password.encode()).hexdigest()
 # Use the token from config as the JWT secret key
