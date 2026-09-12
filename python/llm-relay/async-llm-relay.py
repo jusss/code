@@ -522,9 +522,12 @@ with open("login.html","r") as f:
     login_html = f.read()
 
 chat_html = ""
+chat2_html = ""
 with open("chat.html","r") as f:
     chat_html = f.read()
 
+with open("chat2.html","r") as f:
+    chat2_html = f.read()
 
 # jwt token expired, check_login decorator
 
@@ -594,6 +597,12 @@ def hello():
 async def get_chat(r: Request):
     if check_login(r):
         return HTMLResponse(content=chat_html)
+    return RedirectResponse(url="/login")
+
+@app.get("/chat2")
+async def get_chat(r: Request):
+    if check_login(r):
+        return HTMLResponse(content=chat2_html)
     return RedirectResponse(url="/login")
 
 async def sse_stream(conversation_id: str):
