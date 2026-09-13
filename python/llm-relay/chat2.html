@@ -35,7 +35,8 @@
 }
 /* ─────────────────────────────  Base  ───────────────────────────── */
 *{ box-sizing:border-box; }
-html,body{ height:100%; }
+[hidden]{ display:none !important; }   /* author display rules must not defeat the hidden attribute (jump button, file input) */
+html,body{ height:100%; overscroll-behavior-y:none; }
 body{
     margin:0; background:var(--bg); color:var(--text);
     font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
@@ -96,7 +97,8 @@ a{ color:var(--accent); }
 /* ─────────────────────────────  Chat area  ───────────────────────────── */
 .chat-wrap{ position:relative; flex:1; min-height:0; display:flex; }
 #chatArea{
-    flex:1; overflow-y:auto; overflow-x:hidden; padding:6px 6px 20px; scroll-behavior:auto;
+    flex:1; overflow-y:auto; overflow-x:hidden; overscroll-behavior-y:contain;
+    padding:6px 6px 20px; scroll-behavior:auto;
     display:flex; flex-direction:column;
 }
 #chatArea::-webkit-scrollbar{ width:9px; }
@@ -584,19 +586,40 @@ textarea.input{ min-height:150px; resize:vertical; line-height:1.55; }
         }
     }
 
-    function isPinned() {
-        return chatArea.scrollHeight - chatArea.scrollTop - chatArea.clientHeight < 90;
+    /* Follow-the-bottom state machine.
+       followBottom is true while the feed should keep the newest content in
+       view. It is turned OFF only by the user scrolling away and back ON when
+       they return to the bottom (or send / resume / jump). Snapping does NOT
+       check the distance from the bottom: streamed chunks can arrive in bursts
+       far larger than any threshold, which made the old distance test stop
+       following for the rest of a long answer (the "can't scroll to read while
+       it answers" bug). While a finger is down (activeTouches > 0) the feed is
+       never moved by us, so we never fight an in-progress gesture. */
+    var followBottom = true;
+    var activeTouches = 0;
+
+    function feedGap() {
+        return chatArea.scrollHeight - chatArea.scrollTop - chatArea.clientHeight;
     }
     function scrollToBottom() {
         chatArea.scrollTop = chatArea.scrollHeight;
     }
-    function maybeFollow(force) {
-        if (force || isPinned()) scrollToBottom();
+    function maybeFollow() {
+        if (followBottom && activeTouches === 0) scrollToBottom();
+    }
+    function jumpToBottom() {
+        followBottom = true;
+        scrollToBottom();
     }
     chatArea.addEventListener('scroll', function () {
-        jumpBtn.hidden = chatArea.scrollHeight - chatArea.scrollTop - chatArea.clientHeight < 160;
-    });
-    jumpBtn.addEventListener('click', function () { scrollToBottom(); });
+        var gap = feedGap();
+        followBottom = gap < 24;      // user (or we) landed at the bottom -> follow; moved away -> stop
+        jumpBtn.hidden = gap < 160;
+    }, { passive: true });
+    chatArea.addEventListener('touchstart', function () { activeTouches++; }, { passive: true });
+    chatArea.addEventListener('touchend', function () { activeTouches = Math.max(0, activeTouches - 1); }, { passive: true });
+    chatArea.addEventListener('touchcancel', function () { activeTouches = Math.max(0, activeTouches - 1); }, { passive: true });
+    jumpBtn.addEventListener('click', jumpToBottom);
 
     /* ═══════════════════  Markdown-lite renderer  ═══════════════════
        Self-contained, no external libs. Escapes first, then applies a
@@ -832,7 +855,11 @@ textarea.input{ min-height:150px; resize:vertical; line-height:1.55; }
 
     function scheduleAnswerRender(t) {
         var now = Date.now();
-        if (now - t.lastRender > 60) {
+        // Longer answers get a lower re-render rate: re-rendering a huge answer
+        // every ~60ms is heavy enough to saturate a phone's main thread, which
+        // janks scrolling and makes streamed chunks arrive in bursts.
+        var minInterval = t.answerRaw.length > 12000 ? 150 : 60;
+        if (now - t.lastRender > minInterval) {
             t.lastRender = now;
             t.answerEl.innerHTML = renderMarkdown(t.answerRaw);
         } else if (!t.pendingRender) {
@@ -840,7 +867,7 @@ textarea.input{ min-height:150px; resize:vertical; line-height:1.55; }
                 t.pendingRender = 0;
                 t.lastRender = Date.now();
                 t.answerEl.innerHTML = renderMarkdown(t.answerRaw);
-            }, 80);
+            }, minInterval + 20);
         }
     }
 
@@ -892,7 +919,7 @@ textarea.input{ min-height:150px; resize:vertical; line-height:1.55; }
             t.thinkingEl.open = true;
         }
         updateSendState();
-        maybeFollow(true);
+        maybeFollow();       // never force-jump: if the user scrolled up to read, keep their position
     }
 
     function updateSendState() {
@@ -913,6 +940,7 @@ textarea.input{ min-height:150px; resize:vertical; line-height:1.55; }
         }
         suppressStreamUntil = Date.now() + 10000;   // ignore stragglers from the old stream
         chatArea.innerHTML = '';
+        followBottom = true;
         jumpBtn.hidden = true;
         updateSendState();
     }
@@ -1057,7 +1085,7 @@ textarea.input{ min-height:150px; resize:vertical; line-height:1.55; }
             autosize();
             pushInputHistory(message);
             chatInput.focus();
-            scrollToBottom();
+            jumpToBottom();   // the user just sent: always follow the new answer
 
             var fd = new FormData();
             // The active prompt goes into `content` as well: async-llm-relay.py accepts the
@@ -1416,7 +1444,7 @@ textarea.input{ min-height:150px; resize:vertical; line-height:1.55; }
                     addSystemNote('Successfully loaded ' + data.message_count + ' messages from ' + currentContextFilename);
                     renderHistoryMessages(currentContextMessages);
                     addSystemNote('Your conversation context has been restored. You can continue the conversation now.');
-                    scrollToBottom();
+                    jumpToBottom();
                     showToast('Context restored.', 'success');
                 } else {
                     showToast('Failed to load context: ' + (data.msg || 'unknown error'), 'error');

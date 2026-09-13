@@ -32,6 +32,10 @@ from token_count import count_chat_tokens
 source env/bin/activate
 uvicorn llm-relay:app --reload
 password in llm-relay-config can be made by 'echo -n "password"|sha256sum'
+
+upload file to local instead of prompt
+download file
+history add delete
 """
 
 with open(Path.home() / 'llm-relay/llm-relay-config.json', "r") as f:
@@ -56,6 +60,11 @@ Model =config_data["default"]["Model"]
         # }
 
 mcpServers = config_data["mcpServers"]
+
+user_home = Path.home() / f'llm-relay/{user}/'
+
+if not os.path.exists(user_home):
+    os.makedirs(user_home)
 
 debug = True
 reasoning_into_context = False
@@ -202,43 +211,18 @@ class Service:
     def __init__(self):
         self.conversations = {}
         self.query = {}
+        self.prompt = {}
         self.files = {}
         self.cancel = {}
 
     def export(self, conversation_id):
         if self.conversations.get(conversation_id, ""):
             data = self.conversations.get(conversation_id)
-
-            print(f"download data is {data}")
-
-            result = []
-            for i in data:
-                if i["role"] == "user" and i.get("content"):
-                    result.append("Q: " + i["content"])
-                elif i["role"] == "assistant" and i.get("content"):
-                    result.append("A: " + i["content"])
-
-            text_content = "\n".join(result)
-
-            with open(conversation_id + ".txt", "w") as f:
-                for i in result:
-                    f.write(i)
-                    f.write("\n")
-
-            # text_content = json.dumps(data, ensure_ascii=False, indent=4)
-            # return Response(content=text_content, media_type='text/plain',
-                            # headers={"Content-Disposition": f"attachment; filename={conversation_id}.txt"})
-
-            # return FileResponse(f'{conversation_id}.txt', media_type='text/plain',
-                            # filename=f"{conversation_id}.txt", headers={
-                # "Access-Control-Expose-Headers": "Content-Disposition"
-            # })
-
-            return Response(content=text_content, headers={"Content-Disposition": f"attachment; filename={conversation_id}.txt"
-                                                           },
-                            media_type="application/octet-stream"
-                            )
-
+            text_content = json.dumps(data, ensure_ascii=False, indent=4)
+            return Response(content=text_content, 
+                    headers={"Content-Disposition": f"attachment; filename={conversation_id}.jsonl"},
+                    media_type="application/octet-stream"
+                    )
         else:
             text_content = ""
             return Response(content=text_content, media_type='text/plain',
@@ -430,11 +414,11 @@ class Service:
             prompt = prompt + self.conversations[f"{conversation_id}_prompt"]
     
             with open(old_context_file, "a+", encoding="utf-8") as f:
-                for content in messages[:-7]:
+                for content in messages[:-6]:
                     json.dump(content, f, ensure_ascii=False)
                     f.write("\n")
     
-            messages= messages[-7:-1] + [{"role":"system","content":prompt}] + messages[-1:]
+            messages= messages[-6:-1] + [{"role":"system","content":prompt}] + messages[-1:]
         else:
             if self.conversations.get(f"{conversation_id}_prompt"):
                 prompt = prompt + self.conversations[f"{conversation_id}_prompt"]
@@ -593,12 +577,14 @@ async def sse_stream(conversation_id: str):
         n=n+1
         try:
             content = service.query.get(conversation_id, "")
+            prompt = service.prompt.get(conversation_id, "")
             file_content = service.files.get(conversation_id, "")
             if content:
-                async for line in service.get_answer(content + file_content, "", conversation_id):
+                async for line in service.get_answer(content + file_content, prompt, conversation_id):
                     yield line
                 service.query[conversation_id] = ""
                 service.files[conversation_id] = ""
+                service.prompt[conversation_id] = ""
 
             if ((n%20) ==0):
                 yield ': keep-alive\n\n'
@@ -629,6 +615,7 @@ async def chat_stream(conversation_id: str = Query()):
 async def chat(r: Request, content: str = Form(), prompt: str = Form(""), conversation_id: str = Form()):
     if check_login(r):
         service.query[conversation_id] = content
+        service.prompt[conversation_id] = prompt
         service.cancel[conversation_id] = False
         return {"code": 200, "msg": "ok"}
     return {"code": 401, "msg": "Unauthorized"}
@@ -719,8 +706,11 @@ async def get_old_contexts(r: Request):
         first_line = ""
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
-                first_line = f.readline().strip()
-                data = json.loads(first_line)
+                last_line = "[]"
+                for line in f:
+                    if line:
+                        last_line = line
+                data = json.loads(last_line.strip())
                 question = "unknown"
                 for i in data:
                     if i["role"] == "user":
