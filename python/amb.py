@@ -10,6 +10,7 @@ def amb(choices, k, fail):
     return k(first, retry)
 
 # require cond k fail, if cond is true, k capture two inner parameters,
+# calling k(None, fail), but define k like lambda _,__: ("solution",x,y) is short circuit?
 def require(cond, k, fail):
     if cond:
         return k(None, fail)
@@ -49,6 +50,17 @@ run = lambda list1, list2, cond, action: amb(list1,
 # map, filter, reduce is IoC
 # continuation is the rest of the program, inside a function, in the end, call callback, callback would be a continuation
 # CPS is in the definition of function f, in the end call callback g first, then call f, the g's parameter would be f's result
+# callback and continuation are IoC, call callback in the end is continuation
+# IoC call k first in define f, define k later when call f, define funciton f, tail call callback k, k is continuation, in k's definition, tail call callback g, g is k's continuation, somehow you can construct k's continuation g inside f, and this g can access f's context, when call k with g in f, f take control back again! this is jumpback, call continuation with continuation, like that use call/cc get g, then call k with g , what if call k with k, it would be a loop
+
+# closure is a inner function, this inner function definition visit outside variable directly not by passing variable
+# lambda k: lambda x: k(x), this lambda x: k(x) is a closure, is a inner function visit outside k
+
+# call/cc capture the rest as a continuation g inside function f, actually is put the rest in a inner function g inside f, and g would have a continuation c, call c in the end of g, then in the end of f, call g with c is (g c), if call g with g, would be a loop?
+
+# continuation, CPS, call/cc, delimited continuation
+
+# in CPS, the passing continuation is alread what call/cc captured, no need to use call/cc
 
 # find first
 print(run(list(range(7)), list(range(9)), lambda x,y: x + y == 7, lambda x,y,k: ("solution", x,y)))
@@ -104,4 +116,87 @@ def step2CPS(n,k):
     return lambda: step2CPS(n-1, lambda r: lambda: k(n+r))
 
 print(tramp(step2CPS(10000,lambda x: x)))
+
+# jumpback
+def f(k):
+    def g(value):
+        print("back in f, value =", value)
+        return "done"
+    return k(g)
+
+def k(v):
+    print("in k, v =", v)
+    return v(42)
+
+print(f(k))
+
+
+# continuation's continuation
+
+def add(a, b, k):          # k is add's continuation
+    return k(a + b)
+
+def mul(a, b, k):
+    return k(a * b)
+
+add(2, 3, lambda s:       # <- this lambda is add's k
+    mul(s, 4, lambda p:   # <- this lambda is mul's k
+    print(p)))            # <- print is the top continuation
+
+# there're two ways to construct a continuation's continuation
+# if you want mul to be a continuation of add
+def mul_by_4(k):
+    return lambda x: k(x*4)
+
+add(1,2,mul_by_4(print)) # mul_by_4(print) is add's continuation, print is mul_by_4's continuation
+
+# or use lambda to pass add'result to mul
+add(1,2, lambda r: mul(r, 4, print))
+
+# see, define single CPS normally, but use lambda x: f(x, y, z) to pass previous result to next for chain call
+# add(2,3, lambda r: mul(r, 4, lambda r2: ...))
+# or change mul to mul_by_4, add(1,2,mul_by_4(print))
+
+# two ways, 1. define CPS function, when function call, use lambda to pass previous result to next to chain those CPS functions
+# 2. every function definiton, in the end return lambda 
+
+# mul_by_4 = lambda k: lambda x: k(x*4), 
+# lambda x: k(x*4) is add's continuation, but k is lambda x: k(x*4)'s continuation
+# continuation's continuation is a outside k captured by a inner function, this inner function is a closure,
+# this closure is the continuation, the outside k is continuation's continuation
+# a continuation is a closure that captures its own continuation.
+
+
+
+
+
+
+
+
+
+what would happen call outside function within inner function? a loop
+def f():
+  def g():
+    f()
+  g()
+
+
+
+the code has issue, you can not use plain function to do what call/cc did
+but in CPS, the passing continuation is alread what call/cc captured, no need to use call/cc
+
+def f():
+  ...
+  def g(c):
+  ...
+   if c is a constant c:
+       return c+1
+   return c(g_result)
+  g(3)
+  g(g)
+
+this g is the continuation call/cc caputred, g(g) so c is g, then g(g) would be recursive loop
+
+
+
 """
