@@ -128,7 +128,8 @@ prompt = prompt.replace("$PATH", current_dir)
 
 # load agents.md
 
-agents_file_list = filter(lambda x: x.endswith(".md"), os.listdir(current_dir))
+# agents_file_list = filter(lambda x: x.endswith(".md"), os.listdir(current_dir))
+agents_file_list = filter(lambda x: x.strip().lower() == "agents.md", os.listdir(current_dir))
 
 for md in agents_file_list:
     md_path = os.path.join(current_dir,md)
