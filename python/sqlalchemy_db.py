@@ -4,6 +4,7 @@ import os
 from urllib.parse import quote_plus
 from contextlib import contextmanager
 from sqlalchemy.pool import NullPool
+from sqlalchemy import create_engine
 
 
 # dev env
@@ -56,3 +57,30 @@ def get_session():
 # from sqlalchemy_db import get_session
 # with get_session() as db:
     # db.query()
+
+
+import concurrent.future
+import asyncio
+
+async def update_db(docs:list[str]):
+    def blocking(doc):
+        # this blocking function can not be async def, since loop.run_in_executor is for blocking func
+        # and use executor for db blocking, this function has to be blocking function
+        # asyncio.run(async_f()) in this blocking function for calling async function
+        # if this is async func, that loop.run_in_executor(executor, lambda d=doc: asyncio.run(async_f(d)))
+
+        with get_session() as db:
+            db.query()
+            db.commit()
+    try:
+        loop = asyncio.get_running_loop()
+        result = []
+        for doc in docs:
+            result.append(loop.run_in_executor(None, lambda d=doc: blocking(d))) # lambda lazy binding
+
+        await asyncio.gather(*result)
+        return True
+    except Exception as e:
+        logger.error(e)
+        return False
+
