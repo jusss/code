@@ -30,14 +30,14 @@ import aiohttp
 import asyncudp
 from dns_package_parser import parse
 
-#url = "https://doh.pub/dns-query"
+url = "https://doh.pub/dns-query"
 #url = "https://dns.alidns.com/dns-query"
 #url = "https://tyo02.dnscry.pt/dns-query"
 #url = "https://jp01.dns4me.net"
 #url = "https://dns-unfiltered.adguard.com/dns-query"
 #url = "https://cloudflare-dns.com/dns-query"
 #url = "https://1.1.1.1/dns-query"
-url = "https://dns.google/dns-query"
+#url = "https://dns.google/dns-query"
 #url = "https://doh.opendns.com/dns-query"
 #url = "https://185.222.222.222/dns-query"
 #url = "https://45.11.45.11/dns-query"
@@ -105,13 +105,14 @@ class RecvLocalThenSend(asyncio.DatagramProtocol):
         self.transport = transport
     def datagram_received(self, query_data, query_addr):
         global cache, current_time, timeout, latest, url, enable_cache
-        # if time.time() - current_time > timeout:
-            # cache = {}
-            # current_time = time.time()
-
-        if int(time.time()) % timeout == 0:
+        if time.time() - current_time > timeout:
             cache = {}
             latest = []
+            current_time = time.time()
+
+        # if int(time.time()) % timeout == 0:
+            # cache = {}
+            # latest = []
 
         transaction_id, qr, tc, rcode, qname, qtype = parse(query_data)
         
