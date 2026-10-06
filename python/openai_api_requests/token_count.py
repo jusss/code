@@ -1,7 +1,12 @@
 import tiktoken
 import json
 
-def count_chat_tokens(messages, model="gpt-4o"):
+def count_chat_tokens(messages):
+    data = json.dumps(messages)
+    return len(data) * 3
+
+
+def _count_chat_tokens(messages, model="gpt-4o"):
     """
     Count tokens for chat completion messages.
     
@@ -48,10 +53,12 @@ def count_chat_tokens(messages, model="gpt-4o"):
 
 # Example usage:
 if __name__ == "__main__":
+    # with open("./chatbot-requests.py","r") as f:
+        # data = f.read()
     messages = [
         {"role": "system", "content": "You are a helpful assistant."},
         {"role": "user", "content": "Hello, how are you?"},
-        {"role": "assistant", "content": "I'm doing well, thank you! How can I help you today?"}
+        # {"role": "assistant", "content": data}
     ]
     
     token_count = count_chat_tokens(messages)
