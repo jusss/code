@@ -45,14 +45,18 @@ find . -mindepth 1 -print0 > "$LIST"
 adb shell "mkdir -p \"$A\"" || { echo "error: cannot create remote dir: $A" >&2; exit 1; }
 
 # 2. loop through the list: mkdir remote dirs, push files
+# NOTE: `</dev/null` on every adb command below is essential. Commands
+# started inside a `while read` loop inherit the loop's stdin (the
+# redirected $LIST here). adb reads local stdin and would consume the
+# rest of the listing, making the loop stop after one or two entries.
 while IFS= read -r -d '' p || [ -n "$p" ]; do
     rel="${p#./}"                        # ./sub/file.txt -> sub/file.txt
     if [ -d "$p" ] && [ ! -L "$p" ]; then
         echo "  mkdir: $A/$rel"
-        adb shell "mkdir -p \"$A/$rel\"" || echo "warn: failed to mkdir $rel" >&2
+        adb shell "mkdir -p \"$A/$rel\"" </dev/null || echo "warn: failed to mkdir $rel" >&2
     else
         echo "  push: $B/$rel -> $A/$rel"
-        adb push "$p" "$A/$rel" || echo "warn: failed to push $rel" >&2
+        adb push "$p" "$A/$rel" </dev/null || echo "warn: failed to push $rel" >&2
     fi
 done < "$LIST"
 

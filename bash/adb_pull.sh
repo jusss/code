@@ -22,6 +22,7 @@ B="${2:-.}"              # local destination (default: current dir)
 LIST="/tmp/a.txt"        # top-level listing snapshot
 
 A="${A%/}"               # strip trailing slash if present
+B="${B%/}"               # ditto (cosmetic: avoids "dir//" in messages)
 
 # make sure a device is connected
 if ! adb get-state >/dev/null 2>&1; then
@@ -39,7 +40,12 @@ fi
 pull_dir() {                       # $1 = remote dir, $2 = local dir
     local src="$1" dst="$2" f
     mkdir -p "$dst"                # create local dir (also covers empty dirs)
-    adb shell "ls -1Ap \"$src\"" | tr -d '\r' |
+    # NOTE: `</dev/null` on every adb command below is essential. Commands
+    # started inside the `while read` loop inherit the loop's stdin (the
+    # `ls` pipe), and adb *reads* local stdin (it forwards it to the
+    # device) — so it would swallow the rest of the listing and the loop
+    # would stop after the first entry or two.
+    adb shell "ls -1Ap \"$src\"" </dev/null | tr -d '\r' |
     while IFS= read -r f || [ -n "$f" ]; do
         [ -z "$f" ] && continue    # skip empty lines
         case "$f" in
@@ -50,7 +56,7 @@ pull_dir() {                       # $1 = remote dir, $2 = local dir
             ;;
         *)                         # regular file -> pull it
             echo "  pull: $src/$f -> $dst/"
-            adb pull "$src/$f" "$dst" || echo "warn: failed to pull $f" >&2
+            adb pull "$src/$f" "$dst" </dev/null || echo "warn: failed to pull $f" >&2
             ;;
         esac
     done
