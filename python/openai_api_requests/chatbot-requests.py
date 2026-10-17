@@ -106,7 +106,7 @@ reasoning_into_context = False
 interrupt = False
 exception_conversation = []
 max_input_tokens = 32000
-max_output_tokens = 31072
+max_output_tokens = 131072
 
 log_path = f"{os.getenv('HOME')}/chat_history"
 log_prefix = "chat_history"
@@ -491,14 +491,15 @@ def trim_length(history, length):
     # # print(d[-index:])
     # return(history[-index:])
  
-# history :: [[Map str str]], write_content :: [[Map str str]]
-def chat(client, model, prompt, query, history, write_content, dataset=None, retrieval_func=identity):
+# history :: [[Map str str]]
+def chat(client, model, prompt, query, history, dataset=None, retrieval_func=identity):
     # message only add this one time complete conversation, so it's message not messages
     # message :: [dict]
     message = []
-    result = ""
-    if prompt:
-        message.append({"role": "system", "content": prompt})
+    # if prompt:
+        # message.append({"role": "system", "content": prompt})
+
+    message.append({"role": "user", "content": query})
 
     if dataset:
         # chunks :: [[String]], maybe try to use function call to do retrieval, write 'call this tool or not' in prompt for RAG
@@ -507,11 +508,10 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
 
         print(f"retrieval msg: {context}")
         if prompt:
-            message[0]["content"] = prompt + context
+            prompt = prompt + context
         else:
-            message.append({"role": "system", "content": context})
+            prompt = context
 
-    message.append({"role": "user", "content": query})
 
     # history :: [[dict]], every [dict] is a complete conversation, is a message
     # if len(history) > history_limit:
@@ -529,6 +529,8 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
         # messages = filter(lambda d: if (d['role'] == "assistant" and d.get("tool_calls")) or d["role"] == "tool")
         new_message = []
         for d in messages:
+            if d["role"] == "system":
+                continue
             d = {k: v for k, v in d.items() if k != "tool_calls"}
             if reasoning_into_context:
                 # for reasoning_content
@@ -582,16 +584,15 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
                 f.write("\n")
 
         # message may contain system prompt
-        if message[0].get('role') == 'system':
-            message[0]['content'] += prompt_context
-        else:
-            message = [{"role":"system","content":prompt_context}] + message
+        # if message[0].get('role') == 'system':
+            # message[0]['content'] += prompt_context
+        # else:
+            # message = [{"role":"system","content":prompt_context}] + message
 
         prompt = prompt + prompt_context
         messages=messages[-6:]
         history=[messages]
 
-    result = ""
     while True:
         # print(f"**** the messages is {reduce(add, history + [message])}")
         try:
@@ -608,7 +609,9 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
                     if d['role'] == "assistant" and "reasoning_content" in d:
                         del d["reasoning_content"]
             # print(f"context is {messages + _message}")
-            completion = openai_requests(OPENAI_API_KEY, OPENAI_BASE_URL, MODEL, messages + _message, tools)
+            completion = openai_requests(OPENAI_API_KEY, OPENAI_BASE_URL, MODEL, 
+                    ([{"role": "system", "content": prompt}] if prompt else []) + messages + _message, 
+                    tools)
         except Exception as e:
             print(e)
             print(f"*** messages is {messages + message}")
@@ -713,13 +716,11 @@ def chat(client, model, prompt, query, history, write_content, dataset=None, ret
             else:
                 break
             
-    # message.append({"role": "assistant", "content": result})
     history.append(message)
-    write_content.append(message)
     # message cotain tool_call
     current_token = count_chat_tokens(messages+ [m for m in message if m['role'] == 'assistant' and m.get('content')])
 
-    return result, history, write_content, prompt
+    return history, message, prompt
 
 # def get_input(input_msg):
     # lines = []
@@ -916,8 +917,6 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
 
     # history :: [[Map str str]]
     history = []
-    # write_content :: [[Map str str]],  []::[A], A can be [Int], so []::[[Int]]
-    write_content = []
 
     dataset_path = ""
     dataset = None
@@ -935,6 +934,8 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
             # messages = filter(lambda d: if (d['role'] == "assistant" and d.get("tool_calls")) or d["role"] == "tool")
             _new_message = []
             for d in _messages:
+                if d["role"] == "system":
+                    continue
                 d = {k: v for k, v in d.items() if k != "tool_calls"}
                 if reasoning_into_context:
                     # for reasoning_content
@@ -1078,30 +1079,21 @@ def run(api_key, base_url, model, log_path, log_prefix, prompt, log_file = None)
                         f.write("\n")
                     print(f"Write chat checkpoint into {checkpoint_file}")
             continue
-
         
-        result, history, write_content, prompt = chat(client, model, prompt, query, history, write_content, dataset, retrieval_func)
+        history, message, prompt = chat(client, model, prompt, query, history, dataset, retrieval_func)
         global exception_conversation
         exception_conversation = history
 
-    # result = "".join(json.dumps(content) + "\n" for content in write_content)
-
-    # if result:
-        # with open(log_file, "a", encoding="utf-8") as f:
-            # print(f"Write chat history into {log_file}")
-            # # f.seek(0, os.SEEK_END)
-            # f.write(result)
-
-    if history:
-        with open(log_file+".swap", "w", encoding="utf-8") as f:
-            for content in history:
-                json.dump(content, f, ensure_ascii=False)
+        if message:
+            with open(log_file, "a", encoding="utf-8") as f:
+                if prompt:
+                    # write every prompt into log file, but only one latest prompt in messages
+                    message = [{"role": "system", "content": prompt}] + message
+                json.dump(message, f, ensure_ascii=False)
                 f.write("\n")
-        os.replace(log_file+".swap", log_file)
-        print(f"Write chat history into {log_file}")
 
+    print(f"Write chat history into {log_file}")
     return query
-
 
 
 def handle_interrupt(signum, frame):
@@ -1114,8 +1106,6 @@ def handle_interrupt(signum, frame):
 
 # use signal to capture C-c event, and shared memory file to interrupt requests.post() in chat_api_requests.py
 signal.signal(signal.SIGINT, handle_interrupt)
-
-
 
 if __name__ == "__main__":
     logging.basicConfig(filename='chat_history.log', level=logging.DEBUG)
