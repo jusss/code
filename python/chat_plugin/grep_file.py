@@ -1,7 +1,7 @@
 import subprocess
 def grep_file(pattern, path="."):
     try:
-        result = subprocess.run(f"grep -r '{pattern}' {path}", shell=True, capture_output=True, text=True, timeout=30)
+        result = subprocess.run(f"grep -r '{pattern}' {path}", shell=True, capture_output=True, text=True, timeout=10)
         return result.stdout if result.stdout else "No matches found"
     except Exception as e:
         return f"Error: {str(e)}"

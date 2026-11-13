@@ -1,6 +1,6 @@
 def write_file(path, content):
     try:
-        p = input(f"edit, y or n?: ")
+        p = input(f"\nedit {path}, y or n?: ")
         if p != "y":
             print(f"edit is aborted by user")
             return f"stop, I changed my mind to change {path}, DO NOT CHANGE ANTHING"

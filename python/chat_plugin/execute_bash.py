@@ -2,7 +2,7 @@ import subprocess
 def execute_bash(command):
     try:
         if ("rm " in command) or ("mv " in command) or (("sed " in command) and ("sed -n" not in command)):
-            p = input(f"{command}, y or n?: ")
+            p = input(f"\n{command}, y or n?: ")
             if p != "y":
                 print(f"{command} is aborted by user")
                 return f"stop, I changed my mind to run {command}, DO NOT RUN ANTHING"

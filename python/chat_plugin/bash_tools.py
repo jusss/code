@@ -11,19 +11,19 @@ def bash_tools(commands):
 
         if cmd:
             if "rm " in cmd:
-                p = input(f"{cmd}, y or n?: ")
+                p = input(f"\n{cmd}, y or n?: ")
                 if p != "y":
                     print(f"{cmd} is aborted by user")
                     return "{cmd} is aborted by user"
 
             if ("sed " in cmd) and ("sed -n" not in cmd):
-                p = input(f"{cmd}, y or n?: ")
+                p = input(f"\n{cmd}, y or n?: ")
                 if p != "y":
                     print(f"{cmd} is aborted by user")
                     return "{cmd} is aborted by user"
 
             if "mv " in cmd:
-                p = input(f"{cmd}, y or n?: ")
+                p = input(f"\n{cmd}, y or n?: ")
                 if p != "y":
                     print(f"{cmd} is aborted by user")
                     return "{cmd} is aborted by user"

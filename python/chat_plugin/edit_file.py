@@ -38,7 +38,7 @@ def edit(path, old_string, new_string, start=None, end=None):
                 return f"Error: old_string must appear exactly once in the file"
 
         # Get user confirmation
-        p = input(f"edit, y or n?: ")
+        p = input(f"\nedit {path}, y or n?: ")
         if p != "y":
             print(f"edit is aborted by user")
             return f"stop, I changed my mind to change {path}, DO NOT CHANGE ANYTHING"
