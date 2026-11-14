@@ -693,11 +693,14 @@ def chat(client, model, prompt, query, history, dataset=None, retrieval_func=ide
                             # # stupid construct Task with concret value, it should be return to construct, or Task(3)
                             # return 'missing parameter' + tool_tips
                         if name in mcp_tools_name:
-                            return await loop.run_in_executor(None, lambda: mcp_client_call_tool(name, json.loads(parameter)))
+                            return await asyncio.wait_for(loop.run_in_executor(None, lambda n=name,p=parameter: mcp_client_call_tool(n, json.loads(p))), timeout=30.0)
                         elif functions.get(name):
-                            return await loop.run_in_executor(None, lambda: functions[name](**(json_repair.loads(parameter))))
+                            return await asyncio.wait_for(loop.run_in_executor(None, lambda n=name,p=parameter: functions[n](**(json_repair.loads(p)))), timeout=300)
                         else:
                             return f'this tool {name} is not found'
+                    except asyncio.TimeoutError:
+                        print(f"function call {name}({parameter}) timed out")
+                        return f"function call {name}({parameter}) timed out"
                     except Exception as e:
                         print(e)
                         return str(e) + tool_tips

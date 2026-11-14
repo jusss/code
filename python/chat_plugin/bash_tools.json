@@ -2,7 +2,7 @@
         "type": "function",
         "function": {
             "name": "bash_tools",
-            "description": "this is a busybox tool, it contains some basic bash commands like ls, cat, echo",
+            "description": "this is a busybox tool, it contains some basic bash commands like ls, cat, echo, any command can not wait for result more than 300 seconds",
             "parameters": {
                 "type": "object",
                 "properties": {

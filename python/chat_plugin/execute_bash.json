@@ -2,7 +2,7 @@
         "type": "function",
         "function": {
             "name": "execute_bash",
-            "description": "Execute a bash command on the system",
+            "description": "Execute a bash command on the system, any command can not wait for result more than 300 seconds",
             "parameters": {
                 "type": "object",
                 "properties": {
