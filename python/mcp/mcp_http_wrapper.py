@@ -12,6 +12,9 @@ Supports running multiple MCP servers on different ports with gunicorn workers.
 ================================================================================
 USAGE
 ================================================================================
+  # enable auth verify
+  export MCP_AUTH_TOKEN=RANDOM-TOKEN-NO-BEARER
+  python mcp_http_wrapper.py
 
   # Production: Run all servers with gunicorn (4 workers each by default)
   python mcp_http_wrapper.py
@@ -71,6 +74,7 @@ ARCHITECTURE
 import asyncio
 import json
 import os
+import secrets
 import signal
 import subprocess
 import sys
@@ -79,7 +83,7 @@ import uuid
 from typing import Dict, List, Optional
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, Response, Header
+from fastapi import FastAPI, Request, Response, Header, Depends, HTTPException
 
 
 # Configuration: map port -> MCP server command
@@ -306,6 +310,16 @@ def create_app(server_config: dict) -> FastAPI:
     server_name = server_config["name"]
     server_command = server_config["command"]
 
+    # Optional bearer-token auth for the /mcp endpoints.
+    # If MCP_AUTH_TOKEN env var is set, clients must send
+    # "Authorization: Bearer <MCP_AUTH_TOKEN>" or they get 401.
+    # If MCP_AUTH_TOKEN is unset, auth is disabled (backwards compatible).
+    auth_token = os.environ.get("MCP_AUTH_TOKEN", "")
+
+    def verify_auth(authorization: Optional[str] = Header(None)):
+        if auth_token and not secrets.compare_digest(authorization or "", f"Bearer {auth_token}"):
+            raise HTTPException(status_code=401, detail="Unauthorized")
+
     # Each app has its own proxy instance
     proxy_holder = {"proxy": None}
 
@@ -341,7 +355,7 @@ def create_app(server_config: dict) -> FastAPI:
         """Format a response as Server-Sent Event."""
         return f"data: {json.dumps(data)}\n\n"
 
-    @app.post("/mcp")
+    @app.post("/mcp", dependencies=[Depends(verify_auth)])
     async def mcp_request(
         request: Request,
         accept: Optional[str] = Header(None),
@@ -413,7 +427,7 @@ def create_app(server_config: dict) -> FastAPI:
                 media_type="application/json"
             )
 
-    @app.get("/mcp/tools/list")
+    @app.get("/mcp/tools/list", dependencies=[Depends(verify_auth)])
     async def list_tools(
         accept: Optional[str] = Header(None),
         mcp_session_id: Optional[str] = Header(None, alias="Mcp-Session-Id")
@@ -459,7 +473,7 @@ def create_app(server_config: dict) -> FastAPI:
                 media_type="application/json"
             )
 
-    @app.post("/mcp/tools/call")
+    @app.post("/mcp/tools/call", dependencies=[Depends(verify_auth)])
     async def call_tool(
         request: Request,
         accept: Optional[str] = Header(None),

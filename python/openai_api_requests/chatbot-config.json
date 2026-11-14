@@ -45,9 +45,8 @@
         "MODEL": "deepseek-v4-pro"
     },
     "mcpServers": {
-        "ddg-search":{"type":"http", "url":"http://1/mcp"},
-        "sequential-thinking": {"type":"http","url":"http://1/mcp"},
-        "context7": {"type":"http","url":"http://1/mcp"}
+        "ddg-search":{"type":"http", "url":"http://1/mcp", "headers":{"Authorization":"Bearer "}},
+        "sequential-thinking": {"type":"http","url":"http://1/mcp", "headers":{"Authorization":"Bearer "}},
+        "context7": {"type":"http","url":"http://1/mcp", "headers":{"Authorization":"Bearer "}}
    }
 }
-

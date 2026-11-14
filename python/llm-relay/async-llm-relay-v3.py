@@ -15,6 +15,7 @@ from http.cookies import SimpleCookie
 from datetime import datetime, timedelta, timezone
 from jose import jwt, JWTError
 from fastmcp import Client
+from fastmcp.client.transports import StreamableHttpTransport
 from functools import reduce
 from operator import add
 from collections import defaultdict, deque
@@ -136,7 +137,10 @@ class MCPManager:
             if srv.get("type") != "http":
                 continue
             try:
-                client = Client(srv["url"])
+                # string-URL shorthand can't carry custom headers; build an explicit
+                # transport so config "headers" (e.g. Authorization) are sent
+                transport = StreamableHttpTransport(srv["url"], headers=srv.get("headers"))
+                client = Client(transport)
                 await self._stack.enter_async_context(client)
                 self.clients[name] = client
                 for tool in await client.list_tools():

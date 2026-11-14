@@ -89,8 +89,7 @@ MODEL = config_data["default"]["MODEL"]
         # # "server-memory": {"type":"http","url":"http://1/mcp"},
         # }
 
-mcpServers = config_data["mcpServers"]
-#mcpServers = {}
+mcpServers = config_data.get("mcpServers", {})
 
 skills = [Path.home() / 'chat_plugin/skills']
 skills_content = []
@@ -185,7 +184,7 @@ def get_mcp_client():
         if _mcp_clients.get(key_name):
             return _mcp_clients[key_name]
         else:
-            client = MCPHTTPClient(f"{mcpServers[key_name]['url']}")
+            client = MCPHTTPClient(f"{mcpServers[key_name]['url']}", mcpServers[key_name].get("headers"))
             print(f"Initializing MCP session {key_name}...")
             init_result = client.initialize()
             _mcp_clients[key_name] = client

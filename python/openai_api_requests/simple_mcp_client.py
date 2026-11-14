@@ -3,9 +3,11 @@ import json
 import uuid
 
 class MCPHTTPClient:
-    def __init__(self, server_url: str):
+    def __init__(self, server_url: str, headers: dict = None):
         self.server_url = server_url.rstrip('/')
         self.session_id = None
+        # Extra HTTP headers from config, e.g. {"Authorization": "Bearer <token>"}
+        self.extra_headers = headers or {}
         
     def _parse_sse_response(self, response_text: str):
         events = []
@@ -37,6 +39,7 @@ class MCPHTTPClient:
         headers = {
             "Content-Type": "application/json",
             "Accept": "text/event-stream, application/json",  # Accept SSE
+            **self.extra_headers,
         }
 
         if self.session_id:
