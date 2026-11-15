@@ -530,13 +530,17 @@ class Service:
                                 if not isinstance(args, dict):
                                     raise ValueError(f"tool arguments must be a JSON object, got {type(args).__name__}")
                                 if name in mcp_manager.tools_by_name:
-                                    r = await mcp_client_call_tool(name, args)
+                                    r = await asyncio.wait_for(mcp_client_call_tool(name, args), timeout=120.0)
                                 elif plugin_functions.get(name):
                                     loop = asyncio.get_running_loop()
-                                    r = await loop.run_in_executor(None, lambda: plugin_functions[name](**args))
+                                    r = await asyncio.wait_for(loop.run_in_executor(None, lambda: plugin_functions[name](**args)), timeout=120.0)
                                 else:
                                     r = f'tool {name} is not found'
                                 print(f"function call result is {r}") if debug else None
+                            except asyncio.TimeoutError:
+                                yield sse_text(f"\nfunction call {name}({raw_args}) timeout\n"), [], False
+                                r=f"\nfunction call {name}({raw_args}) timeout\n"
+
                             except Exception as e:
                                 print(e)
                                 r = str(e) + TOOL_HINT
