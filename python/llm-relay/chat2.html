@@ -432,17 +432,17 @@ textarea.input{ min-height:150px; resize:vertical; line-height:1.55; }
     <div class="modal">
         <div class="modal-header">
             <h2 class="modal-title" id="contextContentTitle">Context</h2>
-            <button class="x-btn" data-close="contextModal" title="Close">
-                <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
-            </button>
+            <div class="modal-header-actions">
+                <button id="resumeButton" class="btn primary">
+                    <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>Resume this context
+                </button>
+                <button class="x-btn" data-close="contextModal" title="Close">
+                    <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+                </button>
+            </div>
         </div>
         <div class="modal-body">
             <div id="contextContent"><p class="muted">Loading content…</p></div>
-        </div>
-        <div class="modal-footer">
-            <button id="resumeButton" class="btn primary">
-                <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>Resume this context
-            </button>
         </div>
     </div>
 </div>
@@ -712,7 +712,15 @@ textarea.input{ min-height:150px; resize:vertical; line-height:1.55; }
 
     function renderMarkdown(src) {
         if (src == null) return '';
-        var parts = String(src).split(/```/);
+        // Normalize CRLF / lone CR (and U+2028/2029) to LF before parsing.
+        // JS regex `.` never matches \r, so a trailing \r defeats the `$` anchors
+        // in renderBlocks: a line like "## Rule\r" or "1. xxx\r" matches
+        // blockStart() but is consumed by no branch above, and the paragraph
+        // branch then advances nothing — renderBlocks spins forever, pinning a
+        // core and freezing the tab (the resume-the-old-context freeze).
+        // History restored from disk (/api/resume) can carry CRLF.
+        src = String(src).replace(/\r\n?/g, '\n').replace(/\u2028|\u2029/g, '\n');
+        var parts = src.split(/```/);
         var out = '';
         for (var i = 0; i < parts.length; i++) {
             if (i % 2 === 1) {
