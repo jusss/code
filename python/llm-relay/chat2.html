@@ -752,6 +752,7 @@ textarea.input{ min-height:150px; resize:vertical; line-height:1.55; }
     var eventSource = null;
     var currentTurn = null;        // active assistant bubble being streamed
     var lastStreamEventAt = 0;
+    var lastPingAt = 0;          // set on every server ping — used by the watchdog below
     var suppressStreamUntil = 0;   // drop straggler chunks right after Stop / feed reset
     var hasConnectedOnce = false;
     var connState = 'connecting';
@@ -979,6 +980,12 @@ textarea.input{ min-height:150px; resize:vertical; line-height:1.55; }
         var sseUrl = '/api/chat?conversation_id=' + encodeURIComponent(conversationId);
         eventSource = new EventSource(sseUrl);
 
+        // server pings every 15s while idle; named event → never reaches onmessage
+        lastPingAt = Date.now();
+        eventSource.addEventListener('ping', function () {
+            lastPingAt = Date.now();
+        });
+
         eventSource.onopen = function () {
             console.log('SSE connection opened for conversation:', conversationId);
             setConnState('online');
@@ -991,6 +998,7 @@ textarea.input{ min-height:150px; resize:vertical; line-height:1.55; }
         };
 
         eventSource.onmessage = function (event) {
+            lastPingAt = Date.now(); // any inbound frame also proves the line is alive
             if (!event.data || !event.data.trim()) return;
             var data;
             try {
@@ -1030,6 +1038,13 @@ textarea.input{ min-height:150px; resize:vertical; line-height:1.55; }
         if (currentTurn && lastStreamEventAt && Date.now() - lastStreamEventAt > 180000) {
             finalizeTurn();
             showToast('The stream has been idle for a while — you can send again.', 'info');
+        }
+        // silent-dead line: SSE is OPEN but no ping for 45s (server pings every 15s)
+        if (eventSource && eventSource.readyState === 1 && Date.now() - lastPingAt > 45000) {
+            eventSource.close();              // force a clean reconnect (server resumes at cursor)
+            setConnState('offline');
+            addSystemNote('Connection lost — reconnecting…');
+            startSSEConnection(currentConversationId);
         }
     }, 10000);
 

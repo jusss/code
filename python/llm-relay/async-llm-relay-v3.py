@@ -738,7 +738,9 @@ async def stream_frames(session):
             try:
                 await asyncio.wait_for(session.wake.wait(), timeout=15)
             except asyncio.TimeoutError:
-                yield b": keep-alive\n\n"
+                # comment line keeps proxies happy; named event lets the page
+                # observe liveness (named events never reach onmessage)
+                yield b": keep-alive\nevent: ping\ndata: {}\n\n"
     finally:
         session.detach(token)
 

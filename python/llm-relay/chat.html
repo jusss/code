@@ -147,6 +147,7 @@
         // Current conversation ID
         currentConversationId = generateUUID();
         let eventSource = null;
+        let lastPingAt = 0;   // set on every server ping — used by the watchdog below
         let thinking = false;
 
         function startSSEConnection(conversationId) {
@@ -156,6 +157,12 @@
             const sseUrl = `/api/chat?conversation_id=${encodeURIComponent(conversationId)}`;
             eventSource = new EventSource(sseUrl);
 
+            // server pings every 15s while idle; named event → never reaches onmessage
+            lastPingAt = Date.now();
+            eventSource.addEventListener('ping', function () {
+                lastPingAt = Date.now();
+            });
+
             eventSource.onopen = function() {
                 console.log('SSE connection opened for conversation:', conversationId);
                 chatArea.value += `Connected to server (Conversation ID: ${conversationId}).\n`;
@@ -163,6 +170,7 @@
             };
 
             eventSource.onmessage = function(event) {
+             lastPingAt = Date.now(); // any inbound frame also proves the line is alive
              console.log('Raw SSE data:', event.data); // Debug raw data
             if (!event.data || event.data.trim() === '') {
                 console.log('Skipping empty SSE data');
@@ -214,6 +222,16 @@
             chatArea.scrollTop = chatArea.scrollHeight;
         };
         }
+
+        // silent-dead line watchdog: SSE OPEN but no ping for 45s (server pings every 15s)
+        setInterval(function () {
+            if (eventSource && eventSource.readyState === 1 && Date.now() - lastPingAt > 45000) {
+                eventSource.close();          // force a clean reconnect (server resumes at cursor)
+                chatArea.value += 'Connection lost — reconnecting…\n';
+                chatArea.scrollTop = chatArea.scrollHeight;
+                startSSEConnection(currentConversationId);
+            }
+        }, 10000);
         // Initialize SSE connection with initial conversation_id
         startSSEConnection(currentConversationId);
 
